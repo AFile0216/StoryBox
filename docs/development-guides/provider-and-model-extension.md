@@ -1,235 +1,127 @@
-# 供应商与模型扩展指南
+# 自定义 API 与模型扩展指南
 
-本文档用于指导在 Storyboard Copilot 中新增 AI 供应商或新增模型。
+本文档描述当前版本的扩展方式。当前架构已经从“前端固定供应商 + 后端分别适配”切换为“前端配置多个自定义 OpenAI 兼容接口 + 后端统一 `openai-compatible` provider”。
 
-## 1. 适用范围
+## 1. 关键文件
 
-- 前端模型注册：`src/features/canvas/models/**`
-- 前端密钥配置：`src/stores/settingsStore.ts`、`src/components/SettingsDialog.tsx`
-- Tauri AI 命令与供应商：`src-tauri/src/commands/ai.rs`、`src-tauri/src/ai/**`
+- 前端接口配置：
+  - `src/features/canvas/models/customInterfaces.ts`
+  - `src/stores/settingsStore.ts`
+  - `src/components/SettingsDialog.tsx`
+- 前端模型注册：
+  - `src/features/canvas/models/registry.ts`
+  - `src/features/canvas/models/types.ts`
+- 画布模型选择与请求下发：
+  - `src/features/canvas/ui/ModelParamsControls.tsx`
+  - `src/features/canvas/nodes/ImageEditNode.tsx`
+  - `src/features/canvas/nodes/StoryboardGenNode.tsx`
+  - `src/commands/ai.ts`
+  - `src/features/canvas/infrastructure/tauriAiGateway.ts`
+- Tauri 后端：
+  - `src-tauri/src/commands/ai.rs`
+  - `src-tauri/src/ai/mod.rs`
+  - `src-tauri/src/ai/providers/mod.rs`
+  - `src-tauri/src/ai/providers/openai_compatible/mod.rs`
 
-## 2. 扩展原则
+## 2. 当前模型机制
 
-- 前端：模型与供应商通过文件自动发现（`import.meta.glob`）。
-- 后端：供应商通过 `build_default_providers()` 注册；模型通过 provider 内部注册机制发现。
-- 节点生成流程按 `selectedModel.providerId` 自动选择 API Key 与 provider。
+前端不再从 `src/features/canvas/models/image/<provider>/` 静态拼装所有供应商模型。
 
-## 3. 新增模型（已有供应商）
+现在的模型来自设置中的自定义接口配置：
 
-### 3.1 前端新增模型（1 个文件）
+1. 用户在设置里添加一个接口。
+2. 用户在该接口下填写多个模型 ID。
+3. `registry.ts` 根据接口和模型 ID 动态生成模型定义。
+4. 画布节点直接展示这些动态模型。
 
-在目录 `src/features/canvas/models/image/<provider>/` 下新增模型文件，例如：
+模型 ID 的内部格式为：
 
-- `src/features/canvas/models/image/ppio/seedream45.ts`
-
-最小示例：
-
-```ts
-import type { ImageModelDefinition } from '../../types';
-
-export const imageModel: ImageModelDefinition = {
-  id: 'ppio/seedream-4.5',
-  mediaType: 'image',
-  displayName: 'Seedream 4.5',
-  providerId: 'ppio',
-  description: '高质量图像生成模型',
-  eta: '1min',
-  expectedDurationMs: 60000,
-  defaultAspectRatio: '1:1',
-  defaultResolution: '2K',
-  aspectRatios: [
-    { value: '1:1', label: '1:1' },
-    { value: '16:9', label: '16:9' },
-  ],
-  resolutions: [
-    { value: '1K', label: '1K' },
-    { value: '2K', label: '2K' },
-  ],
-  resolveRequest: ({ referenceImageCount }) => ({
-    requestModel: 'ppio/seedream-4.5',
-    modeLabel: referenceImageCount > 0 ? '编辑模式' : '生成模式',
-  }),
-};
+```text
+openai-compatible/<interfaceId>/<encodedModelName>
 ```
 
-注意：
+真实发送给第三方 API 的模型名来自运行时字段 `apiModel`，不是这个内部 ID。
 
-- `providerId` 必须与供应商定义一致。
-- `id` 推荐使用 `<provider>/<model>` 规范。
+## 3. 新增一个默认接口能力
 
-### 3.2 后端新增该模型（PPIO 当前可做到 1 个文件）
+如果只是想让某个第三方 OpenAI 兼容服务更容易被用户使用，优先考虑：
 
-在 `src-tauri/src/ai/providers/ppio/models/` 下新增文件，例如：
+1. 在 `customInterfaces.ts` 中调整默认 `baseUrl`。
+2. 或者在设置页中补充提示文案、示例模型列表。
 
-- `src-tauri/src/ai/providers/ppio/models/seedream_4_5.rs`
+不建议再回到“新增一个固定供应商页面卡片”的旧模式。
 
-最小结构：
+## 4. 后端扩展方式
 
-```rust
-use crate::ai::error::AIError;
-use crate::ai::GenerateRequest;
-use serde_json::json;
+当前统一走 `openai-compatible` provider。
 
-use super::super::adapter::{PPIOModelAdapter, PreparedRequest};
+其职责是：
 
-pub struct Seedream45Adapter;
+- 接收前端传来的 `runtime_config`
+- 读取：
+  - `api_key`
+  - `base_url`
+  - `api_model`
+- 调用：
+  - `POST {base_url}/images/generations`
 
-impl Seedream45Adapter {
-    pub fn new() -> Self {
-        Self
-    }
-}
+如果某个第三方服务依然兼容 OpenAI Images 接口，优先通过配置解决，不要再新增一个独立 provider。
 
-impl PPIOModelAdapter for Seedream45Adapter {
-    fn model_aliases(&self) -> &'static [&'static str] {
-        &["ppio/seedream-4.5", "seedream-4.5"]
-    }
+只有在以下情况才建议新增新的 Rust provider：
 
-    fn build_request(
-        &self,
-        request: &GenerateRequest,
-        base_url: &str,
-    ) -> Result<PreparedRequest, AIError> {
-        Ok(PreparedRequest {
-            endpoint: format!("{}/v3/your-endpoint", base_url),
-            body: json!({
-                "prompt": request.prompt,
-                "size": request.size,
-                "aspect_ratio": request.aspect_ratio
-            }),
-            summary: format!("model: ppio/seedream-4.5, prompt: {}", request.prompt),
-        })
-    }
-}
+- 请求路径与 OpenAI 兼容接口完全不同
+- 鉴权方式不同
+- 返回结构明显不同
+- 需要任务提交 / 轮询而不是同步生成
 
-inventory::submit! {
-    crate::ai::providers::ppio::models::RegisteredPpioModel {
-        build: || Box::new(Seedream45Adapter::new()),
-    }
-}
-```
+## 5. 请求链路
 
-说明：
+当前生成链路如下：
 
-- 不需要手改 `models/mod.rs` 或 `registry.rs`，已启用自动收集。
-- 必须包含 `inventory::submit!`，否则模型不会注册。
+1. 节点中选中接口与模型。
+2. 节点将 `interfaceId / interfaceName / apiKey / baseUrl / apiModel` 放入 `runtimeConfig`。
+3. 前端通过 `src/commands/ai.ts` 转成 snake_case 的 `runtime_config`。
+4. Tauri `GenerateRequestDto` 接收后映射到 Rust 的 `GenerateRuntimeConfig`。
+5. `openai-compatible` provider 使用运行时配置发起请求。
 
-## 4. 新增供应商
+这意味着：
 
-## 4.1 前端新增供应商定义（1 个文件）
+- 生成请求不依赖全局 mutable provider 状态
+- 同时存在多个不同接口时不会串线
+- 同一 provider 可以对应多个账号和多个 base URL
 
-在 `src/features/canvas/models/providers/` 下新增文件，例如：
+## 6. 验证步骤
 
-- `src/features/canvas/models/providers/openai.ts`
-
-```ts
-import type { ModelProviderDefinition } from '../types';
-
-export const provider: ModelProviderDefinition = {
-  id: 'openai',
-  name: 'OpenAI',
-  label: 'OpenAI',
-};
-```
-
-前端设置页会自动出现该供应商 API Key 输入项。
-
-## 4.2 前端新增该供应商的模型（每模型 1 文件）
-
-目录：
-
-- `src/features/canvas/models/image/openai/*.ts`
-
-要求同第 3.1 节。
-
-## 4.3 Tauri 后端新增供应商模块
-
-新增目录（建议）：
-
-- `src-tauri/src/ai/providers/openai/`
-
-建议文件：
-
-- `mod.rs`：provider 实现
-- `adapter.rs`：请求适配接口
-- `models/mod.rs` + `models/*.rs`：模型注册
-- `registry.rs`：模型查询
-
-`mod.rs` 需要实现 `AIProvider` trait（关键方法）：
-
-- `name()`
-- `supports_model()`
-- `list_models()`
-- `set_api_key()`
-- `generate()`
-
-## 4.4 注册供应商到系统
-
-编辑：
-
-- `src-tauri/src/ai/providers/mod.rs`
-
-增加模块与默认注册：
-
-```rust
-pub mod openai;
-pub use openai::OpenAIProvider;
-
-pub fn build_default_providers() -> Vec<Arc<dyn AIProvider>> {
-    vec![
-        Arc::new(PPIOProvider::new()),
-        Arc::new(OpenAIProvider::new()),
-    ]
-}
-```
-
-## 5. 默认模型与兼容别名
-
-文件：
-
-- `src/features/canvas/models/registry.ts`
-
-可按需调整：
-
-- `DEFAULT_IMAGE_MODEL_ID`
-- `imageModelAliasMap`
-
-仅在需要切换默认模型或兼容历史 modelId 时修改。
-
-## 6. 验证步骤（必做）
-
-在项目根目录执行：
+前端改动后：
 
 ```bash
 npx tsc --noEmit
-```
-
-在 `src-tauri` 执行：
-
-```bash
-cargo check
-```
-
-如涉及打包链路，补充执行：
-
-```bash
 npm run build
 ```
 
-## 7. 常见问题排查
+如涉及 Rust：
 
-1. 设置页看不到新供应商
-- 检查 `providers/<provider>.ts` 是否导出 `provider` 常量。
-- 检查 `provider.id` 是否为空或重复。
+```bash
+cd src-tauri
+cargo check
+```
 
-2. 前端可选模型但生成失败
-- 检查模型 `resolveRequest().requestModel` 是否与后端 `model_aliases()` 匹配。
-- 检查对应供应商 API Key 是否已在设置页填写。
+如果本地 Rust 环境异常，但 GitHub Actions 正常，可优先以 Actions 构建结果为准，同时单独修复本机工具链。
 
-3. 后端 `list_models` 没有新模型
-- 检查模型文件是否放在正确目录。
-- 检查是否添加 `inventory::submit!`。
+## 7. 常见问题
 
-4. 命令调用到错误供应商
-- 检查 `requestModel` 是否使用 `<provider>/<model>` 前缀。
+### 7.1 设置里加了模型，但画布里没出现
 
+- 检查是否已点击“保存”
+- 检查模型列表是否一行一个
+- 检查模型名是否被空格或空行清空
+
+### 7.2 画布里能选模型，但生成时报 401/404
+
+- 检查 Base URL 是否正确
+- 检查模型名是否与第三方文档一致
+- 检查该接口是否真的是 OpenAI Images 兼容接口
+
+### 7.3 某个第三方不是 `/images/generations`
+
+这种情况不要硬塞到当前配置里。应新增独立 Rust provider，再由前端决定是否继续暴露为通用接口或专用能力。
