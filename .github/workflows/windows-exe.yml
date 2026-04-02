@@ -2,11 +2,6 @@ name: Build Windows EXE
 
 on:
   workflow_dispatch:
-    inputs:
-      rust_toolchain:
-        description: Rust toolchain version
-        required: false
-        default: stable
 
 jobs:
   build-windows-exe:
@@ -24,8 +19,6 @@ jobs:
 
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
-        with:
-          toolchain: ${{ github.event.inputs.rust_toolchain || 'stable' }}
 
       - name: Setup Rust cache
         uses: Swatinem/rust-cache@v2
