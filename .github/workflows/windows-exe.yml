@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       rust_toolchain:
-        description: Rust toolchain version (example: 1.89.0 or stable)
+        description: "Rust toolchain version (example: 1.89.0 or stable)"
         required: false
         default: "stable"
         type: string
