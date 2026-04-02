@@ -47,7 +47,6 @@ import {
   nodeHasTargetHandle,
 } from '@/features/canvas/domain/nodeRegistry';
 import { embedStoryboardImageMetadata } from '@/commands/image';
-import { listModelProviders } from '@/features/canvas/models';
 import { nodeTypes } from './nodes';
 import { edgeTypes } from './edges';
 import { NodeSelectionMenu } from './NodeSelectionMenu';
@@ -299,9 +298,8 @@ export function Canvas() {
   const closeImageViewer = useCanvasStore((state) => state.closeImageViewer);
   const navigateImageViewer = useCanvasStore((state) => state.navigateImageViewer);
   const apiKeys = useSettingsStore((state) => state.apiKeys);
-  const providerIds = useMemo(() => listModelProviders().map((provider) => provider.id), []);
   const configuredApiKeyCount = useSettingsStore((state) =>
-    getConfiguredApiKeyCount(state.apiKeys, providerIds)
+    getConfiguredApiKeyCount(state.apiKeys)
   );
 
   const getCurrentProject = useProjectStore((state) => state.getCurrentProject);

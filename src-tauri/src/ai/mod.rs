@@ -15,6 +15,16 @@ pub struct GenerateRequest {
     pub aspect_ratio: String,
     pub reference_images: Option<Vec<String>>,
     pub extra_params: Option<HashMap<String, serde_json::Value>>,
+    pub runtime_config: Option<GenerateRuntimeConfig>,
+}
+
+#[derive(Debug, Clone)]
+pub struct GenerateRuntimeConfig {
+    pub interface_id: String,
+    pub interface_name: String,
+    pub api_key: String,
+    pub base_url: String,
+    pub api_model: String,
 }
 
 #[derive(Debug, Clone)]

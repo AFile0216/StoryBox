@@ -53,9 +53,6 @@ import {
   resolveImageModelResolution,
   resolveImageModelResolutions,
 } from '@/features/canvas/models';
-import { GRSAI_NANO_BANANA_PRO_MODEL_ID } from '@/features/canvas/models/image/grsai/nanoBananaPro';
-import { FAL_NANO_BANANA_2_MODEL_ID } from '@/features/canvas/models/image/fal/nanoBanana2';
-import { KIE_NANO_BANANA_2_MODEL_ID } from '@/features/canvas/models/image/kie/nanoBanana2';
 import { resolveModelPriceDisplay } from '@/features/canvas/pricing';
 import {
   NODE_CONTROL_CHIP_CLASS,
@@ -246,8 +243,7 @@ export const ImageEditNode = memo(({ id, data, selected, width, height }: ImageE
   const addNode = useCanvasStore((state) => state.addNode);
   const findNodePosition = useCanvasStore((state) => state.findNodePosition);
   const addEdge = useCanvasStore((state) => state.addEdge);
-  const apiKeys = useSettingsStore((state) => state.apiKeys);
-  const grsaiNanoBananaProModel = useSettingsStore((state) => state.grsaiNanoBananaProModel);
+  const customApiInterfaces = useSettingsStore((state) => state.customApiInterfaces);
   const showNodePrice = useSettingsStore((state) => state.showNodePrice);
   const priceDisplayCurrencyMode = useSettingsStore((state) => state.priceDisplayCurrencyMode);
   const usdToCnyRate = useSettingsStore((state) => state.usdToCnyRate);
@@ -273,22 +269,19 @@ export const ImageEditNode = memo(({ id, data, selected, width, height }: ImageE
     [incomingImageItems]
   );
 
-  const imageModels = useMemo(() => listImageModels(), []);
+  const imageModels = useMemo(() => listImageModels(), [customApiInterfaces]);
 
   const selectedModel = useMemo(() => {
     const modelId = data.model ?? DEFAULT_IMAGE_MODEL_ID;
     return getImageModel(modelId);
   }, [data.model]);
-  const providerApiKey = apiKeys[selectedModel.providerId] ?? '';
-  const effectiveExtraParams = useMemo(
-    () => ({
-      ...(data.extraParams ?? {}),
-      ...(selectedModel.id === GRSAI_NANO_BANANA_PRO_MODEL_ID
-        ? { grsai_pro_model: grsaiNanoBananaProModel }
-        : {}),
-    }),
-    [data.extraParams, grsaiNanoBananaProModel, selectedModel.id]
+  const selectedInterface = useMemo(
+    () =>
+      customApiInterfaces.find((item) => item.id === selectedModel.interfaceId),
+    [customApiInterfaces, selectedModel.interfaceId]
   );
+  const providerApiKey = selectedInterface?.apiKey ?? '';
+  const effectiveExtraParams = useMemo(() => data.extraParams ?? {}, [data.extraParams]);
   const resolutionOptions = useMemo(
     () => resolveImageModelResolutions(selectedModel, { extraParams: effectiveExtraParams }),
     [effectiveExtraParams, selectedModel]
@@ -317,9 +310,7 @@ export const ImageEditNode = memo(({ id, data, selected, width, height }: ImageE
   const requestResolution = selectedModel.resolveRequest({
     referenceImageCount: incomingImages.length,
   });
-  const showWebSearchToggle =
-    selectedModel.id === FAL_NANO_BANANA_2_MODEL_ID ||
-    selectedModel.id === KIE_NANO_BANANA_2_MODEL_ID;
+  const showWebSearchToggle = false;
   const webSearchEnabled = Boolean(data.extraParams?.enable_web_search);
   const resolvedPriceDisplay = useMemo(
     () =>
@@ -472,6 +463,13 @@ export const ImageEditNode = memo(({ id, data, selected, width, height }: ImageE
       return;
     }
 
+    if (!selectedInterface || !selectedModel.apiModel) {
+      const errorMessage = t('node.imageEdit.modelRequired');
+      setError(errorMessage);
+      void showErrorDialog(errorMessage, t('common.error'));
+      return;
+    }
+
     const generationDurationMs = selectedModel.expectedDurationMs ?? 60000;
     const generationStartedAt = Date.now();
     const resultNodeTitle = buildAiResultNodeTitle(prompt, t('node.imageEdit.resultTitle'));
@@ -497,8 +495,6 @@ export const ImageEditNode = memo(({ id, data, selected, width, height }: ImageE
     addEdge(id, newNodeId);
 
     try {
-      await canvasAiGateway.setApiKey(selectedModel.providerId, providerApiKey);
-
       let resolvedRequestAspectRatio = selectedAspectRatio.value;
       if (resolvedRequestAspectRatio === AUTO_REQUEST_ASPECT_RATIO) {
         if (incomingImages.length > 0) {
@@ -524,10 +520,17 @@ export const ImageEditNode = memo(({ id, data, selected, width, height }: ImageE
         aspectRatio: resolvedRequestAspectRatio,
         referenceImages: incomingImages,
         extraParams: effectiveExtraParams,
+        runtimeConfig: {
+          interfaceId: selectedInterface.id,
+          interfaceName: selectedInterface.name,
+          apiKey: selectedInterface.apiKey,
+          baseUrl: selectedInterface.baseUrl,
+          apiModel: selectedModel.apiModel,
+        },
       });
       const generationDebugContext: GenerationDebugContext = {
         sourceType: 'imageEdit',
-        providerId: selectedModel.providerId,
+        providerId: selectedInterface.name,
         requestModel: requestResolution.requestModel,
         requestSize: selectedResolution.value,
         requestAspectRatio: resolvedRequestAspectRatio,
@@ -544,7 +547,7 @@ export const ImageEditNode = memo(({ id, data, selected, width, height }: ImageE
       updateNodeData(newNodeId, {
         generationJobId: jobId,
         generationSourceType: 'imageEdit',
-        generationProviderId: selectedModel.providerId,
+        generationProviderId: selectedInterface.id,
         generationClientSessionId: CURRENT_RUNTIME_SESSION_ID,
         generationDebugContext,
       });
@@ -552,7 +555,7 @@ export const ImageEditNode = memo(({ id, data, selected, width, height }: ImageE
       const resolvedError = resolveErrorContent(generationError, t('ai.error'));
       const generationDebugContext: GenerationDebugContext = {
         sourceType: 'imageEdit',
-        providerId: selectedModel.providerId,
+        providerId: selectedInterface?.name,
         requestModel: requestResolution.requestModel,
         requestSize: selectedResolution.value,
         requestAspectRatio: selectedAspectRatio.value,
@@ -593,6 +596,7 @@ export const ImageEditNode = memo(({ id, data, selected, width, height }: ImageE
     addNode,
     addEdge,
     providerApiKey,
+    selectedInterface,
     findNodePosition,
     promptDraft,
     effectiveExtraParams,
@@ -600,9 +604,8 @@ export const ImageEditNode = memo(({ id, data, selected, width, height }: ImageE
     incomingImages,
     requestResolution.requestModel,
     selectedAspectRatio.value,
-    selectedModel.id,
+    selectedModel.apiModel,
     selectedModel.expectedDurationMs,
-    selectedModel.providerId,
     selectedResolution.value,
     supportedAspectRatioValues,
     t,

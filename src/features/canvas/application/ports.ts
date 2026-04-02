@@ -38,6 +38,13 @@ export interface GenerateImagePayload {
   aspectRatio: string;
   referenceImages?: string[];
   extraParams?: Record<string, unknown>;
+  runtimeConfig?: {
+    interfaceId: string;
+    interfaceName: string;
+    apiKey: string;
+    baseUrl: string;
+    apiModel: string;
+  };
 }
 
 export interface AiGateway {

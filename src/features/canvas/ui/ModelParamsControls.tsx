@@ -5,7 +5,6 @@ import { useTranslation } from 'react-i18next';
 
 import { AUTO_REQUEST_ASPECT_RATIO } from '@/features/canvas/domain/canvasNodes';
 import {
-  getModelProvider,
   type AspectRatioOption,
   type ImageModelDefinition,
   type ResolutionOption,
@@ -181,34 +180,37 @@ export const ModelParamsControls = memo(({
   const [modelAnchorBaseWidth, setModelAnchorBaseWidth] = useState<number | null>(null);
   const [paramsAnchorBaseWidth, setParamsAnchorBaseWidth] = useState<number | null>(null);
   const [otherParamsAnchorBaseWidth, setOtherParamsAnchorBaseWidth] = useState<number | null>(null);
-  const [panelProviderId, setPanelProviderId] = useState(selectedModel.providerId);
-  const [missingKeyProviderName, setMissingKeyProviderName] = useState<string | null>(null);
+  const [panelInterfaceId, setPanelInterfaceId] = useState(selectedModel.interfaceId ?? '');
+  const [missingKeyInterfaceName, setMissingKeyInterfaceName] = useState<string | null>(null);
   const apiKeys = useSettingsStore((state) => state.apiKeys);
 
-  const selectedProvider = useMemo(
-    () => getModelProvider(selectedModel.providerId),
-    [selectedModel.providerId]
-  );
   const selectedModelName = useMemo(
     () => selectedModel.displayName.replace(/\s*\([^)]*\)\s*$/u, '').trim() || selectedModel.displayName,
     [selectedModel.displayName]
   );
-  const selectedProviderName = selectedProvider.label || selectedProvider.name;
+  const selectedInterfaceName =
+    selectedModel.interfaceName || t('settings.customApiFallbackName');
   const providerOptions = useMemo(() => {
-    const providerOrder = ['kie', 'ppio', 'fal', 'grsai'];
-    const providerIndex = new Map(providerOrder.map((id, index) => [id, index]));
-    const uniqueProviderIds = Array.from(new Set(imageModels.map((model) => model.providerId)));
-    return uniqueProviderIds
-      .map((providerId) => getModelProvider(providerId))
-      .sort((left, right) => {
-        const leftIndex = providerIndex.get(left.id) ?? Number.MAX_SAFE_INTEGER;
-        const rightIndex = providerIndex.get(right.id) ?? Number.MAX_SAFE_INTEGER;
-        return leftIndex - rightIndex;
-      });
+    const uniqueInterfaceIds = Array.from(
+      new Set(
+        imageModels
+          .map((model) => model.interfaceId)
+          .filter((interfaceId): interfaceId is string => Boolean(interfaceId))
+      )
+    );
+    return uniqueInterfaceIds
+      .map((interfaceId) => {
+        const targetModel = imageModels.find((model) => model.interfaceId === interfaceId);
+        return {
+          id: interfaceId,
+          label: targetModel?.interfaceName || interfaceId,
+        };
+      })
+      .sort((left, right) => left.label.localeCompare(right.label));
   }, [imageModels]);
   const providerModels = useMemo(
-    () => imageModels.filter((model) => model.providerId === panelProviderId),
-    [imageModels, panelProviderId]
+    () => imageModels.filter((model) => model.interfaceId === panelInterfaceId),
+    [imageModels, panelInterfaceId]
   );
   const modelGroups = useMemo(() => {
     const grouped = new Map<string, ImageModelDefinition[]>();
@@ -387,7 +389,7 @@ export const ModelParamsControls = memo(({
               setOpenPanel(null);
               return;
             }
-            setPanelProviderId(selectedModel.providerId);
+            setPanelInterfaceId(selectedModel.interfaceId ?? '');
             const triggerWidth = modelTriggerRef.current?.getBoundingClientRect().width ?? null;
             const nextBaseWidth = modelAnchorBaseWidth ?? triggerWidth;
             if (modelAnchorBaseWidth == null && triggerWidth) {
@@ -400,7 +402,7 @@ export const ModelParamsControls = memo(({
           <NanoBananaIcon className={modelIconClassName} />
           <span className={modelTextClassName}>{selectedModelName}</span>
           {showProviderName && (
-            <span className={providerTextClassName}>{selectedProviderName}</span>
+            <span className={providerTextClassName}>{selectedInterfaceName}</span>
           )}
         </UiChipButton>
       </div>
@@ -426,7 +428,7 @@ export const ModelParamsControls = memo(({
         >
           <SlidersHorizontal className={paramsIconClassName} />
           <span className={paramsPrimaryTextClassName}>{selectedAspectRatio.label}</span>
-          <span className={paramsSecondaryTextClassName}>· {selectedResolution.label}</span>
+          <span className={paramsSecondaryTextClassName}>{selectedResolution.label}</span>
         </UiChipButton>
       </div>
 
@@ -469,36 +471,38 @@ export const ModelParamsControls = memo(({
             <div className="ui-scrollbar max-h-[340px] space-y-4 overflow-y-auto p-1">
               <section>
                 <div className="mb-2 text-xs font-medium text-text-muted">
-                  {t('modelParams.provider')}
+                  {t('modelParams.interface')}
                 </div>
                 <div className="flex flex-wrap gap-2">
-                  {providerOptions.map((provider) => {
-                    const active = provider.id === panelProviderId;
+                  {providerOptions.map((apiInterface) => {
+                    const active = apiInterface.id === panelInterfaceId;
                     return (
                       <button
-                        key={provider.id}
+                        key={apiInterface.id}
                         className={`h-8 rounded-lg border text-xs transition-colors ${providerOptionClassName} ${active
                           ? 'border-accent/50 bg-accent/15 text-text-dark'
                           : 'border-[rgba(255,255,255,0.12)] bg-bg-dark/65 text-text-muted hover:border-[rgba(255,255,255,0.2)]'
                           }`}
                         onClick={(event) => {
                           event.stopPropagation();
-                          const providerApiKey = (apiKeys[provider.id] ?? '').trim();
-                          if (!providerApiKey) {
+                          const interfaceApiKey = (apiKeys[apiInterface.id] ?? '').trim();
+                          if (!interfaceApiKey) {
                             setOpenPanel(null);
-                            setMissingKeyProviderName(provider.label || provider.name);
+                            setMissingKeyInterfaceName(apiInterface.label);
                             return;
                           }
-                          if (provider.id !== panelProviderId) {
-                            const firstModel = imageModels.find((model) => model.providerId === provider.id);
+                          if (apiInterface.id !== panelInterfaceId) {
+                            const firstModel = imageModels.find(
+                              (model) => model.interfaceId === apiInterface.id
+                            );
                             if (firstModel) {
                               onModelChange(firstModel.id);
                             }
                           }
-                          setPanelProviderId(provider.id);
+                          setPanelInterfaceId(apiInterface.id);
                         }}
                       >
-                        {provider.label || provider.name}
+                        {apiInterface.label}
                       </button>
                     );
                   })}
@@ -781,9 +785,9 @@ export const ModelParamsControls = memo(({
 
       {typeof document !== 'undefined' && createPortal(
         <UiModal
-          isOpen={Boolean(missingKeyProviderName)}
-          title={t('modelParams.providerKeyRequiredTitle')}
-          onClose={() => setMissingKeyProviderName(null)}
+          isOpen={Boolean(missingKeyInterfaceName)}
+          title={t('modelParams.interfaceKeyRequiredTitle')}
+          onClose={() => setMissingKeyInterfaceName(null)}
           widthClassName="w-[420px]"
           containerClassName="z-[120]"
           footer={(
@@ -791,7 +795,7 @@ export const ModelParamsControls = memo(({
               <UiButton
                 variant="muted"
                 size="sm"
-                onClick={() => setMissingKeyProviderName(null)}
+                onClick={() => setMissingKeyInterfaceName(null)}
               >
                 {t('common.cancel')}
               </UiButton>
@@ -799,7 +803,7 @@ export const ModelParamsControls = memo(({
                 variant="primary"
                 size="sm"
                 onClick={() => {
-                  setMissingKeyProviderName(null);
+                  setMissingKeyInterfaceName(null);
                   setOpenPanel(null);
                   openSettingsDialog({ category: 'providers' });
                 }}
@@ -810,7 +814,9 @@ export const ModelParamsControls = memo(({
           )}
         >
           <p className="text-sm text-text-muted">
-            {t('modelParams.providerKeyRequiredDesc', { provider: missingKeyProviderName ?? '' })}
+            {t('modelParams.interfaceKeyRequiredDesc', {
+              interface: missingKeyInterfaceName ?? '',
+            })}
           </p>
         </UiModal>,
         document.body

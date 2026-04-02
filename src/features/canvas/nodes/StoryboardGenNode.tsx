@@ -60,9 +60,6 @@ import {
   resolveImageModelResolution,
   resolveImageModelResolutions,
 } from '@/features/canvas/models';
-import { GRSAI_NANO_BANANA_PRO_MODEL_ID } from '@/features/canvas/models/image/grsai/nanoBananaPro';
-import { FAL_NANO_BANANA_2_MODEL_ID } from '@/features/canvas/models/image/fal/nanoBanana2';
-import { KIE_NANO_BANANA_2_MODEL_ID } from '@/features/canvas/models/image/kie/nanoBanana2';
 import { resolveModelPriceDisplay } from '@/features/canvas/pricing';
 import { ModelParamsControls } from '@/features/canvas/ui/ModelParamsControls';
 import { CanvasNodeImage } from '@/features/canvas/ui/CanvasNodeImage';
@@ -549,8 +546,7 @@ export const StoryboardGenNode = memo(({ id, data, selected, width, height }: St
   const addNode = useCanvasStore((state) => state.addNode);
   const addEdge = useCanvasStore((state) => state.addEdge);
   const findNodePosition = useCanvasStore((state) => state.findNodePosition);
-  const apiKeys = useSettingsStore((state) => state.apiKeys);
-  const grsaiNanoBananaProModel = useSettingsStore((state) => state.grsaiNanoBananaProModel);
+  const customApiInterfaces = useSettingsStore((state) => state.customApiInterfaces);
   const storyboardGenKeepStyleConsistent = useSettingsStore(
     (state) => state.storyboardGenKeepStyleConsistent
   );
@@ -615,22 +611,19 @@ export const StoryboardGenNode = memo(({ id, data, selected, width, height }: St
     [incomingImageItems]
   );
 
-  const imageModels = useMemo(() => listImageModels(), []);
+  const imageModels = useMemo(() => listImageModels(), [customApiInterfaces]);
 
   const selectedModel = useMemo(() => {
     const modelId = nodeData.model ?? DEFAULT_IMAGE_MODEL_ID;
     return getImageModel(modelId);
   }, [nodeData.model]);
-  const providerApiKey = apiKeys[selectedModel.providerId] ?? '';
-  const effectiveExtraParams = useMemo(
-    () => ({
-      ...(nodeData.extraParams ?? {}),
-      ...(selectedModel.id === GRSAI_NANO_BANANA_PRO_MODEL_ID
-        ? { grsai_pro_model: grsaiNanoBananaProModel }
-        : {}),
-    }),
-    [grsaiNanoBananaProModel, nodeData.extraParams, selectedModel.id]
+  const selectedInterface = useMemo(
+    () =>
+      customApiInterfaces.find((item) => item.id === selectedModel.interfaceId),
+    [customApiInterfaces, selectedModel.interfaceId]
   );
+  const providerApiKey = selectedInterface?.apiKey ?? '';
+  const effectiveExtraParams = useMemo(() => nodeData.extraParams ?? {}, [nodeData.extraParams]);
   const resolutionOptions = useMemo(
     () => resolveImageModelResolutions(selectedModel, { extraParams: effectiveExtraParams }),
     [effectiveExtraParams, selectedModel]
@@ -721,9 +714,7 @@ export const StoryboardGenNode = memo(({ id, data, selected, width, height }: St
   const requestResolution = selectedModel.resolveRequest({
     referenceImageCount: incomingImages.length,
   });
-  const showWebSearchToggle =
-    selectedModel.id === FAL_NANO_BANANA_2_MODEL_ID ||
-    selectedModel.id === KIE_NANO_BANANA_2_MODEL_ID;
+  const showWebSearchToggle = false;
   const webSearchEnabled = Boolean(nodeData.extraParams?.enable_web_search);
   const resolvedPriceDisplay = useMemo(
     () =>
@@ -1065,6 +1056,13 @@ export const StoryboardGenNode = memo(({ id, data, selected, width, height }: St
       return;
     }
 
+    if (!selectedInterface || !selectedModel.apiModel) {
+      const errorMessage = t('node.storyboardGen.modelRequired');
+      setError(errorMessage);
+      void showErrorDialog(errorMessage, '閿欒');
+      return;
+    }
+
     const generationDurationMs = selectedModel.expectedDurationMs ?? 60000;
     const generationStartedAt = Date.now();
     const runtimeDiagnostics = await getRuntimeDiagnostics();
@@ -1099,8 +1097,6 @@ export const StoryboardGenNode = memo(({ id, data, selected, width, height }: St
     setError(null);
 
     try {
-      await canvasAiGateway.setApiKey(selectedModel.providerId, providerApiKey);
-
       // 生成网格图片作为最后一张参考图片
       const gridImageDataUrl = generateGridImageDataUrl(
         resolvedRequestAspectRatio,
@@ -1126,10 +1122,17 @@ export const StoryboardGenNode = memo(({ id, data, selected, width, height }: St
         aspectRatio: resolvedRequestAspectRatio,
         referenceImages: allReferenceImages,
         extraParams: effectiveExtraParams,
+        runtimeConfig: {
+          interfaceId: selectedInterface.id,
+          interfaceName: selectedInterface.name,
+          apiKey: selectedInterface.apiKey,
+          baseUrl: selectedInterface.baseUrl,
+          apiModel: selectedModel.apiModel,
+        },
       });
       const generationDebugContext: GenerationDebugContext = {
         sourceType: 'storyboardGen',
-        providerId: selectedModel.providerId,
+        providerId: selectedInterface.name,
         requestModel: requestResolution.requestModel,
         requestSize: selectedResolution.value,
         requestAspectRatio: resolvedRequestAspectRatio,
@@ -1146,7 +1149,7 @@ export const StoryboardGenNode = memo(({ id, data, selected, width, height }: St
       updateNodeData(newNodeId, {
         generationJobId: jobId,
         generationSourceType: 'storyboardGen',
-        generationProviderId: selectedModel.providerId,
+        generationProviderId: selectedInterface.id,
         generationClientSessionId: CURRENT_RUNTIME_SESSION_ID,
         generationDebugContext,
         generationStoryboardMetadata: {
@@ -1159,7 +1162,7 @@ export const StoryboardGenNode = memo(({ id, data, selected, width, height }: St
       const resolvedError = resolveErrorContent(generationError, '生成失败');
       const generationDebugContext: GenerationDebugContext = {
         sourceType: 'storyboardGen',
-        providerId: selectedModel.providerId,
+        providerId: selectedInterface?.name,
         requestModel: requestResolution.requestModel,
         requestSize: selectedResolution.value,
         requestAspectRatio: resolvedRequestAspectRatio,
@@ -1201,7 +1204,8 @@ export const StoryboardGenNode = memo(({ id, data, selected, width, height }: St
     effectiveExtraParams,
     selectedModel.expectedDurationMs,
     selectedModel.id,
-    selectedModel.providerId,
+    selectedModel.apiModel,
+    selectedInterface,
     supportedAspectRatioValues,
     setSelectedNode,
     selectedAspectRatio.value,

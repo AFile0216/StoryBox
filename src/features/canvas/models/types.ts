@@ -47,6 +47,9 @@ export interface ImageModelDefinition {
   mediaType: 'image';
   displayName: string;
   providerId: string;
+  interfaceId?: string;
+  interfaceName?: string;
+  apiModel?: string;
   description: string;
   eta: string;
   expectedDurationMs?: number;

@@ -1,25 +1,22 @@
 import { useState, useCallback, useEffect, useMemo } from 'react';
 import { X, Eye, EyeOff, FolderOpen, Plus, Trash2 } from 'lucide-react';
-import { Trans, useTranslation } from 'react-i18next';
-import ReactMarkdown from 'react-markdown';
-import remarkGfm from 'remark-gfm';
-import remarkBreaks from 'remark-breaks';
+import { useTranslation } from 'react-i18next';
 import { getVersion } from '@tauri-apps/api/app';
 import { open } from '@tauri-apps/plugin-dialog';
-import { openUrl } from '@tauri-apps/plugin-opener';
 import {
-  createDefaultProviderInterface,
+  createDefaultCustomApiInterface,
   useSettingsStore,
-  type ActiveProviderInterfaceIds,
-  type ProviderInterfaceConfig,
+  type CustomApiInterfaceConfig,
 } from '@/stores/settingsStore';
 import { UiCheckbox, UiSelect } from '@/components/ui';
 import { UI_CONTENT_OVERLAY_INSET_CLASS, UI_DIALOG_TRANSITION_MS } from '@/components/ui/motion';
 import { useDialogTransition } from '@/components/ui/useDialogTransition';
-import { listModelProviders } from '@/features/canvas/models';
-import { GRSAI_NANO_BANANA_PRO_MODEL_OPTIONS } from '@/features/canvas/models/providers/grsai';
+import {
+  DEFAULT_CUSTOM_API_BASE_URL,
+  parseModelIdsInput,
+  stringifyModelIds,
+} from '@/features/canvas/models/customInterfaces';
 import { GRSAI_CREDIT_TIERS } from '@/features/canvas/pricing/types';
-import providerGuideMarkdown from '../../docs/settings/provider-guide.md?raw';
 import type { SettingsCategory } from '@/features/settings/settingsEvents';
 
 interface SettingsDialogProps {
@@ -34,55 +31,6 @@ interface SettingsCheckboxCardProps {
   description: string;
   checked: boolean;
   onCheckedChange: (checked: boolean) => void;
-}
-
-const PROVIDER_REGISTER_URLS: Record<string, string> = {
-  ppio: 'https://ppio.com/user/register?invited_by=WGY0DZ',
-  grsai: 'https://grsai.com',
-  kie: 'https://kie.ai?ref=eef20ef0b0595cad227d45b29c635f6c',
-  fal: 'https://fal.ai',
-};
-
-const PROVIDER_GET_KEY_URLS: Record<string, string> = {
-  ppio: 'https://ppio.com/settings/key-management',
-  grsai: 'https://grsai.com/zh/dashboard/api-keys',
-  kie: 'https://kie.ai/api-key',
-  fal: 'https://fal.ai/dashboard/keys',
-};
-
-function buildProviderEditorState(
-  providerIds: string[],
-  providerInterfaces: ProviderInterfaceConfig[],
-  activeProviderInterfaceIds: ActiveProviderInterfaceIds,
-  apiKeys: Record<string, string>
-): {
-  providerInterfaces: ProviderInterfaceConfig[];
-  activeProviderInterfaceIds: ActiveProviderInterfaceIds;
-} {
-  const nextProviderInterfaces: ProviderInterfaceConfig[] = [];
-  const nextActiveProviderInterfaceIds: ActiveProviderInterfaceIds = {};
-
-  providerIds.forEach((providerId) => {
-    const scopedInterfaces = providerInterfaces.filter((item) => item.providerId === providerId);
-    const normalizedInterfaces =
-      scopedInterfaces.length > 0
-        ? scopedInterfaces
-        : [createDefaultProviderInterface(providerId, apiKeys[providerId] ?? '')];
-    const preferredId = activeProviderInterfaceIds[providerId];
-    const activeInterfaceId =
-      normalizedInterfaces.find((item) => item.id === preferredId)?.id ??
-      normalizedInterfaces[0]?.id;
-
-    nextProviderInterfaces.push(...normalizedInterfaces);
-    if (activeInterfaceId) {
-      nextActiveProviderInterfaceIds[providerId] = activeInterfaceId;
-    }
-  });
-
-  return {
-    providerInterfaces: nextProviderInterfaces,
-    activeProviderInterfaceIds: nextActiveProviderInterfaceIds,
-  };
 }
 
 function SettingsCheckboxCard({
@@ -129,10 +77,7 @@ export function SettingsDialog({
   const { t, i18n } = useTranslation();
   const {
     apiKeys,
-    providerInterfaces,
-    activeProviderInterfaceIds,
-    grsaiNanoBananaProModel,
-    hideProviderGuidePopover,
+    customApiInterfaces,
     downloadPresetPaths,
     useUploadFilenameAsNodeTitle,
     storyboardGenKeepStyleConsistent,
@@ -152,8 +97,7 @@ export function SettingsDialog({
     canvasEdgeRoutingMode,
     autoCheckAppUpdateOnLaunch,
     enableUpdateDialog,
-    setProviderInterfaces,
-    setGrsaiNanoBananaProModel,
+    setCustomApiInterfaces,
     setDownloadPresetPaths,
     setUseUploadFilenameAsNodeTitle,
     setStoryboardGenKeepStyleConsistent,
@@ -174,34 +118,17 @@ export function SettingsDialog({
     setAutoCheckAppUpdateOnLaunch,
     setEnableUpdateDialog,
   } = useSettingsStore();
-  const providers = useMemo(() => {
-    const providerOrder = ['kie', 'ppio', 'fal', 'grsai'];
-    const providerIndex = new Map(providerOrder.map((id, index) => [id, index]));
-    return listModelProviders().slice().sort((left, right) => {
-      const leftIndex = providerIndex.get(left.id) ?? Number.MAX_SAFE_INTEGER;
-      const rightIndex = providerIndex.get(right.id) ?? Number.MAX_SAFE_INTEGER;
-      return leftIndex - rightIndex;
-    });
-  }, []);
   const [activeCategory, setActiveCategory] = useState<SettingsCategory>(initialCategory);
   const [appVersion, setAppVersion] = useState<string>('');
-  const initialProviderEditorState = useMemo(
+  const initialCustomApiInterfaces = useMemo(
     () =>
-      buildProviderEditorState(
-        providers.map((provider) => provider.id),
-        providerInterfaces,
-        activeProviderInterfaceIds,
-        apiKeys
-      ),
-    [activeProviderInterfaceIds, apiKeys, providerInterfaces, providers]
+      customApiInterfaces.length > 0
+        ? customApiInterfaces
+        : [createDefaultCustomApiInterface({ apiKey: Object.values(apiKeys)[0] ?? '' })],
+    [apiKeys, customApiInterfaces]
   );
-  const [localProviderInterfaces, setLocalProviderInterfaces] = useState<ProviderInterfaceConfig[]>(
-    initialProviderEditorState.providerInterfaces
-  );
-  const [localActiveProviderInterfaceIds, setLocalActiveProviderInterfaceIds] =
-    useState<ActiveProviderInterfaceIds>(initialProviderEditorState.activeProviderInterfaceIds);
-  const [localGrsaiNanoBananaProModel, setLocalGrsaiNanoBananaProModel] = useState(
-    grsaiNanoBananaProModel
+  const [localCustomApiInterfaces, setLocalCustomApiInterfaces] = useState<CustomApiInterfaceConfig[]>(
+    initialCustomApiInterfaces
   );
   const [localDownloadPathInput, setLocalDownloadPathInput] = useState('');
   const [localDownloadPresetPaths, setLocalDownloadPresetPaths] = useState(downloadPresetPaths);
@@ -267,10 +194,8 @@ export function SettingsDialog({
     if (!isOpen) {
       return;
     }
-    setLocalProviderInterfaces(initialProviderEditorState.providerInterfaces);
-    setLocalActiveProviderInterfaceIds(initialProviderEditorState.activeProviderInterfaceIds);
+    setLocalCustomApiInterfaces(initialCustomApiInterfaces);
     setLocalDownloadPresetPaths(downloadPresetPaths);
-    setLocalGrsaiNanoBananaProModel(grsaiNanoBananaProModel);
     setLocalUseUploadFilenameAsNodeTitle(useUploadFilenameAsNodeTitle);
     setLocalStoryboardGenKeepStyleConsistent(storyboardGenKeepStyleConsistent);
     setLocalStoryboardGenDisableTextInImage(storyboardGenDisableTextInImage);
@@ -293,11 +218,9 @@ export function SettingsDialog({
     setRevealedApiKeys({});
     setLocalDownloadPathInput('');
   }, [
-    initialProviderEditorState.activeProviderInterfaceIds,
-    initialProviderEditorState.providerInterfaces,
+    initialCustomApiInterfaces,
     isOpen,
     downloadPresetPaths,
-    grsaiNanoBananaProModel,
     useUploadFilenameAsNodeTitle,
     storyboardGenKeepStyleConsistent,
     storyboardGenDisableTextInImage,
@@ -327,14 +250,7 @@ export function SettingsDialog({
   }, [initialCategory, isOpen]);
 
   const handleSave = useCallback(() => {
-    providers.forEach((provider) => {
-      setProviderInterfaces(
-        provider.id,
-        localProviderInterfaces.filter((item) => item.providerId === provider.id),
-        localActiveProviderInterfaceIds[provider.id]
-      );
-    });
-    setGrsaiNanoBananaProModel(localGrsaiNanoBananaProModel);
+    setCustomApiInterfaces(localCustomApiInterfaces);
     setDownloadPresetPaths(localDownloadPresetPaths);
     setUseUploadFilenameAsNodeTitle(localUseUploadFilenameAsNodeTitle);
     setStoryboardGenKeepStyleConsistent(localStoryboardGenKeepStyleConsistent);
@@ -356,10 +272,8 @@ export function SettingsDialog({
     setEnableUpdateDialog(localEnableUpdateDialog);
     onClose();
   }, [
-    localActiveProviderInterfaceIds,
-    localProviderInterfaces,
+    localCustomApiInterfaces,
     localDownloadPresetPaths,
-    localGrsaiNanoBananaProModel,
     localUseUploadFilenameAsNodeTitle,
     localStoryboardGenKeepStyleConsistent,
     localStoryboardGenDisableTextInImage,
@@ -378,9 +292,7 @@ export function SettingsDialog({
     localCanvasEdgeRoutingMode,
     localAutoCheckAppUpdateOnLaunch,
     localEnableUpdateDialog,
-    providers,
-    setProviderInterfaces,
-    setGrsaiNanoBananaProModel,
+    setCustomApiInterfaces,
     setDownloadPresetPaths,
     setUseUploadFilenameAsNodeTitle,
     setStoryboardGenKeepStyleConsistent,
@@ -403,78 +315,47 @@ export function SettingsDialog({
     onClose,
   ]);
 
-  const providerInterfaceMap = useMemo(() => {
-    const map = new Map<string, ProviderInterfaceConfig[]>();
-    providers.forEach((provider) => {
-      map.set(
-        provider.id,
-        localProviderInterfaces.filter((item) => item.providerId === provider.id)
-      );
-    });
-    return map;
-  }, [localProviderInterfaces, providers]);
+  const handleAddCustomApiInterface = useCallback(() => {
+    setLocalCustomApiInterfaces((previous) => [
+      ...previous,
+      createDefaultCustomApiInterface({
+        name: `${t('settings.customApiFallbackName')} ${previous.length + 1}`,
+      }),
+    ]);
+  }, [t]);
 
-  const handleAddProviderInterface = useCallback(
-    (providerId: string, providerName: string) => {
-      const nextInterface = createDefaultProviderInterface(
-        providerId,
-        '',
-        `${providerName} ${(providerInterfaceMap.get(providerId)?.length ?? 0) + 1}`
-      );
-      setLocalProviderInterfaces((previous) => [...previous, nextInterface]);
-      setLocalActiveProviderInterfaceIds((previous) => ({
-        ...previous,
-        [providerId]: previous[providerId] ?? nextInterface.id,
-      }));
-    },
-    [providerInterfaceMap]
-  );
-
-  const handleUpdateProviderInterface = useCallback(
+  const handleUpdateCustomApiInterface = useCallback(
     (
-      providerId: string,
       interfaceId: string,
-      field: keyof Pick<ProviderInterfaceConfig, 'name' | 'apiKey' | 'baseUrl' | 'uploadBaseUrl'>,
+      field: keyof Pick<CustomApiInterfaceConfig, 'name' | 'apiKey' | 'baseUrl'>,
       value: string
     ) => {
-      setLocalProviderInterfaces((previous) =>
+      setLocalCustomApiInterfaces((previous) =>
+        previous.map((item) => (item.id === interfaceId ? { ...item, [field]: value } : item))
+      );
+    },
+    []
+  );
+
+  const handleUpdateCustomApiInterfaceModels = useCallback(
+    (interfaceId: string, value: string) => {
+      setLocalCustomApiInterfaces((previous) =>
         previous.map((item) =>
-          item.providerId === providerId && item.id === interfaceId
-            ? { ...item, [field]: value }
-            : item
+          item.id === interfaceId ? { ...item, modelIds: parseModelIdsInput(value) } : item
         )
       );
     },
     []
   );
 
-  const handleActivateProviderInterface = useCallback((providerId: string, interfaceId: string) => {
-    setLocalActiveProviderInterfaceIds((previous) => ({
-      ...previous,
-      [providerId]: interfaceId,
-    }));
-  }, []);
-
-  const handleRemoveProviderInterface = useCallback(
-    (providerId: string, interfaceId: string) => {
-      const remaining = (providerInterfaceMap.get(providerId) ?? []).filter(
-        (item) => item.id !== interfaceId
-      );
-      if (remaining.length === 0) {
-        return;
+  const handleRemoveCustomApiInterface = useCallback((interfaceId: string) => {
+    setLocalCustomApiInterfaces((previous) => {
+      if (previous.length <= 1) {
+        return previous;
       }
-
-      setLocalProviderInterfaces((previous) =>
-        previous.filter((item) => !(item.providerId === providerId && item.id === interfaceId))
-      );
-      setLocalActiveProviderInterfaceIds((previous) => ({
-        ...previous,
-        [providerId]:
-          previous[providerId] === interfaceId ? remaining[0].id : previous[providerId],
-      }));
-    },
-    [providerInterfaceMap]
-  );
+      return previous.filter((item) => item.id !== interfaceId);
+    });
+  }, []);
 
   const handleCheckUpdate = useCallback(async () => {
     if (!onCheckUpdate) {
@@ -522,13 +403,6 @@ export function SettingsDialog({
 
   const handleRemoveDownloadPath = useCallback((path: string) => {
     setLocalDownloadPresetPaths((previous) => previous.filter((value) => value !== path));
-  }, []);
-
-  const handleMarkdownLinkClick = useCallback((href?: string) => {
-    if (!href) {
-      return;
-    }
-    void openUrl(href);
   }, []);
 
   if (!shouldRender) return null;
@@ -652,266 +526,159 @@ export function SettingsDialog({
               <>
                 <div className="px-6 py-5 border-b border-border-dark">
                   <h2 className="text-lg font-semibold text-text-dark">
-                    {t('settings.providers')}
+                    {t('settings.customApiSettingsTitle')}
                   </h2>
                   <p className="text-sm text-text-muted mt-1">
-                    {t('settings.providersDesc')}
+                    {t('settings.customApiSettingsDesc')}
                   </p>
                 </div>
 
                 <div className="ui-scrollbar flex-1 space-y-4 overflow-y-auto p-6">
-                  {providers.map((provider) => {
-                    const displayName = i18n.language.startsWith('zh') ? provider.label : provider.name;
-                    const scopedInterfaces = providerInterfaceMap.get(provider.id) ?? [];
-                    const activeInterfaceId = localActiveProviderInterfaceIds[provider.id];
+                  <div className="rounded-lg border border-border-dark bg-bg-dark p-4">
+                    <div className="flex items-start justify-between gap-4">
+                      <div>
+                        <h3 className="text-sm font-medium text-text-dark">
+                          {t('settings.customApiListTitle')}
+                        </h3>
+                        <p className="mt-1 text-xs text-text-muted">
+                          {t('settings.customApiListHint')}
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        className="inline-flex h-8 items-center justify-center rounded border border-border-dark bg-surface-dark px-3 text-xs text-text-dark transition-colors hover:bg-black/20"
+                        onClick={handleAddCustomApiInterface}
+                      >
+                        <Plus className="mr-1 h-3.5 w-3.5" />
+                        {t('settings.addCustomApi')}
+                      </button>
+                    </div>
+                  </div>
+
+                  {localCustomApiInterfaces.map((apiInterface, index) => {
+                    const isRevealed = Boolean(revealedApiKeys[apiInterface.id]);
 
                     return (
-                      <div key={provider.id} className="rounded-lg border border-border-dark bg-bg-dark p-4">
-                        <div className="mb-3 flex items-start justify-between gap-3">
+                      <div
+                        key={apiInterface.id}
+                        className="rounded-lg border border-border-dark bg-bg-dark p-4"
+                      >
+                        <div className="mb-3 flex items-center justify-between gap-3">
                           <div>
-                            <h3 className="text-sm font-medium text-text-dark">{displayName}</h3>
-                            {PROVIDER_REGISTER_URLS[provider.id] && PROVIDER_GET_KEY_URLS[provider.id] ? (
-                              <p className="text-xs text-text-muted">
-                                {t('settings.providerApiKeyGuidePrefix')}{' '}
-                                <a
-                                  href={PROVIDER_REGISTER_URLS[provider.id]}
-                                  target="_blank"
-                                  rel="noreferrer"
-                                  className="text-accent hover:underline"
-                                >
-                                  {t('settings.providerRegisterLink')}
-                                </a>
-                                {t('settings.providerApiKeyGuideMiddle')}{' '}
-                                <a
-                                  href={PROVIDER_GET_KEY_URLS[provider.id]}
-                                  target="_blank"
-                                  rel="noreferrer"
-                                  className="text-accent hover:underline"
-                                >
-                                  {t('settings.getApiKeyLink')}
-                                </a>
-                              </p>
-                            ) : (
-                              <p className="text-xs text-text-muted">{provider.id}</p>
-                            )}
+                            <h3 className="text-sm font-medium text-text-dark">
+                              {apiInterface.name || `${t('settings.customApiFallbackName')} ${index + 1}`}
+                            </h3>
+                            <p className="mt-1 text-xs text-text-muted">
+                              {t('settings.customApiCardHint')}
+                            </p>
                           </div>
+                          {localCustomApiInterfaces.length > 1 && (
+                            <button
+                              type="button"
+                              className="inline-flex h-8 w-8 items-center justify-center rounded text-text-muted transition-colors hover:bg-black/20 hover:text-text-dark"
+                              onClick={() => handleRemoveCustomApiInterface(apiInterface.id)}
+                              title={t('common.delete')}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </button>
+                          )}
+                        </div>
+
+                        <div className="grid gap-3 md:grid-cols-2">
+                          <div>
+                            <div className="mb-1 text-xs font-medium text-text-dark">
+                              {t('settings.customApiName')}
+                            </div>
+                            <input
+                              type="text"
+                              value={apiInterface.name}
+                              onChange={(event) =>
+                                handleUpdateCustomApiInterface(
+                                  apiInterface.id,
+                                  'name',
+                                  event.target.value
+                                )
+                              }
+                              placeholder={t('settings.customApiNamePlaceholder')}
+                              className="w-full rounded border border-border-dark bg-bg-dark px-3 py-2 text-sm text-text-dark placeholder:text-text-muted"
+                            />
+                          </div>
+
+                          <div>
+                            <div className="mb-1 text-xs font-medium text-text-dark">
+                              {t('settings.customApiBaseUrl')}
+                            </div>
+                            <input
+                              type="text"
+                              value={apiInterface.baseUrl}
+                              onChange={(event) =>
+                                handleUpdateCustomApiInterface(
+                                  apiInterface.id,
+                                  'baseUrl',
+                                  event.target.value
+                                )
+                              }
+                              placeholder={DEFAULT_CUSTOM_API_BASE_URL}
+                              className="w-full rounded border border-border-dark bg-bg-dark px-3 py-2 text-sm text-text-dark placeholder:text-text-muted"
+                            />
+                          </div>
+                        </div>
+
+                        <div className="mt-3 relative">
+                          <div className="mb-1 text-xs font-medium text-text-dark">
+                            {t('settings.apiKey')}
+                          </div>
+                          <input
+                            type={isRevealed ? 'text' : 'password'}
+                            value={apiInterface.apiKey}
+                            onChange={(event) =>
+                              handleUpdateCustomApiInterface(
+                                apiInterface.id,
+                                'apiKey',
+                                event.target.value
+                              )
+                            }
+                            placeholder={t('settings.enterApiKey')}
+                            className="w-full rounded border border-border-dark bg-bg-dark px-3 py-2 pr-10 text-sm text-text-dark placeholder:text-text-muted"
+                          />
                           <button
                             type="button"
-                            className="inline-flex h-8 items-center justify-center rounded border border-border-dark bg-surface-dark px-3 text-xs text-text-dark transition-colors hover:bg-black/20"
-                            onClick={() => handleAddProviderInterface(provider.id, provider.name)}
+                            onClick={() =>
+                              setRevealedApiKeys((previous) => ({
+                                ...previous,
+                                [apiInterface.id]: !isRevealed,
+                              }))
+                            }
+                            className="absolute right-2 top-[30px] rounded p-1 hover:bg-surface-dark"
                           >
-                            <Plus className="mr-1 h-3.5 w-3.5" />
-                            {t('settings.addEndpoint')}
+                            {isRevealed ? (
+                              <EyeOff className="h-4 w-4 text-text-muted" />
+                            ) : (
+                              <Eye className="h-4 w-4 text-text-muted" />
+                            )}
                           </button>
                         </div>
 
-                        <div className="space-y-3">
-                          {scopedInterfaces.map((providerInterface, index) => {
-                            const isActive = providerInterface.id === activeInterfaceId;
-                            const isRevealed = Boolean(revealedApiKeys[providerInterface.id]);
-
-                            return (
-                              <div
-                                key={providerInterface.id}
-                                className={`rounded-lg border p-3 transition-colors ${
-                                  isActive
-                                    ? 'border-accent/50 bg-surface-dark'
-                                    : 'border-border-dark bg-surface-dark/60'
-                                }`}
-                              >
-                                <div className="mb-3 flex items-center justify-between gap-2">
-                                  <div className="min-w-0">
-                                    <div className="truncate text-xs font-medium text-text-dark">
-                                      {providerInterface.name || `${displayName} ${index + 1}`}
-                                    </div>
-                                    <div className="mt-1 text-[11px] text-text-muted">
-                                      {isActive
-                                        ? t('settings.activeEndpoint')
-                                        : t('settings.activateEndpoint')}
-                                    </div>
-                                  </div>
-                                  <div className="flex items-center gap-2">
-                                    <button
-                                      type="button"
-                                      className={`inline-flex h-7 items-center justify-center rounded px-2 text-[11px] transition-colors ${
-                                        isActive
-                                          ? 'bg-accent text-white'
-                                          : 'border border-border-dark text-text-dark hover:bg-black/20'
-                                      }`}
-                                      onClick={() =>
-                                        handleActivateProviderInterface(
-                                          provider.id,
-                                          providerInterface.id
-                                        )
-                                      }
-                                    >
-                                      {isActive
-                                        ? t('settings.activeEndpoint')
-                                        : t('settings.activateEndpoint')}
-                                    </button>
-                                    {scopedInterfaces.length > 1 && (
-                                      <button
-                                        type="button"
-                                        className="inline-flex h-7 w-7 items-center justify-center rounded text-text-muted transition-colors hover:bg-black/20 hover:text-text-dark"
-                                        onClick={() =>
-                                          handleRemoveProviderInterface(
-                                            provider.id,
-                                            providerInterface.id
-                                          )
-                                        }
-                                        title={t('common.delete')}
-                                      >
-                                        <Trash2 className="h-3.5 w-3.5" />
-                                      </button>
-                                    )}
-                                  </div>
-                                </div>
-
-                                <div className="grid gap-3 md:grid-cols-2">
-                                  <div>
-                                    <div className="mb-1 text-xs font-medium text-text-dark">
-                                      {t('settings.endpointName')}
-                                    </div>
-                                    <input
-                                      type="text"
-                                      value={providerInterface.name}
-                                      onChange={(event) =>
-                                        handleUpdateProviderInterface(
-                                          provider.id,
-                                          providerInterface.id,
-                                          'name',
-                                          event.target.value
-                                        )
-                                      }
-                                      placeholder={t('settings.endpointNamePlaceholder')}
-                                      className="w-full rounded border border-border-dark bg-bg-dark px-3 py-2 text-sm text-text-dark placeholder:text-text-muted"
-                                    />
-                                  </div>
-
-                                  <div>
-                                    <div className="mb-1 text-xs font-medium text-text-dark">
-                                      {t('settings.endpointBaseUrl')}
-                                    </div>
-                                    <input
-                                      type="text"
-                                      value={providerInterface.baseUrl}
-                                      onChange={(event) =>
-                                        handleUpdateProviderInterface(
-                                          provider.id,
-                                          providerInterface.id,
-                                          'baseUrl',
-                                          event.target.value
-                                        )
-                                      }
-                                      placeholder={
-                                        provider.defaultBaseUrl ??
-                                        t('settings.endpointBaseUrlPlaceholder')
-                                      }
-                                      className="w-full rounded border border-border-dark bg-bg-dark px-3 py-2 text-sm text-text-dark placeholder:text-text-muted"
-                                    />
-                                  </div>
-                                </div>
-
-                                {provider.supportsCustomUploadBaseUrl && (
-                                  <div className="mt-3">
-                                    <div className="mb-1 text-xs font-medium text-text-dark">
-                                      {t('settings.endpointUploadBaseUrl')}
-                                    </div>
-                                    <input
-                                      type="text"
-                                      value={providerInterface.uploadBaseUrl}
-                                      onChange={(event) =>
-                                        handleUpdateProviderInterface(
-                                          provider.id,
-                                          providerInterface.id,
-                                          'uploadBaseUrl',
-                                          event.target.value
-                                        )
-                                      }
-                                      placeholder={
-                                        provider.defaultUploadBaseUrl ??
-                                        t('settings.endpointUploadBaseUrlPlaceholder')
-                                      }
-                                      className="w-full rounded border border-border-dark bg-bg-dark px-3 py-2 text-sm text-text-dark placeholder:text-text-muted"
-                                    />
-                                  </div>
-                                )}
-
-                                <div className="mt-3 relative">
-                                  <div className="mb-1 text-xs font-medium text-text-dark">
-                                    {t('settings.apiKey')}
-                                  </div>
-                                  <input
-                                    type={isRevealed ? 'text' : 'password'}
-                                    value={providerInterface.apiKey}
-                                    onChange={(event) =>
-                                      handleUpdateProviderInterface(
-                                        provider.id,
-                                        providerInterface.id,
-                                        'apiKey',
-                                        event.target.value
-                                      )
-                                    }
-                                    placeholder={t('settings.enterApiKey')}
-                                    className="w-full rounded border border-border-dark bg-bg-dark px-3 py-2 pr-10 text-sm text-text-dark placeholder:text-text-muted"
-                                  />
-                                  <button
-                                    type="button"
-                                    onClick={() =>
-                                      setRevealedApiKeys((previous) => ({
-                                        ...previous,
-                                        [providerInterface.id]: !isRevealed,
-                                      }))
-                                    }
-                                    className="absolute right-2 top-[30px] rounded p-1 hover:bg-surface-dark"
-                                  >
-                                    {isRevealed ? (
-                                      <EyeOff className="h-4 w-4 text-text-muted" />
-                                    ) : (
-                                      <Eye className="h-4 w-4 text-text-muted" />
-                                    )}
-                                  </button>
-                                </div>
-                              </div>
-                            );
-                          })}
-                        </div>
-
-                        {provider.id === 'grsai' && (
-                          <div className="mt-3">
-                            <div className="mb-1 text-xs font-medium text-text-dark">
-                              {t('settings.nanoBananaProModel')}
-                            </div>
-                            <p className="mb-2 text-xs text-text-muted">
-                              <Trans
-                                i18nKey="settings.nanoBananaProModelDesc"
-                                components={{
-                                  modelListLink: (
-                                    <a
-                                      href="https://grsai.com/zh/dashboard/models"
-                                      target="_blank"
-                                      rel="noreferrer"
-                                      className="text-accent hover:underline"
-                                    />
-                                  ),
-                                }}
-                              />
-                            </p>
-                            <UiSelect
-                              value={localGrsaiNanoBananaProModel}
-                              onChange={(event) =>
-                                setLocalGrsaiNanoBananaProModel(event.target.value)
-                              }
-                              className="h-9 text-sm"
-                            >
-                              {GRSAI_NANO_BANANA_PRO_MODEL_OPTIONS.map((option) => (
-                                <option key={option} value={option}>
-                                  {option}
-                                </option>
-                              ))}
-                            </UiSelect>
+                        <div className="mt-3">
+                          <div className="mb-1 text-xs font-medium text-text-dark">
+                            {t('settings.customApiModels')}
                           </div>
-                        )}
+                          <p className="mb-2 text-xs text-text-muted">
+                            {t('settings.customApiModelsHint')}
+                          </p>
+                          <textarea
+                            value={stringifyModelIds(apiInterface.modelIds)}
+                            onChange={(event) =>
+                              handleUpdateCustomApiInterfaceModels(
+                                apiInterface.id,
+                                event.target.value
+                              )
+                            }
+                            placeholder={t('settings.customApiModelsPlaceholder')}
+                            rows={5}
+                            className="ui-scrollbar w-full resize-y rounded border border-border-dark bg-bg-dark px-3 py-2 text-sm text-text-dark placeholder:text-text-muted"
+                          />
+                        </div>
                       </div>
                     );
                   })}
@@ -1438,35 +1205,6 @@ export function SettingsDialog({
             )}
           </div>
         </div>
-        {activeCategory === 'providers' && !hideProviderGuidePopover && (
-          <div
-            className={`absolute top-0 bottom-0 left-[calc(50%+366px)] right-0 min-w-[240px] max-w-[380px] rounded-lg border border-border-dark bg-surface-dark/95 p-3 shadow-xl transition-opacity duration-200 ${isVisible ? 'opacity-100' : 'opacity-0'}`}
-          >
-            <div className="markdown-body break-words text-xs leading-5 text-text-muted [&_a]:text-accent [&_blockquote]:border-l-2 [&_blockquote]:border-white/20 [&_blockquote]:pl-3 [&_code]:rounded [&_code]:bg-white/10 [&_code]:px-1 [&_code]:py-0.5 [&_h1]:text-sm [&_h1]:font-semibold [&_h2]:text-xs [&_h2]:font-semibold [&_h3]:text-xs [&_h3]:font-semibold [&_hr]:border-white/10 [&_li]:my-0.5 [&_ol]:list-decimal [&_ol]:pl-4 [&_p]:my-0 [&_p+_p]:mt-4 [&_pre]:overflow-auto [&_pre]:rounded-md [&_pre]:bg-black/30 [&_pre]:p-2 [&_ul]:list-disc [&_ul]:pl-4">
-              <ReactMarkdown
-                remarkPlugins={[remarkGfm, remarkBreaks]}
-                components={{
-                  a: ({ href, children, ...props }) => (
-                    <a
-                      {...props}
-                      href={href}
-                      target="_blank"
-                      rel="noreferrer"
-                      onClick={(event) => {
-                        event.preventDefault();
-                        handleMarkdownLinkClick(href);
-                      }}
-                    >
-                      {children}
-                    </a>
-                  ),
-                }}
-              >
-                {providerGuideMarkdown}
-              </ReactMarkdown>
-            </div>
-          </div>
-        )}
       </div>
     </div>
   );

@@ -6,30 +6,25 @@ import {
   type GrsaiCreditTierId,
   type PriceDisplayCurrencyMode,
 } from '@/features/canvas/pricing/types';
-import { getModelProvider } from '@/features/canvas/models';
+import {
+  buildApiKeysFromCustomInterfaces,
+  buildCustomInterfacesFromLegacyProviders,
+  createDefaultCustomApiInterface,
+  getCustomInterfaceById,
+  normalizeCustomApiInterfaces,
+  type CustomApiInterfaceConfig,
+  type LegacyProviderInterfaceConfig,
+} from '@/features/canvas/models/customInterfaces';
 
 export type UiRadiusPreset = 'compact' | 'default' | 'large';
 export type ThemeTonePreset = 'neutral' | 'warm' | 'cool';
 export type CanvasEdgeRoutingMode = 'spline' | 'orthogonal' | 'smartOrthogonal';
 export type ProviderApiKeys = Record<string, string>;
-export type ActiveProviderInterfaceIds = Record<string, string>;
-export const DEFAULT_GRSAI_NANO_BANANA_PRO_MODEL = 'nano-banana-pro';
-
-export interface ProviderInterfaceConfig {
-  id: string;
-  providerId: string;
-  name: string;
-  apiKey: string;
-  baseUrl: string;
-  uploadBaseUrl: string;
-}
 
 interface SettingsState {
   isHydrated: boolean;
   apiKeys: ProviderApiKeys;
-  providerInterfaces: ProviderInterfaceConfig[];
-  activeProviderInterfaceIds: ActiveProviderInterfaceIds;
-  grsaiNanoBananaProModel: string;
+  customApiInterfaces: CustomApiInterfaceConfig[];
   hideProviderGuidePopover: boolean;
   downloadPresetPaths: string[];
   useUploadFilenameAsNodeTitle: boolean;
@@ -50,13 +45,7 @@ interface SettingsState {
   canvasEdgeRoutingMode: CanvasEdgeRoutingMode;
   autoCheckAppUpdateOnLaunch: boolean;
   enableUpdateDialog: boolean;
-  setProviderApiKey: (providerId: string, key: string) => void;
-  setProviderInterfaces: (
-    providerId: string,
-    interfaces: ProviderInterfaceConfig[],
-    activeInterfaceId?: string
-  ) => void;
-  setGrsaiNanoBananaProModel: (model: string) => void;
+  setCustomApiInterfaces: (interfaces: CustomApiInterfaceConfig[]) => void;
   setHideProviderGuidePopover: (hide: boolean) => void;
   setDownloadPresetPaths: (paths: string[]) => void;
   setUseUploadFilenameAsNodeTitle: (enabled: boolean) => void;
@@ -89,176 +78,6 @@ function normalizeHexColor(input: string): string {
   return trimmed.startsWith('#') ? trimmed.toUpperCase() : `#${trimmed.toUpperCase()}`;
 }
 
-function normalizeApiKey(input: string): string {
-  return input.trim();
-}
-
-function normalizeProviderUrl(input: string | null | undefined): string {
-  return (input ?? '').trim().replace(/\/+$/u, '');
-}
-
-function createProviderInterfaceId(providerId: string): string {
-  const randomPart =
-    typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
-      ? crypto.randomUUID()
-      : `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
-  return `${providerId}-${randomPart}`;
-}
-
-function getProviderInterfaceDefaults(providerId: string) {
-  const provider = getModelProvider(providerId);
-  return {
-    name: provider.name || providerId.toUpperCase(),
-    baseUrl: normalizeProviderUrl(provider.defaultBaseUrl),
-    uploadBaseUrl: normalizeProviderUrl(provider.defaultUploadBaseUrl),
-  };
-}
-
-export function createDefaultProviderInterface(
-  providerId: string,
-  apiKey = '',
-  name?: string
-): ProviderInterfaceConfig {
-  const defaults = getProviderInterfaceDefaults(providerId);
-  return {
-    id: createProviderInterfaceId(providerId),
-    providerId,
-    name: (name ?? defaults.name).trim() || defaults.name,
-    apiKey: normalizeApiKey(apiKey),
-    baseUrl: defaults.baseUrl,
-    uploadBaseUrl: defaults.uploadBaseUrl,
-  };
-}
-
-function normalizeProviderInterface(
-  input: Partial<ProviderInterfaceConfig> | null | undefined
-): ProviderInterfaceConfig | null {
-  const providerId = typeof input?.providerId === 'string' ? input.providerId.trim() : '';
-  if (!providerId) {
-    return null;
-  }
-
-  const defaults = getProviderInterfaceDefaults(providerId);
-
-  return {
-    id:
-      typeof input?.id === 'string' && input.id.trim().length > 0
-        ? input.id.trim()
-        : createProviderInterfaceId(providerId),
-    providerId,
-    name:
-      typeof input?.name === 'string' && input.name.trim().length > 0
-        ? input.name.trim()
-        : defaults.name,
-    apiKey: normalizeApiKey(typeof input?.apiKey === 'string' ? input.apiKey : ''),
-    baseUrl: normalizeProviderUrl(
-      typeof input?.baseUrl === 'string' ? input.baseUrl : defaults.baseUrl
-    ),
-    uploadBaseUrl: normalizeProviderUrl(
-      typeof input?.uploadBaseUrl === 'string'
-        ? input.uploadBaseUrl
-        : defaults.uploadBaseUrl
-    ),
-  };
-}
-
-function normalizeProviderInterfaces(
-  input: ProviderInterfaceConfig[] | null | undefined
-): ProviderInterfaceConfig[] {
-  if (!Array.isArray(input)) {
-    return [];
-  }
-
-  const seenIds = new Set<string>();
-  return input.reduce<ProviderInterfaceConfig[]>((acc, item) => {
-    const normalized = normalizeProviderInterface(item);
-    if (!normalized) {
-      return acc;
-    }
-
-    if (seenIds.has(normalized.id)) {
-      normalized.id = createProviderInterfaceId(normalized.providerId);
-    }
-    seenIds.add(normalized.id);
-    acc.push(normalized);
-    return acc;
-  }, []);
-}
-
-function getProviderInterfacesByProviderId(
-  providerInterfaces: ProviderInterfaceConfig[],
-  providerId: string
-): ProviderInterfaceConfig[] {
-  return providerInterfaces.filter((item) => item.providerId === providerId);
-}
-
-function normalizeActiveProviderInterfaceIds(
-  input: ActiveProviderInterfaceIds | null | undefined,
-  providerInterfaces: ProviderInterfaceConfig[]
-): ActiveProviderInterfaceIds {
-  const raw = input ?? {};
-  const next: ActiveProviderInterfaceIds = {};
-  const providerIds = new Set(providerInterfaces.map((item) => item.providerId));
-
-  providerIds.forEach((providerId) => {
-    const preferredId = typeof raw[providerId] === 'string' ? raw[providerId].trim() : '';
-    const interfaces = getProviderInterfacesByProviderId(providerInterfaces, providerId);
-    const resolvedId =
-      interfaces.find((item) => item.id === preferredId)?.id ?? interfaces[0]?.id ?? '';
-    if (resolvedId) {
-      next[providerId] = resolvedId;
-    }
-  });
-
-  return next;
-}
-
-export function getActiveProviderInterface(
-  state: Pick<SettingsState, 'providerInterfaces' | 'activeProviderInterfaceIds'>,
-  providerId: string
-): ProviderInterfaceConfig | undefined {
-  const normalizedProviderId = providerId.trim();
-  if (!normalizedProviderId) {
-    return undefined;
-  }
-
-  const interfaces = getProviderInterfacesByProviderId(
-    state.providerInterfaces,
-    normalizedProviderId
-  );
-  const preferredId = state.activeProviderInterfaceIds[normalizedProviderId];
-  return interfaces.find((item) => item.id === preferredId) ?? interfaces[0];
-}
-
-function buildApiKeysFromProviderInterfaces(
-  providerInterfaces: ProviderInterfaceConfig[],
-  activeProviderInterfaceIds: ActiveProviderInterfaceIds,
-  fallbackApiKeys: ProviderApiKeys = {}
-): ProviderApiKeys {
-  const nextApiKeys = normalizeApiKeys(fallbackApiKeys);
-  const providerIds = new Set<string>([
-    ...Object.keys(nextApiKeys),
-    ...providerInterfaces.map((item) => item.providerId),
-    ...Object.keys(activeProviderInterfaceIds),
-  ]);
-
-  providerIds.forEach((providerId) => {
-    const activeInterface =
-      getActiveProviderInterface({ providerInterfaces, activeProviderInterfaceIds }, providerId);
-    nextApiKeys[providerId] = activeInterface?.apiKey ?? nextApiKeys[providerId] ?? '';
-  });
-
-  return nextApiKeys;
-}
-
-function normalizePriceDisplayCurrencyMode(
-  input: PriceDisplayCurrencyMode | string | null | undefined
-): PriceDisplayCurrencyMode {
-  return PRICE_DISPLAY_CURRENCY_MODES.includes(input as PriceDisplayCurrencyMode)
-    ? (input as PriceDisplayCurrencyMode)
-    : 'auto';
-}
-
 function normalizeUsdToCnyRate(input: number | string | null | undefined): number {
   const numeric = typeof input === 'number' ? input : Number(input);
   if (!Number.isFinite(numeric) || numeric <= 0) {
@@ -284,14 +103,6 @@ function normalizeGrsaiCreditTierId(
   }
 }
 
-function normalizeGrsaiNanoBananaProModel(input: string | null | undefined): string {
-  const trimmed = (input ?? '').trim().toLowerCase();
-  if (trimmed === DEFAULT_GRSAI_NANO_BANANA_PRO_MODEL || trimmed.startsWith('nano-banana-pro-')) {
-    return trimmed;
-  }
-  return DEFAULT_GRSAI_NANO_BANANA_PRO_MODEL;
-}
-
 function normalizeCanvasEdgeRoutingMode(
   input: CanvasEdgeRoutingMode | string | null | undefined
 ): CanvasEdgeRoutingMode {
@@ -306,13 +117,12 @@ function normalizeApiKeys(input: ProviderApiKeys | null | undefined): ProviderAp
     return {};
   }
 
-  return Object.entries(input).reduce<ProviderApiKeys>((acc, [providerId, key]) => {
-    const normalizedProviderId = providerId.trim();
-    if (!normalizedProviderId) {
+  return Object.entries(input).reduce<ProviderApiKeys>((acc, [key, value]) => {
+    const normalizedKey = key.trim();
+    if (!normalizedKey) {
       return acc;
     }
-
-    acc[normalizedProviderId] = normalizeApiKey(key);
+    acc[normalizedKey] = value.trim();
     return acc;
   }, {});
 }
@@ -323,25 +133,30 @@ export function hasConfiguredApiKey(apiKeys: ProviderApiKeys): boolean {
 
 export function getConfiguredApiKeyCount(
   apiKeys: ProviderApiKeys,
-  providerIds?: readonly string[]
+  interfaceIds?: readonly string[]
 ): number {
-  const keysToCount = providerIds
-    ? providerIds.map((providerId) => apiKeys[providerId] ?? '')
+  const keysToCount = interfaceIds
+    ? interfaceIds.map((interfaceId) => apiKeys[interfaceId] ?? '')
     : Object.values(apiKeys);
 
-  return keysToCount.reduce((count, key) => {
-    return normalizeApiKey(key).length > 0 ? count + 1 : count;
-  }, 0);
+  return keysToCount.reduce((count, key) => (key.trim().length > 0 ? count + 1 : count), 0);
 }
+
+export function getCustomApiInterface(
+  state: Pick<SettingsState, 'customApiInterfaces'>,
+  interfaceId: string | null | undefined
+): CustomApiInterfaceConfig | undefined {
+  return getCustomInterfaceById(state.customApiInterfaces, interfaceId);
+}
+
+export { createDefaultCustomApiInterface, type CustomApiInterfaceConfig };
 
 export const useSettingsStore = create<SettingsState>()(
   persist(
     (set) => ({
       isHydrated: false,
       apiKeys: {},
-      providerInterfaces: [],
-      activeProviderInterfaceIds: {},
-      grsaiNanoBananaProModel: DEFAULT_GRSAI_NANO_BANANA_PRO_MODEL,
+      customApiInterfaces: [createDefaultCustomApiInterface()],
       hideProviderGuidePopover: false,
       downloadPresetPaths: [],
       useUploadFilenameAsNodeTitle: true,
@@ -362,85 +177,14 @@ export const useSettingsStore = create<SettingsState>()(
       canvasEdgeRoutingMode: 'spline',
       autoCheckAppUpdateOnLaunch: true,
       enableUpdateDialog: true,
-      setProviderApiKey: (providerId, key) =>
-        set((state) => {
-          const normalizedProviderId = providerId.trim();
-          if (!normalizedProviderId) {
-            return state;
-          }
-
-          const normalizedKey = normalizeApiKey(key);
-          const providerInterfaces = [...state.providerInterfaces];
-          const activeProviderInterfaceIds = { ...state.activeProviderInterfaceIds };
-          const activeInterface = getActiveProviderInterface(state, normalizedProviderId);
-
-          if (activeInterface) {
-            const targetIndex = providerInterfaces.findIndex((item) => item.id === activeInterface.id);
-            if (targetIndex >= 0) {
-              providerInterfaces[targetIndex] = {
-                ...providerInterfaces[targetIndex],
-                apiKey: normalizedKey,
-              };
-            }
-          } else if (normalizedKey.length > 0) {
-            const nextInterface = createDefaultProviderInterface(normalizedProviderId, normalizedKey);
-            providerInterfaces.push(nextInterface);
-            activeProviderInterfaceIds[normalizedProviderId] = nextInterface.id;
-          }
-
-          return {
-            providerInterfaces,
-            activeProviderInterfaceIds,
-            apiKeys: {
-              ...state.apiKeys,
-              [normalizedProviderId]: normalizedKey,
-            },
-          };
-        }),
-      setProviderInterfaces: (providerId, interfaces, activeInterfaceId) =>
-        set((state) => {
-          const normalizedProviderId = providerId.trim();
-          if (!normalizedProviderId) {
-            return state;
-          }
-
-          const normalizedInterfaces = normalizeProviderInterfaces(
-            interfaces.map((item) => ({
-              ...item,
-              providerId: normalizedProviderId,
-            }))
-          );
-          const providerInterfaces = [
-            ...state.providerInterfaces.filter((item) => item.providerId !== normalizedProviderId),
-            ...normalizedInterfaces,
-          ];
-          const activeProviderInterfaceIds = {
-            ...state.activeProviderInterfaceIds,
-          };
-          const resolvedActiveInterfaceId =
-            normalizedInterfaces.find((item) => item.id === activeInterfaceId)?.id ??
-            normalizedInterfaces[0]?.id;
-
-          if (resolvedActiveInterfaceId) {
-            activeProviderInterfaceIds[normalizedProviderId] = resolvedActiveInterfaceId;
-          } else {
-            delete activeProviderInterfaceIds[normalizedProviderId];
-          }
-
-          return {
-            providerInterfaces,
-            activeProviderInterfaceIds,
-            apiKeys: buildApiKeysFromProviderInterfaces(
-              providerInterfaces,
-              activeProviderInterfaceIds,
-              state.apiKeys
-            ),
-          };
-        }),
-      setGrsaiNanoBananaProModel: (model) =>
+      setCustomApiInterfaces: (interfaces) => {
+        const normalized = normalizeCustomApiInterfaces(interfaces);
+        const resolved = normalized.length > 0 ? normalized : [createDefaultCustomApiInterface()];
         set({
-          grsaiNanoBananaProModel: normalizeGrsaiNanoBananaProModel(model),
-        }),
+          customApiInterfaces: resolved,
+          apiKeys: buildApiKeysFromCustomInterfaces(resolved),
+        });
+      },
       setHideProviderGuidePopover: (hide) => set({ hideProviderGuidePopover: hide }),
       setDownloadPresetPaths: (paths) => {
         const uniquePaths = Array.from(
@@ -464,8 +208,11 @@ export const useSettingsStore = create<SettingsState>()(
       setShowNodePrice: (enabled) => set({ showNodePrice: enabled }),
       setPriceDisplayCurrencyMode: (priceDisplayCurrencyMode) =>
         set({
-          priceDisplayCurrencyMode:
-            normalizePriceDisplayCurrencyMode(priceDisplayCurrencyMode),
+          priceDisplayCurrencyMode: PRICE_DISPLAY_CURRENCY_MODES.includes(
+            priceDisplayCurrencyMode
+          )
+            ? priceDisplayCurrencyMode
+            : 'auto',
         }),
       setUsdToCnyRate: (usdToCnyRate) =>
         set({ usdToCnyRate: normalizeUsdToCnyRate(usdToCnyRate) }),
@@ -482,7 +229,7 @@ export const useSettingsStore = create<SettingsState>()(
     }),
     {
       name: 'settings-storage',
-      version: 11,
+      version: 12,
       onRehydrateStorage: () => {
         return (_state, error) => {
           if (error) {
@@ -493,12 +240,11 @@ export const useSettingsStore = create<SettingsState>()(
       },
       migrate: (persistedState: unknown) => {
         const state = (persistedState ?? {}) as {
-          apiKey?: string;
           apiKeys?: ProviderApiKeys;
-          providerInterfaces?: ProviderInterfaceConfig[];
-          activeProviderInterfaceIds?: ActiveProviderInterfaceIds;
+          providerInterfaces?: LegacyProviderInterfaceConfig[];
+          customApiInterfaces?: CustomApiInterfaceConfig[];
+          apiKey?: string;
           ignoreAtTagWhenCopyingAndGenerating?: boolean;
-          grsaiNanoBananaProModel?: string;
           hideProviderGuidePopover?: boolean;
           canvasEdgeRoutingMode?: CanvasEdgeRoutingMode | string;
           autoCheckAppUpdateOnLaunch?: boolean;
@@ -513,91 +259,35 @@ export const useSettingsStore = create<SettingsState>()(
           grsaiCreditTierId?: GrsaiCreditTierId | string;
         };
 
-        const migratedApiKeys = normalizeApiKeys(state.apiKeys);
-        const migratedProviderInterfaces = normalizeProviderInterfaces(state.providerInterfaces);
-        const providerInterfaces =
-          migratedProviderInterfaces.length > 0
-            ? migratedProviderInterfaces
-            : Object.entries(migratedApiKeys).reduce<ProviderInterfaceConfig[]>(
-                (acc, [providerId, apiKey]) => {
-                  acc.push(createDefaultProviderInterface(providerId, apiKey));
-                  return acc;
-                },
-                []
-              );
-        const activeProviderInterfaceIds = normalizeActiveProviderInterfaceIds(
-          state.activeProviderInterfaceIds,
-          providerInterfaces
-        );
-        const resolvedApiKeys = buildApiKeysFromProviderInterfaces(
-          providerInterfaces,
-          activeProviderInterfaceIds,
-          migratedApiKeys
-        );
-        const legacyProviderInterfaces = state.apiKey
-          ? [createDefaultProviderInterface('ppio', normalizeApiKey(state.apiKey))]
-          : [];
-        const legacyActiveProviderInterfaceIds = normalizeActiveProviderInterfaceIds(
-          {},
-          legacyProviderInterfaces
-        );
-        const ignoreAtTagWhenCopyingAndGenerating =
-          state.ignoreAtTagWhenCopyingAndGenerating ?? true;
-        if (
-          migratedProviderInterfaces.length > 0 ||
-          Object.keys(migratedApiKeys).length > 0
-        ) {
-          return {
-            ...(persistedState as object),
-            isHydrated: true,
-            apiKeys: resolvedApiKeys,
-            providerInterfaces,
-            activeProviderInterfaceIds,
-            ignoreAtTagWhenCopyingAndGenerating,
-            grsaiNanoBananaProModel: normalizeGrsaiNanoBananaProModel(
-              state.grsaiNanoBananaProModel
-            ),
-            hideProviderGuidePopover: state.hideProviderGuidePopover ?? false,
-            canvasEdgeRoutingMode: normalizeCanvasEdgeRoutingMode(state.canvasEdgeRoutingMode),
-            autoCheckAppUpdateOnLaunch: state.autoCheckAppUpdateOnLaunch ?? true,
-            enableUpdateDialog: state.enableUpdateDialog ?? true,
-            enableStoryboardGenGridPreviewShortcut:
-              state.enableStoryboardGenGridPreviewShortcut ?? false,
-            showStoryboardGenAdvancedRatioControls:
-              state.showStoryboardGenAdvancedRatioControls ?? false,
-            storyboardGenAutoInferEmptyFrame: state.storyboardGenAutoInferEmptyFrame ?? true,
-            showNodePrice: state.showNodePrice ?? true,
-            priceDisplayCurrencyMode: normalizePriceDisplayCurrencyMode(
-              state.priceDisplayCurrencyMode
-            ),
-            usdToCnyRate: normalizeUsdToCnyRate(state.usdToCnyRate),
-            preferDiscountedPrice: state.preferDiscountedPrice ?? false,
-            grsaiCreditTierId: normalizeGrsaiCreditTierId(state.grsaiCreditTierId),
-          };
+        const normalizedApiKeys = normalizeApiKeys(state.apiKeys);
+        let customApiInterfaces = normalizeCustomApiInterfaces(state.customApiInterfaces);
+
+        if (customApiInterfaces.length === 0) {
+          customApiInterfaces = buildCustomInterfacesFromLegacyProviders(
+            state.providerInterfaces,
+            normalizedApiKeys
+          );
+        }
+
+        if (customApiInterfaces.length === 0 && typeof state.apiKey === 'string' && state.apiKey.trim()) {
+          customApiInterfaces = [
+            createDefaultCustomApiInterface({
+              apiKey: state.apiKey.trim(),
+            }),
+          ];
+        }
+
+        if (customApiInterfaces.length === 0) {
+          customApiInterfaces = [createDefaultCustomApiInterface()];
         }
 
         return {
           ...(persistedState as object),
           isHydrated: true,
-          apiKeys: buildApiKeysFromProviderInterfaces(
-            legacyProviderInterfaces.length > 0 ? legacyProviderInterfaces : providerInterfaces,
-            legacyProviderInterfaces.length > 0
-              ? legacyActiveProviderInterfaceIds
-              : activeProviderInterfaceIds,
-            state.apiKey ? { ppio: normalizeApiKey(state.apiKey) } : {}
-          ),
-          providerInterfaces:
-            legacyProviderInterfaces.length > 0 && providerInterfaces.length === 0
-              ? legacyProviderInterfaces
-              : providerInterfaces,
-          activeProviderInterfaceIds:
-            legacyProviderInterfaces.length > 0 && providerInterfaces.length === 0
-              ? legacyActiveProviderInterfaceIds
-              : activeProviderInterfaceIds,
-          ignoreAtTagWhenCopyingAndGenerating,
-          grsaiNanoBananaProModel: normalizeGrsaiNanoBananaProModel(
-            state.grsaiNanoBananaProModel
-          ),
+          apiKeys: buildApiKeysFromCustomInterfaces(customApiInterfaces),
+          customApiInterfaces,
+          ignoreAtTagWhenCopyingAndGenerating:
+            state.ignoreAtTagWhenCopyingAndGenerating ?? true,
           hideProviderGuidePopover: state.hideProviderGuidePopover ?? false,
           canvasEdgeRoutingMode: normalizeCanvasEdgeRoutingMode(state.canvasEdgeRoutingMode),
           autoCheckAppUpdateOnLaunch: state.autoCheckAppUpdateOnLaunch ?? true,
@@ -608,9 +298,11 @@ export const useSettingsStore = create<SettingsState>()(
             state.showStoryboardGenAdvancedRatioControls ?? false,
           storyboardGenAutoInferEmptyFrame: state.storyboardGenAutoInferEmptyFrame ?? true,
           showNodePrice: state.showNodePrice ?? true,
-          priceDisplayCurrencyMode: normalizePriceDisplayCurrencyMode(
-            state.priceDisplayCurrencyMode
-          ),
+          priceDisplayCurrencyMode: PRICE_DISPLAY_CURRENCY_MODES.includes(
+            state.priceDisplayCurrencyMode as PriceDisplayCurrencyMode
+          )
+            ? (state.priceDisplayCurrencyMode as PriceDisplayCurrencyMode)
+            : 'auto',
           usdToCnyRate: normalizeUsdToCnyRate(state.usdToCnyRate),
           preferDiscountedPrice: state.preferDiscountedPrice ?? false,
           grsaiCreditTierId: normalizeGrsaiCreditTierId(state.grsaiCreditTierId),

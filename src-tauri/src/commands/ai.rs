@@ -14,7 +14,7 @@ use uuid::Uuid;
 use crate::ai::error::AIError;
 use crate::ai::providers::build_default_providers;
 use crate::ai::{
-    GenerateRequest, ProviderRegistry, ProviderTaskHandle, ProviderTaskPollResult,
+    GenerateRequest, GenerateRuntimeConfig, ProviderRegistry, ProviderTaskHandle, ProviderTaskPollResult,
     ProviderTaskSubmission, ProviderRuntimeConfig,
 };
 
@@ -44,6 +44,16 @@ pub struct GenerateRequestDto {
     pub aspect_ratio: String,
     pub reference_images: Option<Vec<String>>,
     pub extra_params: Option<HashMap<String, Value>>,
+    pub runtime_config: Option<GenerateRuntimeConfigDto>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct GenerateRuntimeConfigDto {
+    pub interface_id: String,
+    pub interface_name: String,
+    pub api_key: String,
+    pub base_url: String,
+    pub api_model: String,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -318,6 +328,13 @@ pub async fn submit_generate_image_job(
         aspect_ratio: request.aspect_ratio,
         reference_images: request.reference_images,
         extra_params: request.extra_params,
+        runtime_config: request.runtime_config.map(|config| GenerateRuntimeConfig {
+            interface_id: config.interface_id,
+            interface_name: config.interface_name,
+            api_key: config.api_key,
+            base_url: config.base_url,
+            api_model: config.api_model,
+        }),
     };
 
     let job_id = Uuid::new_v4().to_string();
@@ -557,6 +574,13 @@ pub async fn generate_image(request: GenerateRequestDto) -> Result<String, Strin
         aspect_ratio: request.aspect_ratio,
         reference_images: request.reference_images,
         extra_params: request.extra_params,
+        runtime_config: request.runtime_config.map(|config| GenerateRuntimeConfig {
+            interface_id: config.interface_id,
+            interface_name: config.interface_name,
+            api_key: config.api_key,
+            base_url: config.base_url,
+            api_model: config.api_model,
+        }),
     };
 
     provider.generate(req).await.map_err(|e| e.to_string())

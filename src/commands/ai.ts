@@ -1,6 +1,4 @@
 import { invoke, isTauri } from '@tauri-apps/api/core';
-import { getModelProvider } from '@/features/canvas/models';
-import { getActiveProviderInterface, useSettingsStore } from '@/stores/settingsStore';
 
 export interface GenerateRequest {
   prompt: string;
@@ -9,6 +7,13 @@ export interface GenerateRequest {
   aspect_ratio: string;
   reference_images?: string[];
   extra_params?: Record<string, unknown>;
+  runtime_config?: {
+    interfaceId: string;
+    interfaceName: string;
+    apiKey: string;
+    baseUrl: string;
+    apiModel: string;
+  };
 }
 
 export type GenerationJobState = 'queued' | 'running' | 'succeeded' | 'failed' | 'not_found';
@@ -18,13 +23,6 @@ export interface GenerationJobStatus {
   status: GenerationJobState;
   result?: string | null;
   error?: string | null;
-}
-
-interface ConfigureProviderRuntimeRequest {
-  provider: string;
-  api_key: string;
-  base_url?: string;
-  upload_base_url?: string;
 }
 
 const BASE64_PREVIEW_HEAD = 96;
@@ -71,6 +69,37 @@ function sanitizeGenerateRequestForLog(request: GenerateRequest): Record<string,
       truncateBase64Like(item)
     ),
     extra_params: request.extra_params ?? {},
+    runtime_config: request.runtime_config
+      ? {
+          interfaceId: request.runtime_config.interfaceId,
+          interfaceName: request.runtime_config.interfaceName,
+          apiKeyMasked: request.runtime_config.apiKey
+            ? `${request.runtime_config.apiKey.slice(0, 4)}***${request.runtime_config.apiKey.slice(-2)}`
+            : '',
+          baseUrl: request.runtime_config.baseUrl,
+          apiModel: request.runtime_config.apiModel,
+        }
+      : undefined,
+  };
+}
+
+function toInvokeRequest(request: GenerateRequest): Record<string, unknown> {
+  return {
+    prompt: request.prompt,
+    model: request.model,
+    size: request.size,
+    aspect_ratio: request.aspect_ratio,
+    reference_images: request.reference_images,
+    extra_params: request.extra_params,
+    runtime_config: request.runtime_config
+      ? {
+          interface_id: request.runtime_config.interfaceId,
+          interface_name: request.runtime_config.interfaceName,
+          api_key: request.runtime_config.apiKey,
+          base_url: request.runtime_config.baseUrl,
+          api_model: request.runtime_config.apiModel,
+        }
+      : undefined,
   };
 }
 
@@ -120,48 +149,12 @@ function createErrorWithDetails(message: string, details?: string): ErrorWithDet
   return error;
 }
 
-function resolveProviderRuntimeRequest(
-  providerId: string,
-  apiKey: string
-): ConfigureProviderRuntimeRequest {
-  const state = useSettingsStore.getState();
-  const activeInterface = getActiveProviderInterface(state, providerId);
-  const provider = getModelProvider(providerId);
-  const resolvedApiKey = (activeInterface?.apiKey ?? apiKey).trim();
-  const resolvedBaseUrl = (
-    activeInterface?.baseUrl ||
-    provider.defaultBaseUrl ||
-    ''
-  ).trim();
-  const resolvedUploadBaseUrl = (
-    activeInterface?.uploadBaseUrl ||
-    provider.defaultUploadBaseUrl ||
-    ''
-  ).trim();
-
-  return {
-    provider: providerId,
-    api_key: resolvedApiKey,
-    base_url: resolvedBaseUrl || undefined,
-    upload_base_url: resolvedUploadBaseUrl || undefined,
-  };
-}
-
 export async function setApiKey(provider: string, apiKey: string): Promise<void> {
-  const request = resolveProviderRuntimeRequest(provider, apiKey);
-  console.info('[AI] configure_provider_runtime', {
-    provider: request.provider,
-    apiKeyMasked: request.api_key
-      ? `${request.api_key.slice(0, 4)}***${request.api_key.slice(-2)}`
-      : '',
-    baseUrl: request.base_url,
-    uploadBaseUrl: request.upload_base_url,
+  console.info('[AI] setApiKey noop', {
+    provider,
+    apiKeyMasked: apiKey ? `${apiKey.slice(0, 4)}***${apiKey.slice(-2)}` : '',
     tauri: isTauri(),
   });
-  if (!isTauri()) {
-    throw new Error(TAURI_ONLY_ERROR_MESSAGE);
-  }
-  return await invoke('configure_provider_runtime', { config: request });
 }
 
 export async function generateImage(request: GenerateRequest): Promise<string> {
@@ -176,7 +169,9 @@ export async function generateImage(request: GenerateRequest): Promise<string> {
   }
 
   try {
-    const rawResult = await invoke<unknown>('generate_image', { request });
+    const rawResult = await invoke<unknown>('generate_image', {
+      request: toInvokeRequest(request),
+    });
     if (typeof rawResult !== 'string') {
       throw createErrorWithDetails(
         'Generation returned non-string payload',
@@ -227,7 +222,9 @@ export async function submitGenerateImageJob(request: GenerateRequest): Promise<
     throw new Error(TAURI_ONLY_ERROR_MESSAGE);
   }
 
-  const jobId = await invoke<string>('submit_generate_image_job', { request });
+  const jobId = await invoke<string>('submit_generate_image_job', {
+    request: toInvokeRequest(request),
+  });
   if (typeof jobId !== 'string' || !jobId.trim()) {
     throw new Error('submit_generate_image_job returned invalid job id');
   }

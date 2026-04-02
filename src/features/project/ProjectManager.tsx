@@ -6,7 +6,6 @@ import { getConfiguredApiKeyCount, useSettingsStore } from '@/stores/settingsSto
 import { UI_CONTENT_OVERLAY_INSET_CLASS } from '@/components/ui/motion';
 import { UiButton, UiSelect } from '@/components/ui/primitives';
 import { MissingApiKeyHint } from '@/features/settings/MissingApiKeyHint';
-import { listModelProviders } from '@/features/canvas/models';
 import { RenameDialog } from './RenameDialog';
 
 type ProjectSortField = 'name' | 'createdAt' | 'updatedAt';
@@ -19,9 +18,8 @@ export function ProjectManager() {
   const [editingProjectName, setEditingProjectName] = useState('');
   const [sortField, setSortField] = useState<ProjectSortField>('createdAt');
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
-  const providerIds = useMemo(() => listModelProviders().map((provider) => provider.id), []);
   const configuredApiKeyCount = useSettingsStore((state) =>
-    getConfiguredApiKeyCount(state.apiKeys, providerIds)
+    getConfiguredApiKeyCount(state.apiKeys)
   );
 
   const { projects, isOpeningProject, createProject, deleteProject, renameProject, openProject } =
