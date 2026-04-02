@@ -25,6 +25,7 @@ pub struct GenerateRuntimeConfig {
     pub api_key: String,
     pub base_url: String,
     pub api_model: String,
+    pub omit_size_params: bool,
 }
 
 #[derive(Debug, Clone)]

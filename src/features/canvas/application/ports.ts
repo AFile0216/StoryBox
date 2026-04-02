@@ -44,6 +44,7 @@ export interface GenerateImagePayload {
     apiKey: string;
     baseUrl: string;
     apiModel: string;
+    omitSizeParams: boolean;
   };
 }
 

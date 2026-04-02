@@ -13,6 +13,7 @@ export interface GenerateRequest {
     apiKey: string;
     baseUrl: string;
     apiModel: string;
+    omitSizeParams: boolean;
   };
 }
 
@@ -78,6 +79,7 @@ function sanitizeGenerateRequestForLog(request: GenerateRequest): Record<string,
             : '',
           baseUrl: request.runtime_config.baseUrl,
           apiModel: request.runtime_config.apiModel,
+          omitSizeParams: request.runtime_config.omitSizeParams,
         }
       : undefined,
   };
@@ -98,6 +100,7 @@ function toInvokeRequest(request: GenerateRequest): Record<string, unknown> {
           api_key: request.runtime_config.apiKey,
           base_url: request.runtime_config.baseUrl,
           api_model: request.runtime_config.apiModel,
+          omit_size_params: request.runtime_config.omitSizeParams,
         }
       : undefined,
   };

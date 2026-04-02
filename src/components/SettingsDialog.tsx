@@ -327,8 +327,8 @@ export function SettingsDialog({
   const handleUpdateCustomApiInterface = useCallback(
     (
       interfaceId: string,
-      field: keyof Pick<CustomApiInterfaceConfig, 'name' | 'apiKey' | 'baseUrl'>,
-      value: string
+      field: keyof Pick<CustomApiInterfaceConfig, 'name' | 'apiKey' | 'baseUrl' | 'omitSizeParams'>,
+      value: string | boolean
     ) => {
       setLocalCustomApiInterfaces((previous) =>
         previous.map((item) => (item.id === interfaceId ? { ...item, [field]: value } : item))
@@ -657,6 +657,30 @@ export function SettingsDialog({
                               <Eye className="h-4 w-4 text-text-muted" />
                             )}
                           </button>
+                        </div>
+
+                        <div className="mt-3">
+                          <label className="flex cursor-pointer items-start gap-3 rounded border border-border-dark bg-surface-dark px-3 py-2.5">
+                            <UiCheckbox
+                              checked={apiInterface.omitSizeParams}
+                              onCheckedChange={(checked) =>
+                                handleUpdateCustomApiInterface(
+                                  apiInterface.id,
+                                  'omitSizeParams',
+                                  checked
+                                )
+                              }
+                              className="mt-0.5 shrink-0"
+                            />
+                            <div>
+                              <div className="text-xs font-medium text-text-dark">
+                                {t('settings.customApiOmitSizeParams')}
+                              </div>
+                              <p className="mt-1 text-xs text-text-muted">
+                                {t('settings.customApiOmitSizeParamsHint')}
+                              </p>
+                            </div>
+                          </label>
                         </div>
 
                         <div className="mt-3">

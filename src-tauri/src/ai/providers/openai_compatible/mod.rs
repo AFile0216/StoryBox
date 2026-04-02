@@ -162,14 +162,16 @@ impl AIProvider for OpenAiCompatibleProvider {
         }
 
         let endpoint = format!("{}/images/generations", base_url);
-        let image_size = Self::map_image_size(&request.size, &request.aspect_ratio);
 
         let mut body = Map::new();
         body.insert("model".to_string(), json!(api_model));
         body.insert("prompt".to_string(), json!(request.prompt));
-        body.insert("image_size".to_string(), json!(image_size.clone()));
-        body.insert("size".to_string(), json!(image_size));
         body.insert("aspect_ratio".to_string(), json!(request.aspect_ratio));
+        if !runtime.omit_size_params {
+            let image_size = Self::map_image_size(&request.size, &request.aspect_ratio);
+            body.insert("image_size".to_string(), json!(image_size.clone()));
+            body.insert("size".to_string(), json!(image_size));
+        }
 
         if let Some(reference_images) = request.reference_images.as_ref().filter(|items| !items.is_empty()) {
             let normalized_images = reference_images

@@ -207,6 +207,8 @@
     "customApiName": "接口名称",
     "customApiNamePlaceholder": "例如：硅基流动",
     "customApiBaseUrl": "Base URL",
+    "customApiOmitSizeParams": "兼容模式：不发送尺寸参数",
+    "customApiOmitSizeParamsHint": "对于一些非标准 OpenAI 兼容网关，如果发送 size 或 image_size 会报错，可开启此项。",
     "customApiModels": "模型列表",
     "customApiModelsHint": "每行填写一个模型 ID，保持与目标 API 要求一致。",
     "customApiModelsPlaceholder": "例如：Pro/google/nano-banana\nblack-forest-labs/FLUX.1-schnell",

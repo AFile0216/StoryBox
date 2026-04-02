@@ -207,6 +207,8 @@
     "customApiName": "Interface Name",
     "customApiNamePlaceholder": "e.g. SiliconFlow",
     "customApiBaseUrl": "Base URL",
+    "customApiOmitSizeParams": "Compatibility mode: omit size params",
+    "customApiOmitSizeParamsHint": "Enable this for non-standard OpenAI-compatible gateways that fail when receiving size or image_size.",
     "customApiModels": "Models",
     "customApiModelsHint": "One model ID per line, exactly as required by the target API.",
     "customApiModelsPlaceholder": "e.g. Pro/google/nano-banana\nblack-forest-labs/FLUX.1-schnell",

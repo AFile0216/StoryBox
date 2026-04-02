@@ -54,6 +54,7 @@ pub struct GenerateRuntimeConfigDto {
     pub api_key: String,
     pub base_url: String,
     pub api_model: String,
+    pub omit_size_params: bool,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -334,6 +335,7 @@ pub async fn submit_generate_image_job(
             api_key: config.api_key,
             base_url: config.base_url,
             api_model: config.api_model,
+            omit_size_params: config.omit_size_params,
         }),
     };
 
@@ -580,6 +582,7 @@ pub async fn generate_image(request: GenerateRequestDto) -> Result<String, Strin
             api_key: config.api_key,
             base_url: config.base_url,
             api_model: config.api_model,
+            omit_size_params: config.omit_size_params,
         }),
     };
 

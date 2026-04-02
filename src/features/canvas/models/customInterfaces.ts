@@ -7,6 +7,7 @@ export interface CustomApiInterfaceConfig {
   apiKey: string;
   baseUrl: string;
   modelIds: string[];
+  omitSizeParams: boolean;
 }
 
 export interface LegacyProviderInterfaceConfig {
@@ -76,6 +77,7 @@ export function createDefaultCustomApiInterface(
     apiKey: normalizeString(overrides.apiKey),
     baseUrl: normalizeBaseUrl(overrides.baseUrl) || DEFAULT_CUSTOM_API_BASE_URL,
     modelIds: normalizeModelIds(overrides.modelIds),
+    omitSizeParams: overrides.omitSizeParams === true,
   };
 }
 
@@ -114,6 +116,7 @@ export function normalizeCustomApiInterfaces(
       apiKey: normalizeString(item?.apiKey),
       baseUrl: normalizeBaseUrl(item?.baseUrl) || DEFAULT_CUSTOM_API_BASE_URL,
       modelIds: normalizeModelIds(item?.modelIds),
+      omitSizeParams: item?.omitSizeParams === true,
     });
     return acc;
   }, []);
@@ -147,6 +150,7 @@ export function buildCustomInterfacesFromLegacyProviders(
       apiKey: normalizeString(item.apiKey) || normalizeString(fallbackApiKeys[providerId]),
       baseUrl: normalizeBaseUrl(item.baseUrl) || DEFAULT_CUSTOM_API_BASE_URL,
       modelIds: legacyModels,
+      omitSizeParams: false,
     });
   });
 }
