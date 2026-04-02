@@ -79,7 +79,7 @@ impl AIProvider for PPIOProvider {
     }
 
     async fn configure_runtime(&self, config: ProviderRuntimeConfig) -> Result<(), AIError> {
-        self.set_api_key(config.api_key).await?;
+        PPIOProvider::set_api_key(self, config.api_key).await;
 
         let normalized_base_url = config
             .base_url
