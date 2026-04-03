@@ -29,6 +29,7 @@ import { NodeHeader, NODE_HEADER_FLOATING_POSITION_CLASS } from '@/features/canv
 import { resolveAdaptiveHandleStyle } from '@/features/canvas/ui/nodeMetrics';
 import { NodeResizeHandle } from '@/features/canvas/ui/NodeResizeHandle';
 import { CanvasNodeImage } from '@/features/canvas/ui/CanvasNodeImage';
+import { ReferenceAwareTextarea } from '@/features/canvas/ui/ReferenceAwareTextarea';
 import type {
   CanvasNode,
   StoryboardExportOptions,
@@ -399,18 +400,17 @@ const FrameCard = memo(
           </button>
         </div>
 
-        <textarea
+        <ReferenceAwareTextarea
+          nodeId={nodeId}
           value={frame.note}
-          onChange={(event) => {
-            const nextValue = event.target.value;
+          onChange={(nextValue) => {
             updateStoryboardFrame(nodeId, frame.id, {
               note: nextValue,
             });
           }}
-          onMouseDown={(event) => event.stopPropagation()}
-          onWheelCapture={(event) => event.stopPropagation()}
           placeholder={`分镜 ${String(index + 1).padStart(2, '0')} 描述`}
-          className="ui-scrollbar nodrag nowheel h-10 w-full resize-none overflow-y-auto border-0 border-t border-[rgba(255,255,255,0.12)] bg-bg-dark/90 px-2 py-1 text-[10px] text-text-dark outline-none focus:border-accent"
+          minHeightClassName="min-h-0"
+          className="h-10 border-0 border-t border-[rgba(255,255,255,0.12)] bg-bg-dark/90 px-2 py-1 text-[10px] leading-4"
         />
       </div>
     );

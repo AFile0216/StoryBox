@@ -24,6 +24,7 @@ import {
   type AnnotationToolType,
 } from '@/features/canvas/tools/annotation';
 import { resolveImageDisplayUrl } from '@/features/canvas/application/imageData';
+import { ReferenceAwareTextarea } from '@/features/canvas/ui/ReferenceAwareTextarea';
 import type { VisualToolEditorProps } from './types';
 
 const VIEWPORT_PADDING_PX = 16;
@@ -195,7 +196,7 @@ function pruneUndefinedToolOptionsPatch(patch: Partial<ToolOptions>): Partial<To
   return next;
 }
 
-export function AnnotateToolEditor({ options, onOptionsChange, sourceImageUrl }: VisualToolEditorProps) {
+export function AnnotateToolEditor({ nodeId, options, onOptionsChange, sourceImageUrl }: VisualToolEditorProps) {
   const [image, setImage] = useState<HTMLImageElement | null>(null);
   const [tool, setTool] = useState<AnnotationToolType>('rect');
   const [annotations, setAnnotations] = useState<AnnotationItem[]>(() =>
@@ -1157,15 +1158,16 @@ export function AnnotateToolEditor({ options, onOptionsChange, sourceImageUrl }:
                 maxWidth: '300px',
               }}
             >
-              <textarea
-                ref={textInputRef}
+              <ReferenceAwareTextarea
+                nodeId={nodeId}
+                textareaRef={textInputRef}
                 value={textEditorState.value}
-                onChange={(event) =>
+                onChange={(value) =>
                   setTextEditorState((previous) =>
                     previous
                       ? {
                         ...previous,
-                        value: event.target.value,
+                        value,
                       }
                       : previous
                   )
@@ -1181,8 +1183,8 @@ export function AnnotateToolEditor({ options, onOptionsChange, sourceImageUrl }:
                     handleCancelTextEditor();
                   }
                 }}
-                rows={3}
-                className="w-full resize-none rounded border border-[rgba(255,255,255,0.18)] bg-bg-dark/90 px-2 py-1.5 text-sm text-text-dark outline-none focus:border-accent"
+                minHeightClassName="min-h-[72px]"
+                className="rounded border border-[rgba(255,255,255,0.18)] bg-bg-dark/90"
               />
               <div className="flex items-center justify-end gap-2">
                 <button

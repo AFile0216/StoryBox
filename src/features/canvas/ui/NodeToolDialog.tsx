@@ -282,35 +282,38 @@ export function NodeToolDialog() {
     }
 
     if (activePlugin.editor === 'crop' && sourceImageUrl) {
-      return (
-        <CropToolEditor
-          plugin={activePlugin}
-          sourceImageUrl={sourceImageUrl}
-          options={options}
-          onOptionsChange={setOptions}
-        />
+        return (
+          <CropToolEditor
+            plugin={activePlugin}
+            nodeId={sourceNode!.id}
+            sourceImageUrl={sourceImageUrl}
+            options={options}
+            onOptionsChange={setOptions}
+          />
       );
     }
 
     if (activePlugin.editor === 'annotate' && sourceImageUrl) {
-      return (
-        <AnnotateToolEditor
-          plugin={activePlugin}
-          sourceImageUrl={sourceImageUrl}
-          options={options}
-          onOptionsChange={setOptions}
-        />
+        return (
+          <AnnotateToolEditor
+            plugin={activePlugin}
+            nodeId={sourceNode!.id}
+            sourceImageUrl={sourceImageUrl}
+            options={options}
+            onOptionsChange={setOptions}
+          />
       );
     }
 
     if (activePlugin.editor === 'split' && sourceImageUrl) {
-      return (
-        <SplitStoryboardToolEditor
-          plugin={activePlugin}
-          sourceImageUrl={sourceImageUrl}
-          options={options}
-          onOptionsChange={setOptions}
-        />
+        return (
+          <SplitStoryboardToolEditor
+            plugin={activePlugin}
+            nodeId={sourceNode!.id}
+            sourceImageUrl={sourceImageUrl}
+            options={options}
+            onOptionsChange={setOptions}
+          />
       );
     }
 

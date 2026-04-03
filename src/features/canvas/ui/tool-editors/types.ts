@@ -7,6 +7,7 @@ export interface ToolEditorBaseProps {
 }
 
 export interface VisualToolEditorProps extends ToolEditorBaseProps {
+  nodeId: string;
   sourceImageUrl: string;
 }
 

@@ -1,6 +1,8 @@
 import {
   type KeyboardEvent,
+  type MouseEvent,
   type ReactNode,
+  type WheelEvent,
   useCallback,
   useEffect,
   useMemo,
@@ -26,6 +28,10 @@ interface ReferenceAwareTextareaProps {
   placeholder?: string;
   autoFocus?: boolean;
   onBeforeChange?: () => void;
+  textareaRef?: React.RefObject<HTMLTextAreaElement>;
+  onKeyDown?: (event: KeyboardEvent<HTMLTextAreaElement>) => void;
+  onMouseDown?: (event: MouseEvent<HTMLTextAreaElement>) => void;
+  onWheelCapture?: (event: WheelEvent<HTMLTextAreaElement>) => void;
   minHeightClassName?: string;
   className?: string;
 }
@@ -142,11 +148,15 @@ export function ReferenceAwareTextarea({
   placeholder,
   autoFocus = false,
   onBeforeChange,
+  textareaRef,
+  onKeyDown,
+  onMouseDown,
+  onWheelCapture,
   minHeightClassName = 'min-h-[140px]',
   className = '',
 }: ReferenceAwareTextareaProps) {
   const rootRef = useRef<HTMLDivElement>(null);
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const textareaRefFallback = useRef<HTMLTextAreaElement>(null);
   const highlightRef = useRef<HTMLDivElement>(null);
   const [showImagePicker, setShowImagePicker] = useState(false);
   const [pickerCursor, setPickerCursor] = useState<number | null>(null);
@@ -175,14 +185,15 @@ export function ReferenceAwareTextarea({
     [incomingImageItems]
   );
 
+  const resolvedTextareaRef = textareaRef ?? textareaRefFallback;
   const syncHighlightScroll = useCallback(() => {
-    if (!textareaRef.current || !highlightRef.current) {
+    if (!resolvedTextareaRef.current || !highlightRef.current) {
       return;
     }
 
-    highlightRef.current.scrollTop = textareaRef.current.scrollTop;
-    highlightRef.current.scrollLeft = textareaRef.current.scrollLeft;
-  }, []);
+    highlightRef.current.scrollTop = resolvedTextareaRef.current.scrollTop;
+    highlightRef.current.scrollLeft = resolvedTextareaRef.current.scrollLeft;
+  }, [resolvedTextareaRef]);
 
   useEffect(() => {
     if (incomingImages.length === 0) {
@@ -196,7 +207,7 @@ export function ReferenceAwareTextarea({
   }, [incomingImages.length]);
 
   useEffect(() => {
-    const handleOutside = (event: MouseEvent) => {
+    const handleOutside = (event: globalThis.MouseEvent) => {
       if (rootRef.current?.contains(event.target as Node)) {
         return;
       }
@@ -226,11 +237,11 @@ export function ReferenceAwareTextarea({
     closePicker();
 
     requestAnimationFrame(() => {
-      textareaRef.current?.focus();
-      textareaRef.current?.setSelectionRange(nextCursor, nextCursor);
+      resolvedTextareaRef.current?.focus();
+      resolvedTextareaRef.current?.setSelectionRange(nextCursor, nextCursor);
       syncHighlightScroll();
     });
-  }, [closePicker, onChange, pickerCursor, resolvedValue, syncHighlightScroll]);
+  }, [closePicker, onChange, pickerCursor, resolvedTextareaRef, resolvedValue, syncHighlightScroll]);
 
   const handleKeyDown = useCallback((event: KeyboardEvent<HTMLTextAreaElement>) => {
     if (event.key === 'Backspace' || event.key === 'Delete') {
@@ -249,8 +260,8 @@ export function ReferenceAwareTextarea({
         const { nextText, nextCursor } = removeTextRange(resolvedValue, deleteRange);
         onChange(nextText);
         requestAnimationFrame(() => {
-          textareaRef.current?.focus();
-          textareaRef.current?.setSelectionRange(nextCursor, nextCursor);
+          resolvedTextareaRef.current?.focus();
+          resolvedTextareaRef.current?.setSelectionRange(nextCursor, nextCursor);
           syncHighlightScroll();
         });
         return;
@@ -293,11 +304,13 @@ export function ReferenceAwareTextarea({
       event.preventDefault();
       closePicker();
     }
+    onKeyDown?.(event);
   }, [
     closePicker,
     incomingImages.length,
     insertImageReference,
     onChange,
+    onKeyDown,
     pickerActiveIndex,
     resolvedValue,
     showImagePicker,
@@ -319,7 +332,7 @@ export function ReferenceAwareTextarea({
         </div>
 
         <textarea
-          ref={textareaRef}
+          ref={resolvedTextareaRef}
           value={resolvedValue}
           autoFocus={autoFocus}
           onChange={(event) => {
@@ -328,7 +341,14 @@ export function ReferenceAwareTextarea({
           }}
           onKeyDown={handleKeyDown}
           onScroll={syncHighlightScroll}
-          onMouseDown={(event) => event.stopPropagation()}
+          onMouseDown={(event) => {
+            event.stopPropagation();
+            onMouseDown?.(event);
+          }}
+          onWheelCapture={(event) => {
+            event.stopPropagation();
+            onWheelCapture?.(event);
+          }}
           placeholder={placeholder}
           className="ui-scrollbar nodrag nowheel relative z-10 h-full w-full resize-none overflow-y-auto overflow-x-hidden border-none bg-transparent px-3 py-2 text-sm leading-6 text-transparent caret-text-dark outline-none placeholder:text-text-muted/70 whitespace-pre-wrap break-words"
           style={{ scrollbarGutter: 'stable' }}
