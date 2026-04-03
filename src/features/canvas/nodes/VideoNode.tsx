@@ -12,7 +12,7 @@ import {
 } from '@/features/canvas/domain/canvasNodes';
 import { resolveNodeDisplayName } from '@/features/canvas/domain/nodeDisplay';
 import { NodeHeader, NODE_HEADER_FLOATING_POSITION_CLASS } from '@/features/canvas/ui/NodeHeader';
-import { resolveAdaptiveHandleStyle } from '@/features/canvas/ui/nodeMetrics';
+import { resolveAdaptiveHandleStyle, resolveResponsiveNodeClasses } from '@/features/canvas/ui/nodeMetrics';
 import { NodeResizeHandle } from '@/features/canvas/ui/NodeResizeHandle';
 import { resolveLocalAssetUrl } from '@/features/canvas/application/imageData';
 import { useCanvasStore } from '@/stores/canvasStore';
@@ -66,7 +66,9 @@ export const VideoNode = memo(({ id, data, selected, width, height }: VideoNodeP
   const resolvedTitle = resolveNodeDisplayName(CANVAS_NODE_TYPES.video, data);
   const resolvedWidth = Math.max(MIN_WIDTH, Math.round(width ?? DEFAULT_WIDTH));
   const resolvedHeight = Math.max(MIN_HEIGHT, Math.round(height ?? DEFAULT_HEIGHT));
-  const handleStyle = resolveAdaptiveHandleStyle(resolvedWidth, resolvedHeight);
+  const uiDensity = resolveResponsiveNodeClasses(resolvedWidth, resolvedHeight);
+  const targetHandleStyle = resolveAdaptiveHandleStyle(resolvedWidth, resolvedHeight, 'left');
+  const sourceHandleStyle = resolveAdaptiveHandleStyle(resolvedWidth, resolvedHeight, 'right');
   const videoSrc = useMemo(
     () => (data.filePath ? resolveLocalAssetUrl(data.filePath) : null),
     [data.filePath]
@@ -170,12 +172,12 @@ export const VideoNode = memo(({ id, data, selected, width, height }: VideoNodeP
       />
 
       <div className="mb-2 mt-6 flex items-center justify-between gap-2">
-        <div className="tapnow-node-pill px-2 py-1 text-[10px] uppercase tracking-[0.12em]">
+        <div className={`tapnow-node-pill px-2 py-1 uppercase tracking-[0.12em] ${uiDensity.metaText}`}>
           {t('node.video.title')}
         </div>
         <button
           type="button"
-          className="tapnow-node-button px-2 py-1 text-xs"
+          className={`tapnow-node-button px-2 py-1 ${uiDensity.metaText}`}
           onClick={(event) => {
             event.stopPropagation();
             void handlePickVideo();
@@ -212,19 +214,19 @@ export const VideoNode = memo(({ id, data, selected, width, height }: VideoNodeP
         </div>
 
         <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-4">
-            <div className="tapnow-node-panel px-3 py-2">
+            <div className={`tapnow-node-panel ${uiDensity.panelPadding}`}>
             <div className="text-[10px] uppercase tracking-[0.12em] text-text-muted">
               {t('node.video.currentTime')}
             </div>
             <div className="mt-1 text-sm text-text-dark">{formatSeconds(playheadSec)}</div>
           </div>
-            <div className="tapnow-node-panel px-3 py-2">
+            <div className={`tapnow-node-panel ${uiDensity.panelPadding}`}>
             <div className="text-[10px] uppercase tracking-[0.12em] text-text-muted">
               {t('node.video.duration')}
             </div>
             <div className="mt-1 text-sm text-text-dark">{formatSeconds(data.durationSec)}</div>
           </div>
-            <div className="tapnow-node-panel px-3 py-2">
+            <div className={`tapnow-node-panel ${uiDensity.panelPadding}`}>
             <div className="text-[10px] uppercase tracking-[0.12em] text-text-muted">
               {t('node.video.file')}
             </div>
@@ -261,13 +263,13 @@ export const VideoNode = memo(({ id, data, selected, width, height }: VideoNodeP
           value={data.prompt}
           onChange={(event) => updateNodeData(id, { prompt: event.target.value })}
           placeholder={t('node.video.promptPlaceholder')}
-          className="tapnow-node-field nodrag nowheel min-h-[76px] w-full resize-none px-3 py-2 text-sm text-text-dark outline-none placeholder:text-text-muted/70"
+          className={`tapnow-node-field nodrag nowheel min-h-[76px] w-full resize-none ${uiDensity.panelPadding} ${uiDensity.bodyText} text-text-dark outline-none placeholder:text-text-muted/70`}
         />
 
         <div className="grid gap-2 md:grid-cols-[1fr_1fr_1fr]">
           <button
             type="button"
-            className="tapnow-node-button inline-flex items-center justify-center gap-2 px-3 py-2 text-sm"
+            className={`tapnow-node-button inline-flex items-center justify-center gap-2 px-3 py-2 ${uiDensity.buttonText}`}
             onClick={(event) => {
               event.stopPropagation();
               handleRunTask();
@@ -282,7 +284,7 @@ export const VideoNode = memo(({ id, data, selected, width, height }: VideoNodeP
           </button>
           <button
             type="button"
-            className="tapnow-node-button inline-flex items-center justify-center gap-2 px-3 py-2 text-sm"
+            className={`tapnow-node-button inline-flex items-center justify-center gap-2 px-3 py-2 ${uiDensity.buttonText}`}
             onClick={(event) => {
               event.stopPropagation();
               handleCreateStoryboardNode();
@@ -291,13 +293,13 @@ export const VideoNode = memo(({ id, data, selected, width, height }: VideoNodeP
             <Clapperboard className="h-4 w-4" />
             {t('node.video.openStoryboard')}
           </button>
-          <div className="tapnow-node-panel px-3 py-2 text-xs text-text-muted">
+          <div className={`tapnow-node-panel ${uiDensity.panelPadding} ${uiDensity.metaText} text-text-muted`}>
             <div>{t(`node.media.status.${data.taskStatus}`)}</div>
             {data.taskMessage ? <div className="mt-1">{data.taskMessage}</div> : null}
           </div>
         </div>
 
-        <div className="tapnow-node-panel min-h-[54px] px-3 py-2 text-sm text-text-muted">
+        <div className={`tapnow-node-panel min-h-[54px] ${uiDensity.panelPadding} ${uiDensity.bodyText} text-text-muted`}>
           {data.taskOutputSummary || t('node.media.outputPlaceholder')}
         </div>
       </div>
@@ -307,14 +309,14 @@ export const VideoNode = memo(({ id, data, selected, width, height }: VideoNodeP
         id="target"
         position={Position.Left}
         className="!border-surface-dark !bg-accent"
-        style={handleStyle}
+        style={targetHandleStyle}
       />
       <Handle
         type="source"
         id="source"
         position={Position.Right}
         className="!border-surface-dark !bg-accent"
-        style={handleStyle}
+        style={sourceHandleStyle}
       />
 
       <NodeResizeHandle

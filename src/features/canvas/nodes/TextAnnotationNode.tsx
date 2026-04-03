@@ -14,7 +14,7 @@ import {
 } from '@/features/canvas/domain/canvasNodes';
 import { resolveNodeDisplayName } from '@/features/canvas/domain/nodeDisplay';
 import { NodeHeader, NODE_HEADER_FLOATING_POSITION_CLASS } from '@/features/canvas/ui/NodeHeader';
-import { resolveAdaptiveHandleStyle } from '@/features/canvas/ui/nodeMetrics';
+import { resolveAdaptiveHandleStyle, resolveResponsiveNodeClasses } from '@/features/canvas/ui/nodeMetrics';
 import { NodeResizeHandle } from '@/features/canvas/ui/NodeResizeHandle';
 import { UiSelect } from '@/components/ui';
 import { useCanvasStore } from '@/stores/canvasStore';
@@ -55,7 +55,9 @@ export const TextAnnotationNode = memo(({
   const resolvedTitle = resolveNodeDisplayName(CANVAS_NODE_TYPES.textAnnotation, data);
   const resolvedWidth = Math.max(MIN_WIDTH, Math.round(width ?? DEFAULT_WIDTH));
   const resolvedHeight = Math.max(MIN_HEIGHT, Math.round(height ?? DEFAULT_HEIGHT));
-  const handleStyle = resolveAdaptiveHandleStyle(resolvedWidth, resolvedHeight);
+  const uiDensity = resolveResponsiveNodeClasses(resolvedWidth, resolvedHeight);
+  const targetHandleStyle = resolveAdaptiveHandleStyle(resolvedWidth, resolvedHeight, 'left');
+  const sourceHandleStyle = resolveAdaptiveHandleStyle(resolvedWidth, resolvedHeight, 'right');
   const handleMarkdownLinkClick = useCallback((href?: string) => {
     if (!href) {
       return;
@@ -81,7 +83,7 @@ export const TextAnnotationNode = memo(({
       />
 
       <div className="mb-2 mt-6 flex items-center gap-2">
-        <span className="tapnow-node-pill px-2 py-1 text-[11px] uppercase tracking-[0.12em]">
+        <span className={`tapnow-node-pill px-2 py-1 uppercase tracking-[0.12em] ${uiDensity.metaText}`}>
           {t('node.textAnnotation.modeLabel')}
         </span>
         <UiSelect
@@ -111,11 +113,11 @@ export const TextAnnotationNode = memo(({
           placeholder={t('node.textAnnotation.placeholder', {
             mode: t(`node.textAnnotation.mode.${mode}`),
           })}
-          className="tapnow-node-field nodrag nowheel h-[calc(100%-72px)] w-full resize-none px-3 py-2 text-sm leading-6 text-text-dark outline-none placeholder:text-text-muted/70"
+          className={`tapnow-node-field nodrag nowheel h-[calc(100%-72px)] w-full resize-none ${uiDensity.panelPadding} ${uiDensity.bodyText} text-text-dark outline-none placeholder:text-text-muted/70`}
         />
       ) : (
-        <div className="tapnow-node-panel nodrag nowheel h-[calc(100%-72px)] overflow-auto px-3 py-2 text-sm leading-6 text-text-dark">
-          <div className="tapnow-node-pill mb-2 px-2 py-0.5 text-[10px] uppercase tracking-[0.12em]">
+        <div className={`tapnow-node-panel nodrag nowheel h-[calc(100%-72px)] overflow-auto ${uiDensity.panelPadding} ${uiDensity.bodyText} text-text-dark`}>
+          <div className={`tapnow-node-pill mb-2 px-2 py-0.5 uppercase tracking-[0.12em] ${uiDensity.metaText}`}>
             {t(`node.textAnnotation.mode.${mode}`)}
           </div>
           {content.trim().length > 0 ? (
@@ -153,14 +155,14 @@ export const TextAnnotationNode = memo(({
         id="target"
         position={Position.Left}
         className="!border-surface-dark !bg-accent"
-        style={handleStyle}
+        style={targetHandleStyle}
       />
       <Handle
         type="source"
         id="source"
         position={Position.Right}
         className="!border-surface-dark !bg-accent"
-        style={handleStyle}
+        style={sourceHandleStyle}
       />
 
       <NodeResizeHandle

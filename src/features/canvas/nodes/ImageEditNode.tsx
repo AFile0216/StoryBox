@@ -353,7 +353,8 @@ export const ImageEditNode = memo(({ id, data, selected, width, height }: ImageE
 
   const resolvedWidth = Math.max(IMAGE_EDIT_NODE_MIN_WIDTH, Math.round(width ?? IMAGE_EDIT_NODE_DEFAULT_WIDTH));
   const resolvedHeight = Math.max(IMAGE_EDIT_NODE_MIN_HEIGHT, Math.round(height ?? IMAGE_EDIT_NODE_DEFAULT_HEIGHT));
-  const handleStyle = resolveAdaptiveHandleStyle(resolvedWidth, resolvedHeight);
+  const targetHandleStyle = resolveAdaptiveHandleStyle(resolvedWidth, resolvedHeight, 'left');
+  const sourceHandleStyle = resolveAdaptiveHandleStyle(resolvedWidth, resolvedHeight, 'right');
 
   useEffect(() => {
     updateNodeInternals(id);
@@ -914,14 +915,14 @@ export const ImageEditNode = memo(({ id, data, selected, width, height }: ImageE
         id="target"
         position={Position.Left}
         className="!border-surface-dark !bg-accent"
-        style={handleStyle}
+        style={targetHandleStyle}
       />
       <Handle
         type="source"
         id="source"
         position={Position.Right}
         className="!border-surface-dark !bg-accent"
-        style={handleStyle}
+        style={sourceHandleStyle}
       />
       <NodeResizeHandle
         minWidth={IMAGE_EDIT_NODE_MIN_WIDTH}

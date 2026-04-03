@@ -78,7 +78,8 @@ export const ImageNode = memo(({ id, data, selected, type, width, height }: Imag
   const resizeMinHeight = resizeConstraints.minHeight;
   const resolvedWidth = resolveNodeDimension(width, compactSize.width);
   const resolvedHeight = resolveNodeDimension(height, compactSize.height);
-  const handleStyle = resolveAdaptiveHandleStyle(resolvedWidth, resolvedHeight);
+  const targetHandleStyle = resolveAdaptiveHandleStyle(resolvedWidth, resolvedHeight, 'left');
+  const sourceHandleStyle = resolveAdaptiveHandleStyle(resolvedWidth, resolvedHeight, 'right');
   const resolvedTitle = useMemo(
     () => resolveNodeDisplayName(type as CanvasNodeType, data),
     [data, type]
@@ -224,14 +225,14 @@ export const ImageNode = memo(({ id, data, selected, type, width, height }: Imag
         id="target"
         position={Position.Left}
         className="!border-surface-dark !bg-accent"
-        style={handleStyle}
+        style={targetHandleStyle}
       />
       <Handle
         type="source"
         id="source"
         position={Position.Right}
         className="!border-surface-dark !bg-accent"
-        style={handleStyle}
+        style={sourceHandleStyle}
       />
       <NodeResizeHandle
         minWidth={resizeMinWidth}

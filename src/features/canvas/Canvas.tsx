@@ -247,7 +247,6 @@ export function Canvas() {
   );
   const [previewConnectionVisual, setPreviewConnectionVisual] =
     useState<PreviewConnectionVisual | null>(null);
-  const [isSpacePanning, setIsSpacePanning] = useState(false);
 
   const isRestoringCanvasRef = useRef(true);
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -1629,31 +1628,6 @@ export function Canvas() {
     [configuredApiKeyCount, t]
   );
 
-  useEffect(() => {
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.code === 'Space' && !isTypingTarget(event.target)) {
-        setIsSpacePanning(true);
-      }
-    };
-    const handleKeyUp = (event: KeyboardEvent) => {
-      if (event.code === 'Space') {
-        setIsSpacePanning(false);
-      }
-    };
-    const handleBlur = () => {
-      setIsSpacePanning(false);
-    };
-
-    window.addEventListener('keydown', handleKeyDown);
-    window.addEventListener('keyup', handleKeyUp);
-    window.addEventListener('blur', handleBlur);
-    return () => {
-      window.removeEventListener('keydown', handleKeyDown);
-      window.removeEventListener('keyup', handleKeyUp);
-      window.removeEventListener('blur', handleBlur);
-    };
-  }, []);
-
   return (
     <div
       ref={wrapperRef}
@@ -1686,10 +1660,9 @@ export function Canvas() {
         defaultViewport={DEFAULT_VIEWPORT}
         minZoom={0.1}
         maxZoom={5}
-        selectionOnDrag={!isSpacePanning}
+        selectionOnDrag
         selectionMode={SelectionMode.Partial}
-        panOnDrag={isSpacePanning ? [0, 1, 2] : false}
-        panActivationKeyCode="Space"
+        panOnDrag={[1]}
         zoomOnScroll
         multiSelectionKeyCode={['Control', 'Meta']}
         selectionKeyCode={['Control', 'Meta']}
@@ -1719,11 +1692,7 @@ export function Canvas() {
           </span>
           <span>{t('canvas.hud.doubleClickCreate', { defaultValue: 'Double-click to create' })}</span>
           <span>{t('canvas.hud.wheelToZoom', { defaultValue: 'Wheel to zoom' })}</span>
-          <span>
-            {isSpacePanning
-              ? t('canvas.hud.dragToPan', { defaultValue: 'Drag to pan' })
-              : t('canvas.hud.holdSpaceToPan', { defaultValue: 'Hold Space to pan' })}
-          </span>
+          <span>{t('canvas.hud.middleDragToPan', { defaultValue: 'Middle-drag to pan' })}</span>
         </div>
       </div>
 

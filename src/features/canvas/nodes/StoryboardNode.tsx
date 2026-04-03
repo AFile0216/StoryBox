@@ -475,7 +475,8 @@ export const StoryboardNode = memo(({ id, data, selected, width, height }: Story
     STORYBOARD_NODE_MIN_HEIGHT_PX,
     Math.round(height ?? STORYBOARD_NODE_MIN_HEIGHT_PX)
   );
-  const handleStyle = resolveAdaptiveHandleStyle(resolvedNodeWidth, resolvedNodeHeight);
+  const targetHandleStyle = resolveAdaptiveHandleStyle(resolvedNodeWidth, resolvedNodeHeight, 'left');
+  const sourceHandleStyle = resolveAdaptiveHandleStyle(resolvedNodeWidth, resolvedNodeHeight, 'right');
 
   useEffect(() => {
     updateNodeInternals(id);
@@ -1307,14 +1308,14 @@ export const StoryboardNode = memo(({ id, data, selected, width, height }: Story
         id="target"
         position={Position.Left}
         className="!border-surface-dark !bg-accent"
-        style={handleStyle}
+        style={targetHandleStyle}
       />
       <Handle
         type="source"
         id="source"
         position={Position.Right}
         className="!border-surface-dark !bg-accent"
-        style={handleStyle}
+        style={sourceHandleStyle}
       />
       <NodeResizeHandle
         minWidth={STORYBOARD_NODE_WIDTH_PX}

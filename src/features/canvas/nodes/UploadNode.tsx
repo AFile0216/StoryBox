@@ -102,7 +102,8 @@ export const UploadNode = memo(({ id, data, selected, width, height }: UploadNod
   });
   const resizeMinWidth = resizeConstraints.minWidth;
   const resizeMinHeight = resizeConstraints.minHeight;
-  const handleStyle = resolveAdaptiveHandleStyle(resolvedWidth, resolvedHeight);
+  const targetHandleStyle = resolveAdaptiveHandleStyle(resolvedWidth, resolvedHeight, 'left');
+  const sourceHandleStyle = resolveAdaptiveHandleStyle(resolvedWidth, resolvedHeight, 'right');
   const resolvedTitle = useMemo(() => {
     const sourceFileName = typeof data.sourceFileName === 'string' ? data.sourceFileName.trim() : '';
     if (
@@ -359,14 +360,14 @@ export const UploadNode = memo(({ id, data, selected, width, height }: UploadNod
         id="target"
         position={Position.Left}
         className="!border-surface-dark !bg-accent"
-        style={handleStyle}
+        style={targetHandleStyle}
       />
       <Handle
         type="source"
         id="source"
         position={Position.Right}
         className="!border-surface-dark !bg-accent"
-        style={handleStyle}
+        style={sourceHandleStyle}
       />
       <NodeResizeHandle
         minWidth={resizeMinWidth}

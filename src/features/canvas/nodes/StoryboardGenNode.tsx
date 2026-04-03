@@ -754,7 +754,8 @@ export const StoryboardGenNode = memo(({ id, data, selected, width, height }: St
     baseFrameLayout.nodeHeight,
     Math.round(height ?? baseFrameLayout.nodeHeight)
   );
-  const handleStyle = resolveAdaptiveHandleStyle(resolvedNodeWidth, resolvedNodeHeight);
+  const targetHandleStyle = resolveAdaptiveHandleStyle(resolvedNodeWidth, resolvedNodeHeight, 'left');
+  const sourceHandleStyle = resolveAdaptiveHandleStyle(resolvedNodeWidth, resolvedNodeHeight, 'right');
   const frameLayout = useMemo(() => {
     const cols = Math.max(1, nodeData.gridCols);
     const rows = Math.max(1, nodeData.gridRows);
@@ -1655,14 +1656,14 @@ export const StoryboardGenNode = memo(({ id, data, selected, width, height }: St
         id="target"
         position={Position.Left}
         className="!border-surface-dark !bg-accent"
-        style={handleStyle}
+        style={targetHandleStyle}
       />
       <Handle
         type="source"
         id="source"
         position={Position.Right}
         className="!border-surface-dark !bg-accent"
-        style={handleStyle}
+        style={sourceHandleStyle}
       />
       <NodeResizeHandle
         minWidth={baseFrameLayout.nodeWidth}

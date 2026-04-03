@@ -14,7 +14,11 @@ import {
 import { resolveNodeDisplayName } from '@/features/canvas/domain/nodeDisplay';
 import { NodeHeader, NODE_HEADER_FLOATING_POSITION_CLASS } from '@/features/canvas/ui/NodeHeader';
 import { NodeResizeHandle } from '@/features/canvas/ui/NodeResizeHandle';
-import { resolveAdaptiveHandleStyle, resolveResponsiveTextScale } from '@/features/canvas/ui/nodeMetrics';
+import {
+  resolveAdaptiveHandleStyle,
+  resolveResponsiveNodeClasses,
+  resolveResponsiveTextScale,
+} from '@/features/canvas/ui/nodeMetrics';
 import { resolveLocalAssetUrl } from '@/features/canvas/application/imageData';
 import { useCanvasStore } from '@/stores/canvasStore';
 
@@ -106,12 +110,20 @@ export const VideoStoryboardNode = memo(({
   const resolvedTitle = resolveNodeDisplayName(CANVAS_NODE_TYPES.videoStoryboard, data);
   const resolvedWidth = Math.max(MIN_WIDTH, Math.round(width ?? DEFAULT_WIDTH));
   const resolvedHeight = Math.max(MIN_HEIGHT, Math.round(height ?? DEFAULT_HEIGHT));
-  const handleStyle = useMemo(
-    () => resolveAdaptiveHandleStyle(resolvedWidth, resolvedHeight),
+  const targetHandleStyle = useMemo(
+    () => resolveAdaptiveHandleStyle(resolvedWidth, resolvedHeight, 'left'),
+    [resolvedHeight, resolvedWidth]
+  );
+  const sourceHandleStyle = useMemo(
+    () => resolveAdaptiveHandleStyle(resolvedWidth, resolvedHeight, 'right'),
     [resolvedHeight, resolvedWidth]
   );
   const density = useMemo(
     () => resolveResponsiveTextScale(resolvedWidth, resolvedHeight),
+    [resolvedHeight, resolvedWidth]
+  );
+  const uiDensity = useMemo(
+    () => resolveResponsiveNodeClasses(resolvedWidth, resolvedHeight),
     [resolvedHeight, resolvedWidth]
   );
   const durationSec = Number.isFinite(data.durationSec) ? Math.max(0, data.durationSec ?? 0) : 0;
@@ -374,12 +386,12 @@ export const VideoStoryboardNode = memo(({
       />
 
       <div className="mb-2 mt-6 flex items-center justify-between gap-2">
-        <div className="tapnow-node-pill px-2 py-1 text-[10px] uppercase tracking-[0.12em]">
+        <div className={`tapnow-node-pill px-2 py-1 uppercase tracking-[0.12em] ${uiDensity.metaText}`}>
           {t('node.videoStoryboard.title')}
         </div>
         <button
           type="button"
-          className="tapnow-node-button px-2 py-1 text-xs"
+          className={`tapnow-node-button px-2 py-1 ${uiDensity.metaText}`}
           onClick={(event) => {
             event.stopPropagation();
             void handlePickVideo();
@@ -428,19 +440,19 @@ export const VideoStoryboardNode = memo(({
           </div>
 
           <div className="grid gap-2 md:grid-cols-3">
-            <div className="tapnow-node-panel px-3 py-2">
+            <div className={`tapnow-node-panel ${uiDensity.panelPadding}`}>
               <div className="text-[10px] uppercase tracking-[0.12em] text-text-muted">
                 {t('node.videoStoryboard.currentTime')}
               </div>
               <div className="mt-1 text-sm text-text-dark">{formatSeconds(playheadSec)}</div>
             </div>
-            <div className="tapnow-node-panel px-3 py-2">
+            <div className={`tapnow-node-panel ${uiDensity.panelPadding}`}>
               <div className="text-[10px] uppercase tracking-[0.12em] text-text-muted">
                 {t('node.videoStoryboard.rangeStart')}
               </div>
               <div className="mt-1 text-sm text-text-dark">{formatSeconds(data.selectionStartSec)}</div>
             </div>
-            <div className="tapnow-node-panel px-3 py-2">
+            <div className={`tapnow-node-panel ${uiDensity.panelPadding}`}>
               <div className="text-[10px] uppercase tracking-[0.12em] text-text-muted">
                 {t('node.videoStoryboard.rangeEnd')}
               </div>
@@ -558,7 +570,7 @@ export const VideoStoryboardNode = memo(({
                   step={0.1}
                   value={Number(data.selectionStartSec.toFixed(1))}
                   onChange={(event) => patchSelection(Number(event.target.value), data.selectionEndSec)}
-                  className="rounded-lg border border-[rgba(255,255,255,0.08)] bg-bg-dark/50 px-3 py-2 text-sm text-text-dark outline-none"
+                  className={`rounded-lg border border-[rgba(255,255,255,0.08)] bg-bg-dark/50 ${uiDensity.panelPadding} ${uiDensity.bodyText} text-text-dark outline-none`}
                 />
                 <input
                   type="number"
@@ -567,11 +579,11 @@ export const VideoStoryboardNode = memo(({
                   step={0.1}
                   value={Number(data.selectionEndSec.toFixed(1))}
                   onChange={(event) => patchSelection(data.selectionStartSec, Number(event.target.value))}
-                  className="rounded-lg border border-[rgba(255,255,255,0.08)] bg-bg-dark/50 px-3 py-2 text-sm text-text-dark outline-none"
+                  className={`rounded-lg border border-[rgba(255,255,255,0.08)] bg-bg-dark/50 ${uiDensity.panelPadding} ${uiDensity.bodyText} text-text-dark outline-none`}
                 />
                 <button
                   type="button"
-                  className="rounded-lg border border-[rgba(255,255,255,0.12)] bg-bg-dark/50 px-3 py-2 text-sm text-text-dark"
+                  className={`rounded-lg border border-[rgba(255,255,255,0.12)] bg-bg-dark/50 px-3 py-2 ${uiDensity.buttonText} text-text-dark`}
                   onClick={(event) => {
                     event.stopPropagation();
                     patchSelection(playheadSec, data.selectionEndSec);
@@ -581,7 +593,7 @@ export const VideoStoryboardNode = memo(({
                 </button>
                 <button
                   type="button"
-                  className="rounded-lg border border-[rgba(255,255,255,0.12)] bg-bg-dark/50 px-3 py-2 text-sm text-text-dark"
+                  className={`rounded-lg border border-[rgba(255,255,255,0.12)] bg-bg-dark/50 px-3 py-2 ${uiDensity.buttonText} text-text-dark`}
                   onClick={(event) => {
                     event.stopPropagation();
                     patchSelection(data.selectionStartSec, playheadSec);
@@ -612,7 +624,7 @@ export const VideoStoryboardNode = memo(({
                 <div className="mt-2 grid gap-2 md:grid-cols-[1fr_1fr_1fr]">
                   <button
                     type="button"
-                    className="tapnow-node-button inline-flex items-center justify-center gap-2 px-3 py-2 text-sm"
+                    className={`tapnow-node-button inline-flex items-center justify-center gap-2 px-3 py-2 ${uiDensity.buttonText}`}
                     onClick={(event) => {
                       event.stopPropagation();
                       handleSaveSegment();
@@ -625,7 +637,7 @@ export const VideoStoryboardNode = memo(({
                   </button>
                   <button
                     type="button"
-                    className="tapnow-node-button inline-flex items-center justify-center gap-2 px-3 py-2 text-sm"
+                    className={`tapnow-node-button inline-flex items-center justify-center gap-2 px-3 py-2 ${uiDensity.buttonText}`}
                     onClick={(event) => {
                       event.stopPropagation();
                       void handleCaptureFrame();
@@ -640,7 +652,7 @@ export const VideoStoryboardNode = memo(({
                   </button>
                   <button
                     type="button"
-                    className="tapnow-node-button inline-flex items-center justify-center gap-2 px-3 py-2 text-sm"
+                    className={`tapnow-node-button inline-flex items-center justify-center gap-2 px-3 py-2 ${uiDensity.buttonText}`}
                     onClick={(event) => {
                       event.stopPropagation();
                       updateNodeData(id, {
@@ -681,14 +693,14 @@ export const VideoStoryboardNode = memo(({
         id="target"
         position={Position.Left}
         className="!border-surface-dark !bg-accent"
-        style={handleStyle}
+        style={targetHandleStyle}
       />
       <Handle
         type="source"
         id="source"
         position={Position.Right}
         className="!border-surface-dark !bg-accent"
-        style={handleStyle}
+        style={sourceHandleStyle}
       />
       <NodeResizeHandle
         minWidth={MIN_WIDTH}
