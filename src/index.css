@@ -28,6 +28,28 @@
   --ui-radius-2xl: 20px;
   --node-radius: 12px;
   --node-inner-radius: var(--node-radius);
+  --tapnow-canvas-radial-a: rgba(148, 163, 184, 0.08);
+  --tapnow-canvas-radial-b: rgba(96, 165, 250, 0.06);
+  --tapnow-node-card-border: rgba(15, 23, 42, 0.1);
+  --tapnow-node-card-bg-top: rgba(255,255,255,0.86);
+  --tapnow-node-card-bg-bottom: rgba(248,250,252,0.82);
+  --tapnow-node-card-bg-solid: rgba(255,255,255,0.82);
+  --tapnow-node-card-shadow: 0 16px 40px rgba(15, 23, 42, 0.12);
+  --tapnow-node-card-inset: inset 0 1px 0 rgba(255,255,255,0.72);
+  --tapnow-node-surface-border: rgba(15, 23, 42, 0.08);
+  --tapnow-node-surface-bg-top: rgba(255,255,255,0.82);
+  --tapnow-node-surface-bg-bottom: rgba(248,250,252,0.65);
+  --tapnow-node-panel-border: rgba(15, 23, 42, 0.08);
+  --tapnow-node-panel-bg: rgba(248,250,252,0.72);
+  --tapnow-node-field-border: rgba(15, 23, 42, 0.08);
+  --tapnow-node-field-bg: rgba(241,245,249,0.92);
+  --tapnow-node-pill-border: rgba(15,23,42,0.08);
+  --tapnow-node-pill-bg: rgba(255,255,255,0.72);
+  --tapnow-node-pill-text: rgba(15,23,42,0.62);
+  --tapnow-node-button-border: rgba(15,23,42,0.1);
+  --tapnow-node-button-bg: rgba(255,255,255,0.72);
+  --tapnow-node-button-bg-hover: rgba(255,255,255,0.96);
+  --tapnow-node-button-text: rgba(15,23,42,0.88);
 }
 
 .dark {
@@ -53,6 +75,28 @@
   --ui-radius-2xl: 20px;
   --node-radius: 12px;
   --node-inner-radius: var(--node-radius);
+  --tapnow-canvas-radial-a: rgba(148, 163, 184, 0.08);
+  --tapnow-canvas-radial-b: rgba(96, 165, 250, 0.06);
+  --tapnow-node-card-border: rgba(255, 255, 255, 0.1);
+  --tapnow-node-card-bg-top: rgba(255,255,255,0.08);
+  --tapnow-node-card-bg-bottom: rgba(255,255,255,0.02);
+  --tapnow-node-card-bg-solid: rgba(15, 23, 42, 0.88);
+  --tapnow-node-card-shadow: 0 16px 40px rgba(2, 6, 23, 0.22);
+  --tapnow-node-card-inset: inset 0 1px 0 rgba(255,255,255,0.06);
+  --tapnow-node-surface-border: rgba(255, 255, 255, 0.08);
+  --tapnow-node-surface-bg-top: rgba(255,255,255,0.045);
+  --tapnow-node-surface-bg-bottom: rgba(255,255,255,0.02);
+  --tapnow-node-panel-border: rgba(255, 255, 255, 0.08);
+  --tapnow-node-panel-bg: rgba(255, 255, 255, 0.035);
+  --tapnow-node-field-border: rgba(255, 255, 255, 0.08);
+  --tapnow-node-field-bg: rgba(2, 6, 23, 0.24);
+  --tapnow-node-pill-border: rgba(255,255,255,0.12);
+  --tapnow-node-pill-bg: rgba(255,255,255,0.05);
+  --tapnow-node-pill-text: rgba(241,245,249,0.72);
+  --tapnow-node-button-border: rgba(255,255,255,0.12);
+  --tapnow-node-button-bg: rgba(255,255,255,0.04);
+  --tapnow-node-button-bg-hover: rgba(255,255,255,0.08);
+  --tapnow-node-button-text: rgba(241,245,249,0.92);
 }
 
 :root[data-ui-radius='compact'] {
@@ -250,8 +294,8 @@ html[data-platform='macos'] #root {
 
 .tapnow-canvas {
   background:
-    radial-gradient(circle at top left, rgba(148, 163, 184, 0.08), transparent 28%),
-    radial-gradient(circle at bottom right, rgba(96, 165, 250, 0.06), transparent 24%),
+    radial-gradient(circle at top left, var(--tapnow-canvas-radial-a), transparent 28%),
+    radial-gradient(circle at bottom right, var(--tapnow-canvas-radial-b), transparent 24%),
     linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0)),
     rgb(var(--bg-rgb));
 }
@@ -270,13 +314,11 @@ html[data-platform='macos'] #root {
 
 .tapnow-node-card {
   border-radius: calc(var(--node-radius) + 8px);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  border: 1px solid var(--tapnow-node-card-border);
   background:
-    linear-gradient(180deg, rgba(255,255,255,0.08), rgba(255,255,255,0.02)),
-    rgba(15, 23, 42, 0.88);
-  box-shadow:
-    0 16px 40px rgba(2, 6, 23, 0.22),
-    inset 0 1px 0 rgba(255,255,255,0.06);
+    linear-gradient(180deg, var(--tapnow-node-card-bg-top), var(--tapnow-node-card-bg-bottom)),
+    var(--tapnow-node-card-bg-solid);
+  box-shadow: var(--tapnow-node-card-shadow), var(--tapnow-node-card-inset);
   backdrop-filter: blur(18px);
 }
 
@@ -294,43 +336,43 @@ html[data-platform='macos'] #root {
 
 .tapnow-node-surface {
   border-radius: calc(var(--node-radius) + 4px);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  background: linear-gradient(180deg, rgba(255,255,255,0.045), rgba(255,255,255,0.02));
+  border: 1px solid var(--tapnow-node-surface-border);
+  background: linear-gradient(180deg, var(--tapnow-node-surface-bg-top), var(--tapnow-node-surface-bg-bottom));
 }
 
 .tapnow-node-panel {
   border-radius: 18px;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  background: rgba(255, 255, 255, 0.035);
+  border: 1px solid var(--tapnow-node-panel-border);
+  background: var(--tapnow-node-panel-bg);
   box-shadow: inset 0 1px 0 rgba(255,255,255,0.03);
 }
 
 .tapnow-node-field {
   border-radius: 16px;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  background: rgba(2, 6, 23, 0.24);
+  border: 1px solid var(--tapnow-node-field-border);
+  background: var(--tapnow-node-field-bg);
 }
 
 .tapnow-node-pill {
   display: inline-flex;
   align-items: center;
   border-radius: 999px;
-  border: 1px solid rgba(255,255,255,0.12);
-  background: rgba(255,255,255,0.05);
-  color: rgba(241,245,249,0.72);
+  border: 1px solid var(--tapnow-node-pill-border);
+  background: var(--tapnow-node-pill-bg);
+  color: var(--tapnow-node-pill-text);
 }
 
 .tapnow-node-button {
   border-radius: 14px;
-  border: 1px solid rgba(255,255,255,0.12);
-  background: rgba(255,255,255,0.04);
-  color: rgb(241 245 249 / 0.92);
+  border: 1px solid var(--tapnow-node-button-border);
+  background: var(--tapnow-node-button-bg);
+  color: var(--tapnow-node-button-text);
   transition: background-color 120ms ease, border-color 120ms ease, transform 120ms ease;
 }
 
 .tapnow-node-button:hover {
-  border-color: rgba(255,255,255,0.2);
-  background: rgba(255,255,255,0.08);
+  border-color: color-mix(in srgb, var(--tapnow-node-button-border) 55%, white);
+  background: var(--tapnow-node-button-bg-hover);
   transform: translateY(-1px);
 }
 

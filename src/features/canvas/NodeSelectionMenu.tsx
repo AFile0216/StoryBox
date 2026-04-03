@@ -89,6 +89,7 @@ export function NodeSelectionMenu({
   return (
     <div
       ref={menuRef}
+      data-node-menu="true"
       className={`
         absolute z-50 min-w-[280px] overflow-hidden rounded-[24px] border border-white/15 bg-[rgba(12,17,25,0.94)] shadow-[0_24px_80px_rgba(2,6,23,0.42)]
         transition-all duration-150

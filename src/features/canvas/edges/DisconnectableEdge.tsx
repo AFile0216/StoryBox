@@ -55,6 +55,8 @@ export const DisconnectableEdge = memo(function DisconnectableEdge(props: EdgePr
   const deleteEdge = useCanvasStore((state) => state.deleteEdge);
   const updateEdgeData = useCanvasStore((state) => state.updateEdgeData);
   const nodes = useCanvasStore((state) => state.nodes);
+  const selectedNodeId = useCanvasStore((state) => state.selectedNodeId);
+  const hoveredNodeId = useCanvasStore((state) => state.hoveredNodeId);
   const canvasEdgeRoutingMode = useSettingsStore((state) => state.canvasEdgeRoutingMode);
   const routingMode = edgeData.routingStyle && edgeData.routingStyle !== 'inherit'
     ? edgeData.routingStyle === 'spline'
@@ -137,7 +139,19 @@ export const DisconnectableEdge = memo(function DisconnectableEdge(props: EdgePr
   const baseStrokeWidth = isProcessingEdge
     ? (selected ? 2.7 : 2.2)
     : (selected ? 2.4 : 1.9);
-  const visualOpacity = selected || isHovered ? 1 : 0.28;
+  const isRelatedToFocusedNode =
+    Boolean(selectedNodeId && (source === selectedNodeId || target === selectedNodeId))
+    || Boolean(hoveredNodeId && (source === hoveredNodeId || target === hoveredNodeId));
+  const visualOpacity = selected || isHovered
+    ? 1
+    : isRelatedToFocusedNode
+      ? 0.82
+      : 0.14;
+  const visualStrokeWidth = selected || isHovered
+    ? baseStrokeWidth + 0.5
+    : isRelatedToFocusedNode
+      ? baseStrokeWidth + 0.15
+      : Math.max(1.1, baseStrokeWidth - 0.35);
   const hitStrokeWidth = Math.max(16, baseStrokeWidth * 5);
 
   return (
@@ -160,7 +174,7 @@ export const DisconnectableEdge = memo(function DisconnectableEdge(props: EdgePr
         markerEnd={markerEnd}
         style={{
           stroke: isProcessingEdge ? processingStroke : (style?.stroke ?? relationColor),
-          strokeWidth: baseStrokeWidth,
+          strokeWidth: visualStrokeWidth,
           strokeDasharray: isDashed ? '8 8' : undefined,
           opacity: visualOpacity,
           transition: 'opacity 120ms ease, stroke 120ms ease, stroke-width 120ms ease',
@@ -176,7 +190,7 @@ export const DisconnectableEdge = memo(function DisconnectableEdge(props: EdgePr
         onMouseEnter={() => setIsHovered(true)}
         onMouseLeave={() => setIsHovered(false)}
       />
-      {(selected || isHovered) && (
+      {(selected || isHovered || isRelatedToFocusedNode) && (
         <EdgeLabelRenderer>
           <div
             className="nodrag nopan absolute flex items-center gap-1 rounded-full border border-white/10 bg-black/70 px-1 py-1 text-text-muted shadow-lg backdrop-blur"

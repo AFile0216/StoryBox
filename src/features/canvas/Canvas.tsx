@@ -284,6 +284,7 @@ export function Canvas() {
   const updateNodeData = useCanvasStore((state) => state.updateNodeData);
   const addNode = useCanvasStore((state) => state.addNode);
   const setSelectedNode = useCanvasStore((state) => state.setSelectedNode);
+  const setHoveredNode = useCanvasStore((state) => state.setHoveredNode);
   const selectedNodeId = useCanvasStore((state) => state.selectedNodeId);
   const deleteEdge = useCanvasStore((state) => state.deleteEdge);
   const deleteNode = useCanvasStore((state) => state.deleteNode);
@@ -985,14 +986,9 @@ export function Canvas() {
     setShowNodeMenu(true);
   }, [reactFlowInstance]);
 
-  const handlePaneClick = useCallback((event: ReactMouseEvent) => {
+  const handlePaneClick = useCallback(() => {
     if (suppressNextPaneClickRef.current) {
       suppressNextPaneClickRef.current = false;
-      return;
-    }
-
-    if (event.detail >= 2) {
-      openNodeMenuAtClientPosition(event.clientX, event.clientY);
       return;
     }
 
@@ -1002,6 +998,60 @@ export function Canvas() {
     setPendingConnectStart(null);
     setPreviewConnectionVisual(null);
   }, [openNodeMenuAtClientPosition, setSelectedNode]);
+
+  const handleCanvasDoubleClick = useCallback((event: ReactMouseEvent<HTMLDivElement>) => {
+    const target = event.target as HTMLElement | null;
+    if (!target) {
+      return;
+    }
+
+    if (
+      target.closest('.react-flow__node')
+      || target.closest('.react-flow__edge')
+      || target.closest('.react-flow__edge-label-renderer')
+      || target.closest('[data-node-menu]')
+    ) {
+      return;
+    }
+
+    const insideCanvasPane =
+      Boolean(target.closest('.react-flow__pane'))
+      || Boolean(target.closest('.react-flow__background'));
+    if (!insideCanvasPane) {
+      return;
+    }
+
+    event.preventDefault();
+    event.stopPropagation();
+    openNodeMenuAtClientPosition(event.clientX, event.clientY);
+  }, [openNodeMenuAtClientPosition]);
+
+  const handleCanvasContextMenu = useCallback((event: ReactMouseEvent<HTMLDivElement>) => {
+    const target = event.target as HTMLElement | null;
+    if (!target) {
+      return;
+    }
+
+    if (
+      target.closest('.react-flow__node')
+      || target.closest('.react-flow__edge')
+      || target.closest('.react-flow__edge-label-renderer')
+      || target.closest('[data-node-menu]')
+    ) {
+      return;
+    }
+
+    const insideCanvasPane =
+      Boolean(target.closest('.react-flow__pane'))
+      || Boolean(target.closest('.react-flow__background'));
+    if (!insideCanvasPane) {
+      return;
+    }
+
+    event.preventDefault();
+    event.stopPropagation();
+    openNodeMenuAtClientPosition(event.clientX, event.clientY);
+  }, [openNodeMenuAtClientPosition]);
 
   const handleNodeSelect = useCallback(
     (type: CanvasNodeType) => {
@@ -1605,7 +1655,12 @@ export function Canvas() {
   }, []);
 
   return (
-    <div ref={wrapperRef} className="relative h-full w-full">
+    <div
+      ref={wrapperRef}
+      className="relative h-full w-full"
+      onDoubleClick={handleCanvasDoubleClick}
+      onContextMenu={handleCanvasContextMenu}
+    >
       <ReactFlow
         nodes={nodes}
         edges={edges}
@@ -1619,6 +1674,8 @@ export function Canvas() {
         onNodeDragStart={handleNodeDragStart}
         onNodeDrag={handleNodeDrag}
         onNodeDragStop={handleNodeDragStop}
+        onNodeMouseEnter={(_, node) => setHoveredNode(node.id)}
+        onNodeMouseLeave={() => setHoveredNode(null)}
         onPaneClick={handlePaneClick}
         onMove={handleMove}
         onMoveStart={handleMoveStart}

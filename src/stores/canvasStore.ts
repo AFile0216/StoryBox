@@ -70,6 +70,7 @@ interface CanvasState {
   nodes: CanvasNode[];
   edges: CanvasEdge[];
   selectedNodeId: string | null;
+  hoveredNodeId: string | null;
   activeToolDialog: ActiveToolDialog | null;
   history: CanvasHistoryState;
   dragHistorySnapshot: CanvasHistorySnapshot | null;
@@ -150,6 +151,7 @@ interface CanvasState {
   deleteEdge: (edgeId: string) => void;
   updateEdgeData: (edgeId: string, data: Partial<CanvasEdgeData>) => void;
   setSelectedNode: (nodeId: string | null) => void;
+  setHoveredNode: (nodeId: string | null) => void;
 
   openToolDialog: (dialog: ActiveToolDialog) => void;
   closeToolDialog: () => void;
@@ -612,6 +614,7 @@ export const useCanvasStore = create<CanvasState>((set, get) => ({
   nodes: [],
   edges: [],
   selectedNodeId: null,
+  hoveredNodeId: null,
   activeToolDialog: null,
   history: { past: [], future: [] },
   dragHistorySnapshot: null,
@@ -1716,6 +1719,10 @@ export const useCanvasStore = create<CanvasState>((set, get) => ({
 
   setSelectedNode: (nodeId) => {
     set({ selectedNodeId: nodeId });
+  },
+
+  setHoveredNode: (nodeId) => {
+    set((state) => (state.hoveredNodeId === nodeId ? {} : { hoveredNodeId: nodeId }));
   },
 
   openToolDialog: (dialog) => {

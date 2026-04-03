@@ -26,6 +26,7 @@ import {
   type MergeStoryboardImagesResult,
 } from '@/commands/image';
 import { NodeHeader, NODE_HEADER_FLOATING_POSITION_CLASS } from '@/features/canvas/ui/NodeHeader';
+import { resolveAdaptiveHandleStyle } from '@/features/canvas/ui/nodeMetrics';
 import { NodeResizeHandle } from '@/features/canvas/ui/NodeResizeHandle';
 import { CanvasNodeImage } from '@/features/canvas/ui/CanvasNodeImage';
 import type {
@@ -474,6 +475,7 @@ export const StoryboardNode = memo(({ id, data, selected, width, height }: Story
     STORYBOARD_NODE_MIN_HEIGHT_PX,
     Math.round(height ?? STORYBOARD_NODE_MIN_HEIGHT_PX)
   );
+  const handleStyle = resolveAdaptiveHandleStyle(resolvedNodeWidth, resolvedNodeHeight);
 
   useEffect(() => {
     updateNodeInternals(id);
@@ -1018,10 +1020,8 @@ export const StoryboardNode = memo(({ id, data, selected, width, height }: Story
     <div
       ref={rootRef}
       className={`
-        group relative flex h-full flex-col overflow-visible rounded-[var(--node-radius)] border bg-surface-dark/90 p-2 transition-colors duration-150
-        ${selected
-          ? 'border-accent shadow-[0_0_0_1px_rgba(59,130,246,0.32)]'
-          : 'border-[rgba(15,23,42,0.22)] hover:border-[rgba(15,23,42,0.34)] dark:border-[rgba(255,255,255,0.22)] dark:hover:border-[rgba(255,255,255,0.34)]'}
+        tapnow-node-card group relative flex h-full flex-col overflow-visible p-2 transition-colors duration-150
+        ${selected ? 'tapnow-node-card--selected' : 'tapnow-node-card--default'}
       `}
       style={{ width: `${resolvedNodeWidth}px`, height: `${resolvedNodeHeight}px` }}
       onClick={() => setSelectedNode(id)}
@@ -1038,11 +1038,11 @@ export const StoryboardNode = memo(({ id, data, selected, width, height }: Story
       />
 
       <div
-        className="ui-scrollbar nowheel min-h-0 flex-1 overflow-auto"
+        className="tapnow-node-panel ui-scrollbar nowheel min-h-0 flex-1 overflow-auto p-2"
         onWheelCapture={(event) => event.stopPropagation()}
       >
         <div
-          className="grid overflow-hidden rounded-lg border border-[rgba(255,255,255,0.16)] bg-[rgba(255,255,255,0.14)]"
+          className="grid overflow-hidden rounded-lg border border-[rgba(255,255,255,0.16)] bg-[rgba(255,255,255,0.08)]"
           style={{
             gap: `${STORYBOARD_GRID_GAP_PX}px`,
             gridTemplateColumns: `repeat(${gridCols}, minmax(0, 1fr))`,
@@ -1117,7 +1117,7 @@ export const StoryboardNode = memo(({ id, data, selected, width, height }: Story
         )
         : null}
 
-      <div className="mt-2 flex shrink-0 items-center justify-between gap-2">
+      <div className="tapnow-node-panel mt-2 flex shrink-0 items-center justify-between gap-2 px-2 py-1.5">
         <div className="flex min-w-0 items-center gap-2">
           <div ref={exportSettingsTriggerRef} className="nodrag relative flex">
             <UiChipButton
@@ -1306,13 +1306,15 @@ export const StoryboardNode = memo(({ id, data, selected, width, height }: Story
         type="target"
         id="target"
         position={Position.Left}
-        className="!h-2 !w-2 !border-surface-dark !bg-accent"
+        className="!border-surface-dark !bg-accent"
+        style={handleStyle}
       />
       <Handle
         type="source"
         id="source"
         position={Position.Right}
-        className="!h-2 !w-2 !border-surface-dark !bg-accent"
+        className="!border-surface-dark !bg-accent"
+        style={handleStyle}
       />
       <NodeResizeHandle
         minWidth={STORYBOARD_NODE_WIDTH_PX}

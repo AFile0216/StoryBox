@@ -46,9 +46,9 @@ const toolIconMap: Record<ToolIconKey, typeof Crop> = {
   split: Scissors,
 };
 
-const TOOLBAR_BUTTON_RADIUS_CLASS = 'rounded-full';
+const TOOLBAR_BUTTON_RADIUS_CLASS = 'rounded-2xl';
 const TOOLBAR_NEUTRAL_BUTTON_CLASS =
-  'border-[rgba(255,255,255,0.18)] bg-bg-dark/70 text-text-dark hover:border-[rgba(255,255,255,0.32)] hover:bg-bg-dark';
+  'border-[rgba(255,255,255,0.1)] bg-[rgba(15,23,42,0.74)] text-text-dark hover:border-[rgba(255,255,255,0.18)] hover:bg-[rgba(15,23,42,0.92)]';
 
 export const NodeActionToolbar = memo(({ node }: NodeActionToolbarProps) => {
   const { t, i18n } = useTranslation();
@@ -308,14 +308,15 @@ export const NodeActionToolbar = memo(({ node }: NodeActionToolbarProps) => {
       offset={NODE_TOOLBAR_OFFSET}
       className={NODE_TOOLBAR_CLASS}
     >
-      <UiPanel className="flex items-center gap-1 rounded-full p-1">
+      <UiPanel className="flex items-center gap-1 rounded-[20px] border border-white/10 bg-[rgba(15,23,42,0.76)] p-1 shadow-[0_18px_40px_rgba(2,6,23,0.26)] backdrop-blur-xl">
         {!isImageEdit && tools.map((tool) => {
           const Icon = toolIconMap[tool.icon] ?? Crop;
 
           return (
             <UiChipButton
               key={tool.type}
-              className={`h-8 ${TOOLBAR_BUTTON_RADIUS_CLASS} px-2.5 text-xs ${TOOLBAR_NEUTRAL_BUTTON_CLASS}`}
+              title={resolveToolLabel(tool.type)}
+              className={`h-8 min-w-8 ${TOOLBAR_BUTTON_RADIUS_CLASS} px-2.5 text-xs ${TOOLBAR_NEUTRAL_BUTTON_CLASS}`}
               onClick={() =>
                 canvasEventBus.publish('tool-dialog/open', {
                   nodeId: node.id,
@@ -324,14 +325,15 @@ export const NodeActionToolbar = memo(({ node }: NodeActionToolbarProps) => {
               }
             >
               <Icon className="h-3.5 w-3.5" />
-              {resolveToolLabel(tool.type)}
+              <span className="hidden lg:inline">{resolveToolLabel(tool.type)}</span>
             </UiChipButton>
           );
         })}
         {!isImageEdit && canReupload && (
           <UiChipButton
             key="upload-reupload"
-            className={`h-8 ${TOOLBAR_BUTTON_RADIUS_CLASS} px-2.5 text-xs ${TOOLBAR_NEUTRAL_BUTTON_CLASS}`}
+            title={t('nodeToolbar.reupload')}
+            className={`h-8 min-w-8 ${TOOLBAR_BUTTON_RADIUS_CLASS} px-2.5 text-xs ${TOOLBAR_NEUTRAL_BUTTON_CLASS}`}
             onClick={() =>
               canvasEventBus.publish('upload-node/reupload', {
                 nodeId: node.id,
@@ -339,13 +341,14 @@ export const NodeActionToolbar = memo(({ node }: NodeActionToolbarProps) => {
             }
           >
             <RefreshCw className="h-3.5 w-3.5" />
-            {t('nodeToolbar.reupload')}
+            <span className="hidden lg:inline">{t('nodeToolbar.reupload')}</span>
           </UiChipButton>
         )}
         {!isImageEdit && canHandleImage && (
           <UiChipButton
             key="image-copy"
-            className={`h-8 ${TOOLBAR_BUTTON_RADIUS_CLASS} px-2.5 text-xs ${TOOLBAR_NEUTRAL_BUTTON_CLASS} ${
+            title={t('nodeToolbar.copy')}
+            className={`h-8 min-w-8 ${TOOLBAR_BUTTON_RADIUS_CLASS} px-2.5 text-xs ${TOOLBAR_NEUTRAL_BUTTON_CLASS} ${
               isCopySuccess
                 ? '!border-emerald-400/70 !bg-emerald-500/20 !text-emerald-200 hover:!bg-emerald-500/30'
                 : ''
@@ -355,13 +358,14 @@ export const NodeActionToolbar = memo(({ node }: NodeActionToolbarProps) => {
             }}
           >
             <Copy className="h-3.5 w-3.5" />
-            {t('nodeToolbar.copy')}
+            <span className="hidden lg:inline">{t('nodeToolbar.copy')}</span>
           </UiChipButton>
         )}
         {!isImageEdit && canCopyStoryboardText && (
           <UiChipButton
             key="storyboard-text-copy"
-            className={`h-8 ${TOOLBAR_BUTTON_RADIUS_CLASS} px-2.5 text-xs ${TOOLBAR_NEUTRAL_BUTTON_CLASS} ${
+            title={t('nodeToolbar.copyText')}
+            className={`h-8 min-w-8 ${TOOLBAR_BUTTON_RADIUS_CLASS} px-2.5 text-xs ${TOOLBAR_NEUTRAL_BUTTON_CLASS} ${
               isCopyTextSuccess
                 ? '!border-emerald-400/70 !bg-emerald-500/20 !text-emerald-200 hover:!bg-emerald-500/30'
                 : ''
@@ -371,13 +375,14 @@ export const NodeActionToolbar = memo(({ node }: NodeActionToolbarProps) => {
             }}
           >
             <Copy className="h-3.5 w-3.5" />
-            {t('nodeToolbar.copyText')}
+            <span className="hidden lg:inline">{t('nodeToolbar.copyText')}</span>
           </UiChipButton>
         )}
         {!isImageEdit && canCopyGenerationError && (
           <UiChipButton
             key="generation-error-copy"
-            className={`h-8 ${TOOLBAR_BUTTON_RADIUS_CLASS} px-2.5 text-xs ${TOOLBAR_NEUTRAL_BUTTON_CLASS} ${
+            title={t('nodeToolbar.copyErrorReport')}
+            className={`h-8 min-w-8 ${TOOLBAR_BUTTON_RADIUS_CLASS} px-2.5 text-xs ${TOOLBAR_NEUTRAL_BUTTON_CLASS} ${
               isCopyErrorSuccess
                 ? '!border-emerald-400/70 !bg-emerald-500/20 !text-emerald-200 hover:!bg-emerald-500/30'
                 : '!border-red-500/45 !bg-red-500/15 !text-red-200 hover:!bg-red-500/25'
@@ -387,13 +392,16 @@ export const NodeActionToolbar = memo(({ node }: NodeActionToolbarProps) => {
             }}
           >
             <Copy className="h-3.5 w-3.5" />
-            {isCopyErrorSuccess ? t('nodeToolbar.copied') : t('nodeToolbar.copyErrorReport')}
+            <span className="hidden lg:inline">
+              {isCopyErrorSuccess ? t('nodeToolbar.copied') : t('nodeToolbar.copyErrorReport')}
+            </span>
           </UiChipButton>
         )}
         {!isImageEdit && canHandleImage && (
           <UiChipButton
             key="image-download"
-            className={`h-8 ${TOOLBAR_BUTTON_RADIUS_CLASS} px-2.5 text-xs ${TOOLBAR_NEUTRAL_BUTTON_CLASS}`}
+            title={t('nodeToolbar.download')}
+            className={`h-8 min-w-8 ${TOOLBAR_BUTTON_RADIUS_CLASS} px-2.5 text-xs ${TOOLBAR_NEUTRAL_BUTTON_CLASS}`}
             onClick={(event) => {
               event.stopPropagation();
               if (downloadPresetPaths.length === 0) {
@@ -408,13 +416,14 @@ export const NodeActionToolbar = memo(({ node }: NodeActionToolbarProps) => {
             }}
           >
             <Download className="h-3.5 w-3.5" />
-            {t('nodeToolbar.download')}
+            <span className="hidden lg:inline">{t('nodeToolbar.download')}</span>
           </UiChipButton>
         )}
         {!isImageEdit && isGroupNode(node) && (
           <UiChipButton
             key="group-ungroup"
-            className={`h-8 ${TOOLBAR_BUTTON_RADIUS_CLASS} px-2.5 text-xs ${TOOLBAR_NEUTRAL_BUTTON_CLASS} hover:!border-amber-400/60 hover:!bg-amber-500/20 hover:!text-amber-200`}
+            title={t('nodeToolbar.ungroup')}
+            className={`h-8 min-w-8 ${TOOLBAR_BUTTON_RADIUS_CLASS} px-2.5 text-xs ${TOOLBAR_NEUTRAL_BUTTON_CLASS} hover:!border-amber-400/60 hover:!bg-amber-500/20 hover:!text-amber-200`}
             onClick={(event) => {
               event.stopPropagation();
               closeDownloadMenu();
@@ -422,12 +431,13 @@ export const NodeActionToolbar = memo(({ node }: NodeActionToolbarProps) => {
             }}
           >
             <Unlink2 className="h-3.5 w-3.5" />
-            {t('nodeToolbar.ungroup')}
+            <span className="hidden lg:inline">{t('nodeToolbar.ungroup')}</span>
           </UiChipButton>
         )}
         <UiChipButton
           key="node-delete"
-          className={`h-8 ${TOOLBAR_BUTTON_RADIUS_CLASS} border-red-500/45 bg-red-500/15 px-2.5 text-xs text-red-300 hover:bg-red-500/25`}
+          title={t('common.delete')}
+          className={`h-8 min-w-8 ${TOOLBAR_BUTTON_RADIUS_CLASS} border-red-500/45 bg-red-500/15 px-2.5 text-xs text-red-300 hover:bg-red-500/25`}
           onClick={(event) => {
             event.stopPropagation();
             closeDownloadMenu();
@@ -435,7 +445,7 @@ export const NodeActionToolbar = memo(({ node }: NodeActionToolbarProps) => {
           }}
         >
           <Trash2 className="h-3.5 w-3.5" />
-          {t('common.delete')}
+          <span className="hidden lg:inline">{t('common.delete')}</span>
         </UiChipButton>
       </UiPanel>
 

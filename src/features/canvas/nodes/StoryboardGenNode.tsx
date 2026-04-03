@@ -62,6 +62,7 @@ import {
 } from '@/features/canvas/models';
 import { ModelParamsControls } from '@/features/canvas/ui/ModelParamsControls';
 import { CanvasNodeImage } from '@/features/canvas/ui/CanvasNodeImage';
+import { resolveAdaptiveHandleStyle } from '@/features/canvas/ui/nodeMetrics';
 import {
   UiButton,
 } from '@/components/ui';
@@ -753,6 +754,7 @@ export const StoryboardGenNode = memo(({ id, data, selected, width, height }: St
     baseFrameLayout.nodeHeight,
     Math.round(height ?? baseFrameLayout.nodeHeight)
   );
+  const handleStyle = resolveAdaptiveHandleStyle(resolvedNodeWidth, resolvedNodeHeight);
   const frameLayout = useMemo(() => {
     const cols = Math.max(1, nodeData.gridCols);
     const rows = Math.max(1, nodeData.gridRows);
@@ -1397,11 +1399,8 @@ export const StoryboardGenNode = memo(({ id, data, selected, width, height }: St
     <div
       ref={rootRef}
       className={`
-        group relative flex h-full flex-col overflow-visible rounded-[var(--node-radius)] border bg-surface-dark/95 p-3 transition-colors duration-150
-        ${selected
-          ? 'border-accent shadow-[0_0_0_1px_rgba(59,130,246,0.32)]'
-          : 'border-[rgba(15,23,42,0.22)] hover:border-[rgba(15,23,42,0.34)] dark:border-[rgba(255,255,255,0.22)] dark:hover:border-[rgba(255,255,255,0.34)]'
-        }
+        tapnow-node-card group relative flex h-full flex-col overflow-visible p-3 transition-colors duration-150
+        ${selected ? 'tapnow-node-card--selected' : 'tapnow-node-card--default'}
       `}
       style={{
         width: `${resolvedNodeWidth}px`,
@@ -1422,7 +1421,7 @@ export const StoryboardGenNode = memo(({ id, data, selected, width, height }: St
       />
 
       {/* Frame summary + grid settings */}
-      <div className="mb-2.5 flex shrink-0 items-center justify-between gap-2">
+      <div className="tapnow-node-panel mb-2.5 flex shrink-0 items-center justify-between gap-2 px-2 py-1.5">
         <div className="flex items-center gap-1.5">
           <GridStepperControl
             label={t('node.storyboardGen.rowsShort')}
@@ -1439,7 +1438,7 @@ export const StoryboardGenNode = memo(({ id, data, selected, width, height }: St
         </div>
 
         {showStoryboardGenAdvancedRatioControls && (
-          <div className="min-w-0 flex-1 rounded-full border border-[rgba(255,255,255,0.12)] bg-[rgba(255,255,255,0.04)] px-2 py-0.5 text-center text-[10px] text-text-muted">
+          <div className="tapnow-node-pill min-w-0 flex-1 px-2 py-0.5 text-center text-[10px]">
             <span>{t('node.storyboardGen.cellAspectRatio')}: {resolvedAspectRatios.cellAspectRatioLabel}</span>
             <span className="mx-1 text-[rgba(255,255,255,0.22)]">|</span>
             <span>{t('node.storyboardGen.overallAspectRatio')}: {resolvedAspectRatios.overallAspectRatioLabel}</span>
@@ -1484,7 +1483,7 @@ export const StoryboardGenNode = memo(({ id, data, selected, width, height }: St
       </div>
 
       {/* Frame Grid */}
-      <div className="mb-2 flex min-h-0 flex-1 items-center justify-center">
+      <div className="tapnow-node-panel mb-2 flex min-h-0 flex-1 items-center justify-center p-2">
         <div
           className="grid gap-0.5"
           style={{
@@ -1497,7 +1496,7 @@ export const StoryboardGenNode = memo(({ id, data, selected, width, height }: St
             return (
               <div
                 key={frame.id}
-                className="relative overflow-hidden rounded border border-[rgba(255,255,255,0.06)] bg-bg-dark/40"
+                className="tapnow-node-field relative overflow-hidden rounded border border-[rgba(255,255,255,0.06)] bg-bg-dark/40"
                 style={{ aspectRatio: frameLayout.cellAspectRatio }}
               >
                 <div
@@ -1589,7 +1588,7 @@ export const StoryboardGenNode = memo(({ id, data, selected, width, height }: St
 
       {/* AI Parameters */}
       <div
-        className="relative mx-auto mt-auto flex shrink-0 items-center justify-between"
+        className="tapnow-node-panel relative mx-auto mt-auto flex shrink-0 items-center justify-between px-2 py-1.5"
         style={{ width: `${frameLayout.paramsRowWidth}px` }}
       >
         <ModelParamsControls
@@ -1655,13 +1654,15 @@ export const StoryboardGenNode = memo(({ id, data, selected, width, height }: St
         type="target"
         id="target"
         position={Position.Left}
-        className="!h-2 !w-2 !border-surface-dark !bg-accent"
+        className="!border-surface-dark !bg-accent"
+        style={handleStyle}
       />
       <Handle
         type="source"
         id="source"
         position={Position.Right}
-        className="!h-2 !w-2 !border-surface-dark !bg-accent"
+        className="!border-surface-dark !bg-accent"
+        style={handleStyle}
       />
       <NodeResizeHandle
         minWidth={baseFrameLayout.nodeWidth}
