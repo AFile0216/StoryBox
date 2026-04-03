@@ -9,6 +9,7 @@ import { resolveNodeDisplayName } from '@/features/canvas/domain/nodeDisplay';
 import { NodeHeader, NODE_HEADER_FLOATING_POSITION_CLASS } from '@/features/canvas/ui/NodeHeader';
 import { resolveAdaptiveHandleStyle, resolveResponsiveNodeClasses } from '@/features/canvas/ui/nodeMetrics';
 import { NodeResizeHandle } from '@/features/canvas/ui/NodeResizeHandle';
+import { ReferenceAwareTextarea } from '@/features/canvas/ui/ReferenceAwareTextarea';
 import { resolveLocalAssetUrl } from '@/features/canvas/application/imageData';
 import { useCanvasStore } from '@/stores/canvasStore';
 
@@ -187,11 +188,13 @@ export const AudioNode = memo(({ id, data, selected, width, height }: AudioNodeP
           </div>
         </div>
 
-        <textarea
+        <ReferenceAwareTextarea
+          nodeId={id}
           value={data.prompt}
-          onChange={(event) => updateNodeData(id, { prompt: event.target.value })}
+          onChange={(value) => updateNodeData(id, { prompt: value })}
           placeholder={t('node.audio.promptPlaceholder')}
-          className={`tapnow-node-field nodrag nowheel min-h-[76px] w-full resize-none ${uiDensity.panelPadding} ${uiDensity.bodyText} text-text-dark outline-none placeholder:text-text-muted/70`}
+          minHeightClassName="min-h-[76px]"
+          className={`${uiDensity.panelPadding} ${uiDensity.bodyText}`}
         />
 
         <div className="grid gap-2 md:grid-cols-[1fr_auto]">

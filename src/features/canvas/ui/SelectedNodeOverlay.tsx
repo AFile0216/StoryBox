@@ -2,6 +2,7 @@ import { memo, useMemo } from 'react';
 
 import { useCanvasStore } from '@/stores/canvasStore';
 import { NodeActionToolbar } from './NodeActionToolbar';
+import { NodeSettingsPopover } from './NodeSettingsPopover';
 
 export const SelectedNodeOverlay = memo(() => {
   const nodes = useCanvasStore((state) => state.nodes);
@@ -22,6 +23,7 @@ export const SelectedNodeOverlay = memo(() => {
   return (
     <>
       <NodeActionToolbar node={selectedNode} />
+      <NodeSettingsPopover node={selectedNode} />
     </>
   );
 });

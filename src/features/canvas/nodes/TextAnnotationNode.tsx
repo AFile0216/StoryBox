@@ -16,6 +16,7 @@ import { resolveNodeDisplayName } from '@/features/canvas/domain/nodeDisplay';
 import { NodeHeader, NODE_HEADER_FLOATING_POSITION_CLASS } from '@/features/canvas/ui/NodeHeader';
 import { resolveAdaptiveHandleStyle, resolveResponsiveNodeClasses } from '@/features/canvas/ui/nodeMetrics';
 import { NodeResizeHandle } from '@/features/canvas/ui/NodeResizeHandle';
+import { ReferenceAwareTextarea } from '@/features/canvas/ui/ReferenceAwareTextarea';
 import { UiSelect } from '@/components/ui';
 import { useCanvasStore } from '@/stores/canvasStore';
 
@@ -104,16 +105,18 @@ export const TextAnnotationNode = memo(({
       </div>
 
       {selected ? (
-        <textarea
+        <ReferenceAwareTextarea
+          nodeId={id}
           autoFocus
           value={content}
-          onChange={(event) => {
-            updateNodeData(id, { content: event.target.value });
+          onChange={(value) => {
+            updateNodeData(id, { content: value });
           }}
           placeholder={t('node.textAnnotation.placeholder', {
             mode: t(`node.textAnnotation.mode.${mode}`),
           })}
-          className={`tapnow-node-field nodrag nowheel h-[calc(100%-72px)] w-full resize-none ${uiDensity.panelPadding} ${uiDensity.bodyText} text-text-dark outline-none placeholder:text-text-muted/70`}
+          minHeightClassName="min-h-0"
+          className={`h-[calc(100%-72px)] ${uiDensity.panelPadding} ${uiDensity.bodyText}`}
         />
       ) : (
         <div className={`tapnow-node-panel nodrag nowheel h-[calc(100%-72px)] overflow-auto ${uiDensity.panelPadding} ${uiDensity.bodyText} text-text-dark`}>

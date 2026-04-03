@@ -14,6 +14,7 @@ import {
 import { resolveNodeDisplayName } from '@/features/canvas/domain/nodeDisplay';
 import { NodeHeader, NODE_HEADER_FLOATING_POSITION_CLASS } from '@/features/canvas/ui/NodeHeader';
 import { NodeResizeHandle } from '@/features/canvas/ui/NodeResizeHandle';
+import { ReferenceAwareTextarea } from '@/features/canvas/ui/ReferenceAwareTextarea';
 import {
   resolveAdaptiveHandleStyle,
   resolveResponsiveNodeClasses,
@@ -607,19 +608,23 @@ export const VideoStoryboardNode = memo(({
                 <div className="mb-2 text-xs uppercase tracking-[0.12em] text-text-muted">
                   {t('node.videoStoryboard.segmentText')}
                 </div>
-                <textarea
+                <ReferenceAwareTextarea
+                  nodeId={id}
                   value={data.draftText}
-                  onChange={(event) => {
+                  onBeforeChange={() => {
                     if (videoRef.current && !videoRef.current.paused) {
                       videoRef.current.pause();
                     }
+                  }}
+                  onChange={(value) => {
                     updateNodeData(id, {
-                      draftText: event.target.value,
+                      draftText: value,
                       currentTimeSec: videoRef.current?.currentTime ?? data.currentTimeSec,
                     });
                   }}
                   placeholder={t('node.videoStoryboard.segmentPlaceholder')}
-                  className={`nodrag nowheel min-h-[112px] w-full resize-none rounded-xl border border-[rgba(255,255,255,0.08)] bg-bg-dark/35 px-3 py-2 text-text-dark outline-none placeholder:text-text-muted/70 ${density === 'compact' ? 'text-xs leading-5' : 'text-sm leading-6'}`}
+                  minHeightClassName="min-h-[112px]"
+                  className={`rounded-xl border border-[rgba(255,255,255,0.08)] bg-bg-dark/35 ${density === 'compact' ? 'text-xs leading-5' : 'text-sm leading-6'}`}
                 />
                 <div className="mt-2 grid gap-2 md:grid-cols-[1fr_1fr_1fr]">
                   <button
