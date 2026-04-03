@@ -23,6 +23,6 @@ dist-ssr
 *.sln
 *.sw?
 
-ComfyUI/
-ComfyUI_frontend/
+/ComfyUI/
+/ComfyUI_frontend/
 Henji-AI/

@@ -400,7 +400,7 @@ impl AIProvider for OpenAiCompatibleProvider {
     }
 
     async fn generate(&self, request: GenerateRequest) -> Result<String, AIError> {
-        let runtime = request.runtime_config.ok_or_else(|| {
+        let runtime = request.runtime_config.clone().ok_or_else(|| {
             AIError::InvalidRequest("Missing custom API runtime config".to_string())
         })?;
 
