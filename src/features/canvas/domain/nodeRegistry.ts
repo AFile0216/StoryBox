@@ -56,7 +56,7 @@ const uploadNodeDefinition: CanvasNodeDefinition<UploadImageNodeData> = {
   },
   connectivity: {
     sourceHandle: true,
-    targetHandle: false,
+    targetHandle: true,
     connectMenu: {
       fromSource: false,
       fromTarget: true,
@@ -146,7 +146,7 @@ const textAnnotationNodeDefinition: CanvasNodeDefinition<TextAnnotationNodeData>
   },
   connectivity: {
     sourceHandle: true,
-    targetHandle: false,
+    targetHandle: true,
     connectMenu: {
       fromSource: true,
       fromTarget: false,
@@ -171,7 +171,7 @@ const videoNodeDefinition: CanvasNodeDefinition<VideoNodeData> = {
   },
   connectivity: {
     sourceHandle: true,
-    targetHandle: false,
+    targetHandle: true,
     connectMenu: {
       fromSource: true,
       fromTarget: false,
@@ -203,7 +203,7 @@ const audioNodeDefinition: CanvasNodeDefinition<AudioNodeData> = {
   },
   connectivity: {
     sourceHandle: true,
-    targetHandle: false,
+    targetHandle: true,
     connectMenu: {
       fromSource: true,
       fromTarget: false,

@@ -1,4 +1,4 @@
-import { memo, useMemo } from 'react';
+import { memo, useMemo, useState } from 'react';
 import {
   BaseEdge,
   EdgeLabelRenderer,
@@ -51,6 +51,7 @@ export const DisconnectableEdge = memo(function DisconnectableEdge(props: EdgePr
     style,
   } = props;
   const edgeData = (props.data ?? {}) as CanvasEdgeData;
+  const [isHovered, setIsHovered] = useState(false);
   const deleteEdge = useCanvasStore((state) => state.deleteEdge);
   const updateEdgeData = useCanvasStore((state) => state.updateEdgeData);
   const nodes = useCanvasStore((state) => state.nodes);
@@ -136,6 +137,8 @@ export const DisconnectableEdge = memo(function DisconnectableEdge(props: EdgePr
   const baseStrokeWidth = isProcessingEdge
     ? (selected ? 2.7 : 2.2)
     : (selected ? 2.4 : 1.9);
+  const visualOpacity = selected || isHovered ? 1 : 0.28;
+  const hitStrokeWidth = Math.max(16, baseStrokeWidth * 5);
 
   return (
     <>
@@ -159,10 +162,21 @@ export const DisconnectableEdge = memo(function DisconnectableEdge(props: EdgePr
           stroke: isProcessingEdge ? processingStroke : (style?.stroke ?? relationColor),
           strokeWidth: baseStrokeWidth,
           strokeDasharray: isDashed ? '8 8' : undefined,
+          opacity: visualOpacity,
+          transition: 'opacity 120ms ease, stroke 120ms ease, stroke-width 120ms ease',
           ...style,
         }}
       />
-      {selected && (
+      <path
+        d={edgePath}
+        fill="none"
+        stroke="transparent"
+        strokeWidth={hitStrokeWidth}
+        style={{ cursor: 'pointer' }}
+        onMouseEnter={() => setIsHovered(true)}
+        onMouseLeave={() => setIsHovered(false)}
+      />
+      {(selected || isHovered) && (
         <EdgeLabelRenderer>
           <div
             className="nodrag nopan absolute flex items-center gap-1 rounded-full border border-white/10 bg-black/70 px-1 py-1 text-text-muted shadow-lg backdrop-blur"

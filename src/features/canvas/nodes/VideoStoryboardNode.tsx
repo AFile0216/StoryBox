@@ -391,8 +391,9 @@ export const VideoStoryboardNode = memo(({
         </button>
       </div>
 
-      <div className="grid min-h-0 flex-1 gap-3 md:grid-cols-[1.2fr_0.8fr]">
-        <div className="flex min-h-0 flex-col gap-3">
+      <div className="grid min-h-0 flex-1 grid-rows-[minmax(0,1fr)_auto] gap-3">
+        <div className="grid min-h-0 gap-3 md:grid-cols-[1.3fr_0.7fr]">
+          <div className="flex min-h-0 flex-col gap-3">
           <div className="relative min-h-[180px] overflow-hidden rounded-xl border border-[rgba(255,255,255,0.08)] bg-bg-dark/50">
             {videoSrc ? (
               <video
@@ -448,166 +449,9 @@ export const VideoStoryboardNode = memo(({
               <div className="mt-1 text-sm text-text-dark">{formatSeconds(data.selectionEndSec)}</div>
             </div>
           </div>
-
-          <div className="rounded-xl border border-[rgba(255,255,255,0.08)] bg-bg-dark/35 p-3">
-            <div className="mb-3 flex items-center justify-between">
-              <div className="text-xs uppercase tracking-[0.12em] text-text-muted">
-                {t('node.videoStoryboard.timeline')}
-              </div>
-              <div className="text-xs text-text-muted">
-                {t('node.videoStoryboard.duration')}: {formatSeconds(data.durationSec)}
-              </div>
-            </div>
-
-            <div className="space-y-3">
-              <input
-                type="range"
-                min={0}
-                max={safeRangeMax}
-                step={0.1}
-                value={clamp(data.selectionStartSec, 0, safeRangeMax)}
-                onChange={(event) => {
-                  patchSelection(Number(event.target.value), data.selectionEndSec);
-                }}
-              />
-              <input
-                type="range"
-                min={0}
-                max={safeRangeMax}
-                step={0.1}
-                value={clamp(data.selectionEndSec, 0.1, safeRangeMax)}
-                onChange={(event) => {
-                  patchSelection(data.selectionStartSec, Number(event.target.value));
-                }}
-              />
-
-              <div className="grid gap-2 md:grid-cols-[1fr_1fr_auto_auto]">
-                <input
-                  type="number"
-                  min={0}
-                  max={safeRangeMax}
-                  step={0.1}
-                  value={Number(data.selectionStartSec.toFixed(1))}
-                  onChange={(event) => patchSelection(Number(event.target.value), data.selectionEndSec)}
-                  className="rounded-lg border border-[rgba(255,255,255,0.08)] bg-bg-dark/50 px-3 py-2 text-sm text-text-dark outline-none"
-                />
-                <input
-                  type="number"
-                  min={0}
-                  max={safeRangeMax}
-                  step={0.1}
-                  value={Number(data.selectionEndSec.toFixed(1))}
-                  onChange={(event) => patchSelection(data.selectionStartSec, Number(event.target.value))}
-                  className="rounded-lg border border-[rgba(255,255,255,0.08)] bg-bg-dark/50 px-3 py-2 text-sm text-text-dark outline-none"
-                />
-                <button
-                  type="button"
-                  className="rounded-lg border border-[rgba(255,255,255,0.12)] bg-bg-dark/50 px-3 py-2 text-sm text-text-dark"
-                  onClick={(event) => {
-                    event.stopPropagation();
-                    patchSelection(playheadSec, data.selectionEndSec);
-                  }}
-                >
-                  {t('node.videoStoryboard.useCurrentForStart')}
-                </button>
-                <button
-                  type="button"
-                  className="rounded-lg border border-[rgba(255,255,255,0.12)] bg-bg-dark/50 px-3 py-2 text-sm text-text-dark"
-                  onClick={(event) => {
-                    event.stopPropagation();
-                    patchSelection(data.selectionStartSec, playheadSec);
-                  }}
-                >
-                  {t('node.videoStoryboard.useCurrentForEnd')}
-                </button>
-              </div>
-            </div>
           </div>
 
-          <div className="rounded-xl border border-[rgba(255,255,255,0.08)] bg-bg-dark/35 p-3">
-            <div className="mb-2 text-xs uppercase tracking-[0.12em] text-text-muted">
-              {t('node.videoStoryboard.segmentText')}
-            </div>
-              <textarea
-              value={data.draftText}
-              onChange={(event) => {
-                if (videoRef.current && !videoRef.current.paused) {
-                  videoRef.current.pause();
-                }
-                updateNodeData(id, {
-                  draftText: event.target.value,
-                  currentTimeSec: videoRef.current?.currentTime ?? data.currentTimeSec,
-                });
-              }}
-              placeholder={t('node.videoStoryboard.segmentPlaceholder')}
-              className={`nodrag nowheel min-h-[110px] w-full resize-none rounded-xl border border-[rgba(255,255,255,0.08)] bg-bg-dark/35 px-3 py-2 text-text-dark outline-none placeholder:text-text-muted/70 ${density === 'compact' ? 'text-xs leading-5' : 'text-sm leading-6'}`}
-            />
-            <div className="mt-2 grid gap-2 md:grid-cols-[1fr_1fr_1fr]">
-              <button
-                type="button"
-                className="inline-flex items-center justify-center gap-2 rounded-lg border border-[rgba(255,255,255,0.12)] bg-bg-dark/50 px-3 py-2 text-sm text-text-dark"
-                onClick={(event) => {
-                  event.stopPropagation();
-                  handleSaveSegment();
-                }}
-              >
-                <Scissors className="h-4 w-4" />
-                {activeSegment
-                  ? t('node.videoStoryboard.updateSegment')
-                  : t('node.videoStoryboard.addSegment')}
-              </button>
-              <button
-                type="button"
-                className="inline-flex items-center justify-center gap-2 rounded-lg border border-[rgba(255,255,255,0.12)] bg-bg-dark/50 px-3 py-2 text-sm text-text-dark"
-                onClick={(event) => {
-                  event.stopPropagation();
-                  void handleCaptureFrame();
-                }}
-              >
-                {captureStatus === 'running' ? (
-                  <LoaderCircle className="h-4 w-4 animate-spin" />
-                ) : (
-                  <ImagePlus className="h-4 w-4" />
-                )}
-                {t('node.videoStoryboard.captureFrame')}
-              </button>
-              <button
-                type="button"
-                className="inline-flex items-center justify-center gap-2 rounded-lg border border-[rgba(255,255,255,0.12)] bg-bg-dark/50 px-3 py-2 text-sm text-text-dark"
-                onClick={(event) => {
-                  event.stopPropagation();
-                  updateNodeData(id, {
-                    activeSegmentId: null,
-                    draftText: '',
-                    lastCaptureDataUrl: null,
-                  });
-                }}
-              >
-                {t('node.videoStoryboard.clearDraft')}
-              </button>
-            </div>
-          </div>
-        </div>
-
-        <div className="flex min-h-0 flex-col gap-3">
-          <div className="rounded-xl border border-[rgba(255,255,255,0.08)] bg-bg-dark/35 p-3">
-            <div className="mb-2 text-xs uppercase tracking-[0.12em] text-text-muted">
-              {t('node.videoStoryboard.latestCapture')}
-            </div>
-            {data.lastCaptureDataUrl ? (
-              <img
-                src={data.lastCaptureDataUrl}
-                alt={t('node.videoStoryboard.captureAlt')}
-                className="h-[140px] w-full rounded-lg object-cover"
-              />
-            ) : (
-              <div className="flex h-[140px] items-center justify-center rounded-lg border border-dashed border-[rgba(255,255,255,0.12)] text-sm text-text-muted">
-                {t('node.videoStoryboard.noCapture')}
-              </div>
-            )}
-          </div>
-
-          <div className="min-h-0 flex-1 rounded-xl border border-[rgba(255,255,255,0.08)] bg-bg-dark/35 p-3">
+          <div className="min-h-0 rounded-xl border border-[rgba(255,255,255,0.08)] bg-bg-dark/35 p-3">
             <div className="mb-2 flex items-center justify-between">
               <div className="text-xs uppercase tracking-[0.12em] text-text-muted">
                 {t('node.videoStoryboard.segmentList')}
@@ -676,6 +520,160 @@ export const VideoStoryboardNode = memo(({
                   })
               )}
             </div>
+          </div>
+        </div>
+
+        <div className="grid gap-3 md:grid-cols-[1.15fr_0.85fr]">
+          <div className="rounded-xl border border-[rgba(255,255,255,0.08)] bg-bg-dark/35 p-3">
+            <div className="mb-3 flex items-center justify-between">
+              <div className="text-xs uppercase tracking-[0.12em] text-text-muted">
+                {t('node.videoStoryboard.timeline')}
+              </div>
+              <div className="text-xs text-text-muted">
+                {t('node.videoStoryboard.duration')}: {formatSeconds(data.durationSec)}
+              </div>
+            </div>
+
+            <div className="space-y-3">
+              <input
+                type="range"
+                min={0}
+                max={safeRangeMax}
+                step={0.1}
+                value={clamp(data.selectionStartSec, 0, safeRangeMax)}
+                onChange={(event) => patchSelection(Number(event.target.value), data.selectionEndSec)}
+              />
+              <input
+                type="range"
+                min={0}
+                max={safeRangeMax}
+                step={0.1}
+                value={clamp(data.selectionEndSec, 0.1, safeRangeMax)}
+                onChange={(event) => patchSelection(data.selectionStartSec, Number(event.target.value))}
+              />
+
+              <div className="grid gap-2 md:grid-cols-[1fr_1fr_auto_auto]">
+                <input
+                  type="number"
+                  min={0}
+                  max={safeRangeMax}
+                  step={0.1}
+                  value={Number(data.selectionStartSec.toFixed(1))}
+                  onChange={(event) => patchSelection(Number(event.target.value), data.selectionEndSec)}
+                  className="rounded-lg border border-[rgba(255,255,255,0.08)] bg-bg-dark/50 px-3 py-2 text-sm text-text-dark outline-none"
+                />
+                <input
+                  type="number"
+                  min={0}
+                  max={safeRangeMax}
+                  step={0.1}
+                  value={Number(data.selectionEndSec.toFixed(1))}
+                  onChange={(event) => patchSelection(data.selectionStartSec, Number(event.target.value))}
+                  className="rounded-lg border border-[rgba(255,255,255,0.08)] bg-bg-dark/50 px-3 py-2 text-sm text-text-dark outline-none"
+                />
+                <button
+                  type="button"
+                  className="rounded-lg border border-[rgba(255,255,255,0.12)] bg-bg-dark/50 px-3 py-2 text-sm text-text-dark"
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    patchSelection(playheadSec, data.selectionEndSec);
+                  }}
+                >
+                  {t('node.videoStoryboard.useCurrentForStart')}
+                </button>
+                <button
+                  type="button"
+                  className="rounded-lg border border-[rgba(255,255,255,0.12)] bg-bg-dark/50 px-3 py-2 text-sm text-text-dark"
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    patchSelection(data.selectionStartSec, playheadSec);
+                  }}
+                >
+                  {t('node.videoStoryboard.useCurrentForEnd')}
+                </button>
+              </div>
+
+              <div className="rounded-xl border border-[rgba(255,255,255,0.08)] bg-bg-dark/35 p-3">
+                <div className="mb-2 text-xs uppercase tracking-[0.12em] text-text-muted">
+                  {t('node.videoStoryboard.segmentText')}
+                </div>
+                <textarea
+                  value={data.draftText}
+                  onChange={(event) => {
+                    if (videoRef.current && !videoRef.current.paused) {
+                      videoRef.current.pause();
+                    }
+                    updateNodeData(id, {
+                      draftText: event.target.value,
+                      currentTimeSec: videoRef.current?.currentTime ?? data.currentTimeSec,
+                    });
+                  }}
+                  placeholder={t('node.videoStoryboard.segmentPlaceholder')}
+                  className={`nodrag nowheel min-h-[112px] w-full resize-none rounded-xl border border-[rgba(255,255,255,0.08)] bg-bg-dark/35 px-3 py-2 text-text-dark outline-none placeholder:text-text-muted/70 ${density === 'compact' ? 'text-xs leading-5' : 'text-sm leading-6'}`}
+                />
+                <div className="mt-2 grid gap-2 md:grid-cols-[1fr_1fr_1fr]">
+                  <button
+                    type="button"
+                    className="inline-flex items-center justify-center gap-2 rounded-lg border border-[rgba(255,255,255,0.12)] bg-bg-dark/50 px-3 py-2 text-sm text-text-dark"
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      handleSaveSegment();
+                    }}
+                  >
+                    <Scissors className="h-4 w-4" />
+                    {activeSegment
+                      ? t('node.videoStoryboard.updateSegment')
+                      : t('node.videoStoryboard.addSegment')}
+                  </button>
+                  <button
+                    type="button"
+                    className="inline-flex items-center justify-center gap-2 rounded-lg border border-[rgba(255,255,255,0.12)] bg-bg-dark/50 px-3 py-2 text-sm text-text-dark"
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      void handleCaptureFrame();
+                    }}
+                  >
+                    {captureStatus === 'running' ? (
+                      <LoaderCircle className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <ImagePlus className="h-4 w-4" />
+                    )}
+                    {t('node.videoStoryboard.captureFrame')}
+                  </button>
+                  <button
+                    type="button"
+                    className="inline-flex items-center justify-center gap-2 rounded-lg border border-[rgba(255,255,255,0.12)] bg-bg-dark/50 px-3 py-2 text-sm text-text-dark"
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      updateNodeData(id, {
+                        activeSegmentId: null,
+                        draftText: '',
+                        lastCaptureDataUrl: null,
+                      });
+                    }}
+                  >
+                    {t('node.videoStoryboard.clearDraft')}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="rounded-xl border border-[rgba(255,255,255,0.08)] bg-bg-dark/35 p-3">
+            <div className="mb-2 text-xs uppercase tracking-[0.12em] text-text-muted">
+              {t('node.videoStoryboard.latestCapture')}
+            </div>
+            {data.lastCaptureDataUrl ? (
+              <img
+                src={data.lastCaptureDataUrl}
+                alt={t('node.videoStoryboard.captureAlt')}
+                className="h-[160px] w-full rounded-lg object-cover"
+              />
+            ) : (
+              <div className="flex h-[160px] items-center justify-center rounded-lg border border-dashed border-[rgba(255,255,255,0.12)] text-sm text-text-muted">
+                {t('node.videoStoryboard.noCapture')}
+              </div>
+            )}
           </div>
         </div>
       </div>

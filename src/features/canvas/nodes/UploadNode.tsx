@@ -35,6 +35,7 @@ import {
 } from '@/features/canvas/domain/nodeDisplay';
 import { canvasEventBus } from '@/features/canvas/application/canvasServices';
 import { NodeHeader, NODE_HEADER_FLOATING_POSITION_CLASS } from '@/features/canvas/ui/NodeHeader';
+import { resolveAdaptiveHandleStyle } from '@/features/canvas/ui/nodeMetrics';
 import { NodeResizeHandle } from '@/features/canvas/ui/NodeResizeHandle';
 import {
   prepareNodeImageFromFile,
@@ -101,6 +102,7 @@ export const UploadNode = memo(({ id, data, selected, width, height }: UploadNod
   });
   const resizeMinWidth = resizeConstraints.minWidth;
   const resizeMinHeight = resizeConstraints.minHeight;
+  const handleStyle = resolveAdaptiveHandleStyle(resolvedWidth, resolvedHeight);
   const resolvedTitle = useMemo(() => {
     const sourceFileName = typeof data.sourceFileName === 'string' ? data.sourceFileName.trim() : '';
     if (
@@ -355,10 +357,18 @@ export const UploadNode = memo(({ id, data, selected, width, height }: UploadNod
       />
 
       <Handle
+        type="target"
+        id="target"
+        position={Position.Left}
+        className="!border-surface-dark !bg-accent"
+        style={handleStyle}
+      />
+      <Handle
         type="source"
         id="source"
         position={Position.Right}
-        className="!h-2 !w-2 !border-surface-dark !bg-accent"
+        className="!border-surface-dark !bg-accent"
+        style={handleStyle}
       />
       <NodeResizeHandle
         minWidth={resizeMinWidth}

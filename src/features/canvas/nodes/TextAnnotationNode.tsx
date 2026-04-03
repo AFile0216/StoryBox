@@ -151,6 +151,13 @@ export const TextAnnotationNode = memo(({
       )}
 
       <Handle
+        type="target"
+        id="target"
+        position={Position.Left}
+        className="!border-surface-dark !bg-accent"
+        style={handleStyle}
+      />
+      <Handle
         type="source"
         id="source"
         position={Position.Right}
