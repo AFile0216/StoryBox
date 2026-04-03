@@ -359,10 +359,8 @@ export const VideoStoryboardNode = memo(({
   return (
     <div
       className={`
-        group relative flex h-full flex-col overflow-visible rounded-[var(--node-radius)] border bg-surface-dark/90 p-2 transition-colors duration-150
-        ${selected
-          ? 'border-accent shadow-[0_0_0_1px_rgba(59,130,246,0.32)]'
-          : 'border-[rgba(15,23,42,0.22)] hover:border-[rgba(15,23,42,0.34)] dark:border-[rgba(255,255,255,0.22)] dark:hover:border-[rgba(255,255,255,0.34)]'}
+        tapnow-node-card group relative flex h-full flex-col overflow-visible p-2 transition-colors duration-150
+        ${selected ? 'tapnow-node-card--selected' : 'tapnow-node-card--default'}
       `}
       style={{ width: resolvedWidth, height: resolvedHeight }}
       onClick={() => setSelectedNode(id)}
@@ -376,12 +374,12 @@ export const VideoStoryboardNode = memo(({
       />
 
       <div className="mb-2 mt-6 flex items-center justify-between gap-2">
-        <div className="inline-flex rounded-full border border-[rgba(255,255,255,0.12)] bg-white/5 px-2 py-1 text-[10px] uppercase tracking-[0.12em] text-text-muted">
+        <div className="tapnow-node-pill px-2 py-1 text-[10px] uppercase tracking-[0.12em]">
           {t('node.videoStoryboard.title')}
         </div>
         <button
           type="button"
-          className="rounded-md border border-[rgba(255,255,255,0.12)] bg-bg-dark/60 px-2 py-1 text-xs text-text-dark transition-colors hover:border-[rgba(255,255,255,0.22)]"
+          className="tapnow-node-button px-2 py-1 text-xs"
           onClick={(event) => {
             event.stopPropagation();
             void handlePickVideo();
@@ -394,7 +392,7 @@ export const VideoStoryboardNode = memo(({
       <div className="grid min-h-0 flex-1 grid-rows-[minmax(0,1fr)_auto] gap-3">
         <div className="grid min-h-0 gap-3 md:grid-cols-[1.3fr_0.7fr]">
           <div className="flex min-h-0 flex-col gap-3">
-          <div className="relative min-h-[180px] overflow-hidden rounded-xl border border-[rgba(255,255,255,0.08)] bg-bg-dark/50">
+          <div className="tapnow-node-surface relative min-h-[180px] overflow-hidden">
             {videoSrc ? (
               <video
                 ref={videoRef}
@@ -430,19 +428,19 @@ export const VideoStoryboardNode = memo(({
           </div>
 
           <div className="grid gap-2 md:grid-cols-3">
-            <div className="rounded-lg border border-[rgba(255,255,255,0.08)] bg-bg-dark/40 px-3 py-2">
+            <div className="tapnow-node-panel px-3 py-2">
               <div className="text-[10px] uppercase tracking-[0.12em] text-text-muted">
                 {t('node.videoStoryboard.currentTime')}
               </div>
               <div className="mt-1 text-sm text-text-dark">{formatSeconds(playheadSec)}</div>
             </div>
-            <div className="rounded-lg border border-[rgba(255,255,255,0.08)] bg-bg-dark/40 px-3 py-2">
+            <div className="tapnow-node-panel px-3 py-2">
               <div className="text-[10px] uppercase tracking-[0.12em] text-text-muted">
                 {t('node.videoStoryboard.rangeStart')}
               </div>
               <div className="mt-1 text-sm text-text-dark">{formatSeconds(data.selectionStartSec)}</div>
             </div>
-            <div className="rounded-lg border border-[rgba(255,255,255,0.08)] bg-bg-dark/40 px-3 py-2">
+            <div className="tapnow-node-panel px-3 py-2">
               <div className="text-[10px] uppercase tracking-[0.12em] text-text-muted">
                 {t('node.videoStoryboard.rangeEnd')}
               </div>
@@ -451,7 +449,7 @@ export const VideoStoryboardNode = memo(({
           </div>
           </div>
 
-          <div className="min-h-0 rounded-xl border border-[rgba(255,255,255,0.08)] bg-bg-dark/35 p-3">
+          <div className="tapnow-node-panel min-h-0 p-3">
             <div className="mb-2 flex items-center justify-between">
               <div className="text-xs uppercase tracking-[0.12em] text-text-muted">
                 {t('node.videoStoryboard.segmentList')}
@@ -477,8 +475,8 @@ export const VideoStoryboardNode = memo(({
                         key={segment.id}
                         className={`rounded-lg border px-3 py-2 transition-colors ${
                           isActive
-                            ? 'border-accent/50 bg-accent/12'
-                            : 'border-[rgba(255,255,255,0.08)] bg-bg-dark/35'
+                    ? 'border-accent/50 bg-accent/12'
+                    : 'border-[rgba(255,255,255,0.08)] bg-bg-dark/35'
                         }`}
                       >
                         <div className="flex items-start justify-between gap-2">
@@ -524,7 +522,7 @@ export const VideoStoryboardNode = memo(({
         </div>
 
         <div className="grid gap-3 md:grid-cols-[1.15fr_0.85fr]">
-          <div className="rounded-xl border border-[rgba(255,255,255,0.08)] bg-bg-dark/35 p-3">
+          <div className="tapnow-node-panel p-3">
             <div className="mb-3 flex items-center justify-between">
               <div className="text-xs uppercase tracking-[0.12em] text-text-muted">
                 {t('node.videoStoryboard.timeline')}
@@ -593,7 +591,7 @@ export const VideoStoryboardNode = memo(({
                 </button>
               </div>
 
-              <div className="rounded-xl border border-[rgba(255,255,255,0.08)] bg-bg-dark/35 p-3">
+              <div className="tapnow-node-panel p-3">
                 <div className="mb-2 text-xs uppercase tracking-[0.12em] text-text-muted">
                   {t('node.videoStoryboard.segmentText')}
                 </div>
@@ -614,7 +612,7 @@ export const VideoStoryboardNode = memo(({
                 <div className="mt-2 grid gap-2 md:grid-cols-[1fr_1fr_1fr]">
                   <button
                     type="button"
-                    className="inline-flex items-center justify-center gap-2 rounded-lg border border-[rgba(255,255,255,0.12)] bg-bg-dark/50 px-3 py-2 text-sm text-text-dark"
+                    className="tapnow-node-button inline-flex items-center justify-center gap-2 px-3 py-2 text-sm"
                     onClick={(event) => {
                       event.stopPropagation();
                       handleSaveSegment();
@@ -627,7 +625,7 @@ export const VideoStoryboardNode = memo(({
                   </button>
                   <button
                     type="button"
-                    className="inline-flex items-center justify-center gap-2 rounded-lg border border-[rgba(255,255,255,0.12)] bg-bg-dark/50 px-3 py-2 text-sm text-text-dark"
+                    className="tapnow-node-button inline-flex items-center justify-center gap-2 px-3 py-2 text-sm"
                     onClick={(event) => {
                       event.stopPropagation();
                       void handleCaptureFrame();
@@ -642,7 +640,7 @@ export const VideoStoryboardNode = memo(({
                   </button>
                   <button
                     type="button"
-                    className="inline-flex items-center justify-center gap-2 rounded-lg border border-[rgba(255,255,255,0.12)] bg-bg-dark/50 px-3 py-2 text-sm text-text-dark"
+                    className="tapnow-node-button inline-flex items-center justify-center gap-2 px-3 py-2 text-sm"
                     onClick={(event) => {
                       event.stopPropagation();
                       updateNodeData(id, {
@@ -659,7 +657,7 @@ export const VideoStoryboardNode = memo(({
             </div>
           </div>
 
-          <div className="rounded-xl border border-[rgba(255,255,255,0.08)] bg-bg-dark/35 p-3">
+          <div className="tapnow-node-panel p-3">
             <div className="mb-2 text-xs uppercase tracking-[0.12em] text-text-muted">
               {t('node.videoStoryboard.latestCapture')}
             </div>

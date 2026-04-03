@@ -247,6 +247,7 @@ export function Canvas() {
   );
   const [previewConnectionVisual, setPreviewConnectionVisual] =
     useState<PreviewConnectionVisual | null>(null);
+  const [isSpacePanning, setIsSpacePanning] = useState(false);
 
   const isRestoringCanvasRef = useRef(true);
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -1578,6 +1579,31 @@ export function Canvas() {
     [configuredApiKeyCount, t]
   );
 
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.code === 'Space' && !isTypingTarget(event.target)) {
+        setIsSpacePanning(true);
+      }
+    };
+    const handleKeyUp = (event: KeyboardEvent) => {
+      if (event.code === 'Space') {
+        setIsSpacePanning(false);
+      }
+    };
+    const handleBlur = () => {
+      setIsSpacePanning(false);
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    window.addEventListener('keyup', handleKeyUp);
+    window.addEventListener('blur', handleBlur);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener('keyup', handleKeyUp);
+      window.removeEventListener('blur', handleBlur);
+    };
+  }, []);
+
   return (
     <div ref={wrapperRef} className="relative h-full w-full">
       <ReactFlow
@@ -1603,28 +1629,46 @@ export function Canvas() {
         defaultViewport={DEFAULT_VIEWPORT}
         minZoom={0.1}
         maxZoom={5}
-        selectionOnDrag
+        selectionOnDrag={!isSpacePanning}
         selectionMode={SelectionMode.Partial}
+        panOnDrag={isSpacePanning ? [0, 1, 2] : false}
+        panActivationKeyCode="Space"
+        zoomOnScroll
         multiSelectionKeyCode={['Control', 'Meta']}
         selectionKeyCode={['Control', 'Meta']}
         deleteKeyCode={null}
         onlyRenderVisibleElements
         zoomOnDoubleClick={false}
         proOptions={{ hideAttribution: true }}
-        className="bg-bg-dark"
+        className="tapnow-canvas"
       >
-        <Background variant={BackgroundVariant.Dots} gap={20} size={1} color="#2a2a2a" />
+        <Background variant={BackgroundVariant.Dots} gap={24} size={1.2} color="rgba(148,163,184,0.14)" />
         <MiniMap
-          className="canvas-minimap nopan nowheel !border-border-dark !bg-surface-dark"
+          className="canvas-minimap nopan nowheel !border-white/10 !bg-[rgba(15,23,42,0.82)]"
           style={{ pointerEvents: 'all', zIndex: 10000 }}
-          nodeColor="rgba(120, 120, 120, 0.92)"
-          maskColor="rgba(0, 0, 0, 0.62)"
+          nodeColor="rgba(226, 232, 240, 0.82)"
+          maskColor="rgba(2, 6, 23, 0.72)"
           pannable
           zoomable
         />
 
         <SelectedNodeOverlay />
       </ReactFlow>
+
+      <div className="pointer-events-none absolute bottom-4 left-1/2 z-30 -translate-x-1/2">
+        <div className="flex items-center gap-3 rounded-full border border-white/10 bg-[rgba(15,23,42,0.72)] px-4 py-2 text-[11px] text-white/70 shadow-[0_16px_40px_rgba(2,6,23,0.28)] backdrop-blur-xl">
+          <span className="font-medium text-white/82">
+            {Math.round((reactFlowInstance.getViewport().zoom ?? 1) * 100)}%
+          </span>
+          <span>{t('canvas.hud.doubleClickCreate', { defaultValue: 'Double-click to create' })}</span>
+          <span>{t('canvas.hud.wheelToZoom', { defaultValue: 'Wheel to zoom' })}</span>
+          <span>
+            {isSpacePanning
+              ? t('canvas.hud.dragToPan', { defaultValue: 'Drag to pan' })
+              : t('canvas.hud.holdSpaceToPan', { defaultValue: 'Hold Space to pan' })}
+          </span>
+        </div>
+      </div>
 
       {nodes.length === 0 && emptyHint}
       {nodes.length > 0 && configuredApiKeyCount === 0 && (

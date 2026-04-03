@@ -66,10 +66,8 @@ export const TextAnnotationNode = memo(({
   return (
     <div
       className={`
-        group relative h-full w-full overflow-visible rounded-[var(--node-radius)] border bg-surface-dark/85 p-2 transition-colors duration-150
-        ${selected
-          ? 'border-accent shadow-[0_0_0_1px_rgba(59,130,246,0.32)]'
-          : 'border-[rgba(15,23,42,0.22)] hover:border-[rgba(15,23,42,0.34)] dark:border-[rgba(255,255,255,0.22)] dark:hover:border-[rgba(255,255,255,0.34)]'}
+        tapnow-node-card group relative h-full w-full overflow-visible p-2 transition-colors duration-150
+        ${selected ? 'tapnow-node-card--selected' : 'tapnow-node-card--default'}
       `}
       style={{ width: resolvedWidth, height: resolvedHeight }}
       onClick={() => setSelectedNode(id)}
@@ -83,7 +81,7 @@ export const TextAnnotationNode = memo(({
       />
 
       <div className="mb-2 mt-6 flex items-center gap-2">
-        <span className="text-[11px] uppercase tracking-[0.12em] text-text-muted">
+        <span className="tapnow-node-pill px-2 py-1 text-[11px] uppercase tracking-[0.12em]">
           {t('node.textAnnotation.modeLabel')}
         </span>
         <UiSelect
@@ -113,11 +111,11 @@ export const TextAnnotationNode = memo(({
           placeholder={t('node.textAnnotation.placeholder', {
             mode: t(`node.textAnnotation.mode.${mode}`),
           })}
-          className="nodrag nowheel h-[calc(100%-72px)] w-full resize-none rounded-lg border border-[rgba(255,255,255,0.08)] bg-bg-dark/45 px-3 py-2 text-sm leading-6 text-text-dark outline-none placeholder:text-text-muted/70"
+          className="tapnow-node-field nodrag nowheel h-[calc(100%-72px)] w-full resize-none px-3 py-2 text-sm leading-6 text-text-dark outline-none placeholder:text-text-muted/70"
         />
       ) : (
-        <div className="nodrag nowheel h-[calc(100%-72px)] overflow-auto rounded-lg border border-[rgba(255,255,255,0.08)] bg-bg-dark/35 px-3 py-2 text-sm leading-6 text-text-dark">
-          <div className="mb-2 inline-flex rounded-full border border-[rgba(255,255,255,0.12)] bg-white/5 px-2 py-0.5 text-[10px] uppercase tracking-[0.12em] text-text-muted">
+        <div className="tapnow-node-panel nodrag nowheel h-[calc(100%-72px)] overflow-auto px-3 py-2 text-sm leading-6 text-text-dark">
+          <div className="tapnow-node-pill mb-2 px-2 py-0.5 text-[10px] uppercase tracking-[0.12em]">
             {t(`node.textAnnotation.mode.${mode}`)}
           </div>
           {content.trim().length > 0 ? (

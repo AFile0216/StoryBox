@@ -308,10 +308,8 @@ export const UploadNode = memo(({ id, data, selected, width, height }: UploadNod
   return (
     <div
       className={`
-        group relative overflow-visible rounded-[var(--node-radius)] border bg-surface-dark/85 p-0 transition-colors duration-150
-        ${selected
-          ? 'border-accent shadow-[0_0_0_1px_rgba(59,130,246,0.32)]'
-          : 'border-[rgba(15,23,42,0.22)] hover:border-[rgba(15,23,42,0.34)] dark:border-[rgba(255,255,255,0.22)] dark:hover:border-[rgba(255,255,255,0.34)]'}
+        tapnow-node-card group relative overflow-visible p-0 transition-colors duration-150
+        ${selected ? 'tapnow-node-card--selected' : 'tapnow-node-card--default'}
       `}
       style={{ width: resolvedWidth, height: resolvedHeight }}
       onClick={handleNodeClick}
@@ -328,7 +326,7 @@ export const UploadNode = memo(({ id, data, selected, width, height }: UploadNod
 
       {data.imageUrl || transientPreviewUrl ? (
         <div
-          className="block h-full w-full overflow-hidden rounded-[var(--node-radius)] bg-bg-dark"
+          className="tapnow-node-surface block h-full w-full overflow-hidden"
         >
           <CanvasNodeImage
             src={imageSource ?? ''}
@@ -340,7 +338,7 @@ export const UploadNode = memo(({ id, data, selected, width, height }: UploadNod
         </div>
       ) : (
         <label
-          className="block h-full w-full overflow-hidden rounded-[var(--node-radius)] bg-bg-dark"
+          className="tapnow-node-surface block h-full w-full overflow-hidden"
         >
           <div className="flex h-full w-full cursor-pointer flex-col items-center justify-center gap-2 text-text-muted/85">
             <Upload className="h-7 w-7 opacity-60" />

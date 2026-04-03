@@ -40,9 +40,9 @@ export const GroupNode = memo(({ id, data, selected }: GroupNodeProps) => {
 
   return (
     <div
-      className={`group relative h-full w-full overflow-visible rounded-[18px] border ${selected
-        ? 'border-accent shadow-[0_0_0_1px_rgba(59,130,246,0.35)]'
-        : 'border-[rgba(15,23,42,0.2)] dark:border-[rgba(255,255,255,0.26)]'
+      className={`tapnow-node-card group relative h-full w-full overflow-visible rounded-[18px] border ${selected
+        ? 'tapnow-node-card--selected'
+        : 'tapnow-node-card--default'
         }`}
       style={{
         backgroundColor: 'var(--group-node-bg)',

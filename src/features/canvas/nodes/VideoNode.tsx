@@ -155,10 +155,8 @@ export const VideoNode = memo(({ id, data, selected, width, height }: VideoNodeP
   return (
     <div
       className={`
-        group relative flex h-full flex-col overflow-visible rounded-[var(--node-radius)] border bg-surface-dark/90 p-2 transition-colors duration-150
-        ${selected
-          ? 'border-accent shadow-[0_0_0_1px_rgba(59,130,246,0.32)]'
-          : 'border-[rgba(15,23,42,0.22)] hover:border-[rgba(15,23,42,0.34)] dark:border-[rgba(255,255,255,0.22)] dark:hover:border-[rgba(255,255,255,0.34)]'}
+        tapnow-node-card group relative flex h-full flex-col overflow-visible p-2 transition-colors duration-150
+        ${selected ? 'tapnow-node-card--selected' : 'tapnow-node-card--default'}
       `}
       style={{ width: resolvedWidth, height: resolvedHeight }}
       onClick={() => setSelectedNode(id)}
@@ -172,12 +170,12 @@ export const VideoNode = memo(({ id, data, selected, width, height }: VideoNodeP
       />
 
       <div className="mb-2 mt-6 flex items-center justify-between gap-2">
-        <div className="inline-flex rounded-full border border-[rgba(255,255,255,0.12)] bg-white/5 px-2 py-1 text-[10px] uppercase tracking-[0.12em] text-text-muted">
+        <div className="tapnow-node-pill px-2 py-1 text-[10px] uppercase tracking-[0.12em]">
           {t('node.video.title')}
         </div>
         <button
           type="button"
-          className="rounded-md border border-[rgba(255,255,255,0.12)] bg-bg-dark/60 px-2 py-1 text-xs text-text-dark transition-colors hover:border-[rgba(255,255,255,0.22)]"
+          className="tapnow-node-button px-2 py-1 text-xs"
           onClick={(event) => {
             event.stopPropagation();
             void handlePickVideo();
@@ -188,7 +186,7 @@ export const VideoNode = memo(({ id, data, selected, width, height }: VideoNodeP
       </div>
 
       <div className="flex min-h-0 flex-1 flex-col gap-2">
-        <div className="relative h-[44%] min-h-[120px] overflow-hidden rounded-xl border border-[rgba(255,255,255,0.08)] bg-bg-dark/50">
+        <div className="tapnow-node-surface relative h-[44%] min-h-[120px] overflow-hidden">
           {videoSrc ? (
             <video
               ref={videoRef}
@@ -214,19 +212,19 @@ export const VideoNode = memo(({ id, data, selected, width, height }: VideoNodeP
         </div>
 
         <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-4">
-          <div className="rounded-lg border border-[rgba(255,255,255,0.08)] bg-bg-dark/40 px-3 py-2">
+            <div className="tapnow-node-panel px-3 py-2">
             <div className="text-[10px] uppercase tracking-[0.12em] text-text-muted">
               {t('node.video.currentTime')}
             </div>
             <div className="mt-1 text-sm text-text-dark">{formatSeconds(playheadSec)}</div>
           </div>
-          <div className="rounded-lg border border-[rgba(255,255,255,0.08)] bg-bg-dark/40 px-3 py-2">
+            <div className="tapnow-node-panel px-3 py-2">
             <div className="text-[10px] uppercase tracking-[0.12em] text-text-muted">
               {t('node.video.duration')}
             </div>
             <div className="mt-1 text-sm text-text-dark">{formatSeconds(data.durationSec)}</div>
           </div>
-          <div className="rounded-lg border border-[rgba(255,255,255,0.08)] bg-bg-dark/40 px-3 py-2">
+            <div className="tapnow-node-panel px-3 py-2">
             <div className="text-[10px] uppercase tracking-[0.12em] text-text-muted">
               {t('node.video.file')}
             </div>
@@ -263,13 +261,13 @@ export const VideoNode = memo(({ id, data, selected, width, height }: VideoNodeP
           value={data.prompt}
           onChange={(event) => updateNodeData(id, { prompt: event.target.value })}
           placeholder={t('node.video.promptPlaceholder')}
-          className="nodrag nowheel min-h-[76px] w-full resize-none rounded-xl border border-[rgba(255,255,255,0.08)] bg-bg-dark/35 px-3 py-2 text-sm text-text-dark outline-none placeholder:text-text-muted/70"
+          className="tapnow-node-field nodrag nowheel min-h-[76px] w-full resize-none px-3 py-2 text-sm text-text-dark outline-none placeholder:text-text-muted/70"
         />
 
         <div className="grid gap-2 md:grid-cols-[1fr_1fr_1fr]">
           <button
             type="button"
-            className="inline-flex items-center justify-center gap-2 rounded-lg border border-[rgba(255,255,255,0.12)] bg-bg-dark/50 px-3 py-2 text-sm text-text-dark transition-colors hover:border-[rgba(255,255,255,0.2)]"
+            className="tapnow-node-button inline-flex items-center justify-center gap-2 px-3 py-2 text-sm"
             onClick={(event) => {
               event.stopPropagation();
               handleRunTask();
@@ -284,7 +282,7 @@ export const VideoNode = memo(({ id, data, selected, width, height }: VideoNodeP
           </button>
           <button
             type="button"
-            className="inline-flex items-center justify-center gap-2 rounded-lg border border-[rgba(255,255,255,0.12)] bg-bg-dark/50 px-3 py-2 text-sm text-text-dark transition-colors hover:border-[rgba(255,255,255,0.2)]"
+            className="tapnow-node-button inline-flex items-center justify-center gap-2 px-3 py-2 text-sm"
             onClick={(event) => {
               event.stopPropagation();
               handleCreateStoryboardNode();
@@ -293,13 +291,13 @@ export const VideoNode = memo(({ id, data, selected, width, height }: VideoNodeP
             <Clapperboard className="h-4 w-4" />
             {t('node.video.openStoryboard')}
           </button>
-          <div className="rounded-lg border border-[rgba(255,255,255,0.08)] bg-bg-dark/35 px-3 py-2 text-xs text-text-muted">
+          <div className="tapnow-node-panel px-3 py-2 text-xs text-text-muted">
             <div>{t(`node.media.status.${data.taskStatus}`)}</div>
             {data.taskMessage ? <div className="mt-1">{data.taskMessage}</div> : null}
           </div>
         </div>
 
-        <div className="min-h-[54px] rounded-xl border border-[rgba(255,255,255,0.08)] bg-bg-dark/30 px-3 py-2 text-sm text-text-muted">
+        <div className="tapnow-node-panel min-h-[54px] px-3 py-2 text-sm text-text-muted">
           {data.taskOutputSummary || t('node.media.outputPlaceholder')}
         </div>
       </div>
