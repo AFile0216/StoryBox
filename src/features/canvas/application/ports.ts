@@ -39,13 +39,22 @@ export interface GenerateImagePayload {
   referenceImages?: string[];
   extraParams?: Record<string, unknown>;
   runtimeConfig?: {
-    interfaceId: string;
-    interfaceName: string;
-    apiKey: string;
+    providerType: 'custom-api' | 'comfyui';
+    interfaceId?: string;
+    interfaceName?: string;
+    apiKey?: string;
     baseUrl: string;
-    apiModel: string;
-    omitSizeParams: boolean;
-    requestMode: 'images' | 'chat-completions';
+    apiModel?: string;
+    omitSizeParams?: boolean;
+    requestMode?: 'images' | 'chat-completions';
+    workflowId?: string;
+    workflowName?: string;
+    workflowPromptApiJson?: string;
+    imageInputNodeId?: string;
+    imageInputField?: string;
+    outputNodeId?: string;
+    positivePromptNodeIds?: string[];
+    negativePromptNodeIds?: string[];
   };
 }
 

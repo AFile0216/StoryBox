@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Plus, FolderOpen, Pencil, Trash2 } from 'lucide-react';
 import { useProjectStore } from '@/stores/projectStore';
-import { getConfiguredApiKeyCount, useSettingsStore } from '@/stores/settingsStore';
+import { getConfiguredProviderCount, useSettingsStore } from '@/stores/settingsStore';
 import { UI_CONTENT_OVERLAY_INSET_CLASS } from '@/components/ui/motion';
 import { UiButton, UiSelect } from '@/components/ui/primitives';
 import { MissingApiKeyHint } from '@/features/settings/MissingApiKeyHint';
@@ -18,9 +18,7 @@ export function ProjectManager() {
   const [editingProjectName, setEditingProjectName] = useState('');
   const [sortField, setSortField] = useState<ProjectSortField>('createdAt');
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
-  const configuredApiKeyCount = useSettingsStore((state) =>
-    getConfiguredApiKeyCount(state.apiKeys)
-  );
+  const configuredApiKeyCount = useSettingsStore((state) => getConfiguredProviderCount(state));
 
   const { projects, isOpeningProject, createProject, deleteProject, renameProject, openProject } =
     useProjectStore();

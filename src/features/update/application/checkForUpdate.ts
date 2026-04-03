@@ -1,20 +1,18 @@
 import { getVersion } from '@tauri-apps/api/app';
 import { isTauri } from '@tauri-apps/api/core';
-import { checkLatestReleaseTag } from '../../../commands/update';
+import { checkAppVersion } from '@/commands/app';
+import { useSettingsStore } from '@/stores/settingsStore';
 
-const GITHUB_LATEST_RELEASE_API = 'https://api.github.com/repos/henjicc/Storyboard-Copilot/releases/latest';
 const VERSION_SUPPRESSION_STORAGE_KEY = 'storyboard:update-check:version-suppressions';
 
 export interface UpdateCheckResult {
   hasUpdate: boolean;
   latestVersion?: string;
   currentVersion?: string;
+  latestUrl?: string;
   error?: 'network' | 'unknown';
 }
 
-interface GithubLatestReleaseResponse {
-  tag_name?: string;
-}
 type VersionSuppressionMode = 'today' | 'forever';
 
 interface VersionSuppressionRecord {
@@ -111,21 +109,18 @@ export function isUpdateVersionSuppressed(version: string): boolean {
     return true;
   }
 
-  const today = getLocalDateKey(new Date());
-  return record.dayKey === today;
-}
-
-function parseVersionParts(version: string): number[] {
-  const core = normalizeVersion(version).split('-')[0] ?? '';
-  return core.split('.').map((part) => {
-    const parsed = Number.parseInt(part, 10);
-    return Number.isFinite(parsed) ? parsed : 0;
-  });
+  return record.dayKey === getLocalDateKey(new Date());
 }
 
 function compareVersions(left: string, right: string): number {
-  const leftParts = parseVersionParts(left);
-  const rightParts = parseVersionParts(right);
+  const parse = (value: string) =>
+    normalizeVersion(value)
+      .split('-')[0]
+      ?.split('.')
+      .map((part) => Number.parseInt(part, 10) || 0) ?? [];
+
+  const leftParts = parse(left);
+  const rightParts = parse(right);
   const maxLength = Math.max(leftParts.length, rightParts.length);
 
   for (let index = 0; index < maxLength; index += 1) {
@@ -149,53 +144,46 @@ export async function checkForUpdate(): Promise<UpdateCheckResult> {
       return { hasUpdate: false };
     }
 
-    const controller = new AbortController();
-    const timeoutId = window.setTimeout(() => controller.abort(), 8000);
-
-    let latestTag = '';
+    const { versionFeed } = useSettingsStore.getState();
 
     if (isTauri()) {
       try {
-        latestTag = normalizeVersion((await checkLatestReleaseTag()) ?? '');
+        const result = await checkAppVersion({
+          source: versionFeed.source,
+          githubRepo: versionFeed.githubRepo,
+          customFeedUrl: versionFeed.customFeedUrl,
+        });
+        return {
+          hasUpdate: result.hasUpdate,
+          latestVersion: result.latestVersion ?? undefined,
+          currentVersion: result.currentVersion ?? currentVersion,
+          latestUrl: result.latestUrl ?? undefined,
+        };
       } catch {
         return { hasUpdate: false, error: 'network' };
-      } finally {
-        window.clearTimeout(timeoutId);
-      }
-    } else {
-      try {
-        const response = await fetch(GITHUB_LATEST_RELEASE_API, {
-          method: 'GET',
-          headers: {
-            Accept: 'application/vnd.github+json',
-          },
-          signal: controller.signal,
-        });
-
-        if (!response.ok) {
-          return { hasUpdate: false, error: 'network' };
-        }
-
-        const data = (await response.json()) as GithubLatestReleaseResponse;
-        latestTag = normalizeVersion(data.tag_name ?? '');
-      } finally {
-        window.clearTimeout(timeoutId);
       }
     }
 
-    if (!latestTag) {
+    const response = await fetch(versionFeed.customFeedUrl, {
+      method: 'GET',
+      headers: { Accept: 'application/json' },
+    });
+    if (!response.ok) {
+      return { hasUpdate: false, error: 'network' };
+    }
+
+    const data = (await response.json()) as { version?: string; url?: string };
+    const latestVersion = normalizeVersion(data.version ?? '');
+    if (!latestVersion) {
       return { hasUpdate: false };
     }
 
-    if (compareVersions(latestTag, currentVersion) > 0) {
-      return {
-        hasUpdate: true,
-        latestVersion: latestTag,
-        currentVersion,
-      };
-    }
-
-    return { hasUpdate: false };
+    return {
+      hasUpdate: compareVersions(latestVersion, currentVersion) > 0,
+      latestVersion,
+      currentVersion,
+      latestUrl: data.url,
+    };
   } catch {
     return { hasUpdate: false, error: 'unknown' };
   }

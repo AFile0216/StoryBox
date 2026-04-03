@@ -1,6 +1,6 @@
 import { useMemo, useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Image, Upload, Sparkles, LayoutGrid, Type } from 'lucide-react';
+import { Image, LayoutGrid, Music4, Sparkles, Type, Upload, Video } from 'lucide-react';
 import { UI_POPOVER_TRANSITION_MS } from '@/components/ui/motion';
 
 import type { CanvasNodeType } from '@/features/canvas/domain/canvasNodes';
@@ -15,10 +15,12 @@ interface NodeSelectionMenuProps {
 }
 
 const iconMap: Record<MenuIconKey, typeof Upload> = {
+  audio: Music4,
   upload: Upload,
   sparkles: Sparkles,
   layout: LayoutGrid,
   text: Type,
+  video: Video,
 };
 
 export function NodeSelectionMenu({

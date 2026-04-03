@@ -1,14 +1,16 @@
-import { useState, useCallback, useEffect, useMemo } from 'react';
-import { X, Eye, EyeOff, FolderOpen, Plus, Trash2 } from 'lucide-react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { X, Eye, EyeOff, FolderOpen, Plus, RefreshCw, Trash2 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { getVersion } from '@tauri-apps/api/app';
 import { open } from '@tauri-apps/plugin-dialog';
+import { UiCheckbox, UiSelect } from '@/components/ui';
 import {
   createDefaultCustomApiInterface,
+  createDefaultComfyWorkflow,
   useSettingsStore,
+  type ComfyUiProviderConfig,
   type CustomApiInterfaceConfig,
 } from '@/stores/settingsStore';
-import { UiCheckbox, UiSelect } from '@/components/ui';
 import { UI_CONTENT_OVERLAY_INSET_CLASS, UI_DIALOG_TRANSITION_MS } from '@/components/ui/motion';
 import { useDialogTransition } from '@/components/ui/useDialogTransition';
 import {
@@ -16,8 +18,14 @@ import {
   parseModelIdsInput,
   stringifyModelIds,
 } from '@/features/canvas/models/customInterfaces';
-import { GRSAI_CREDIT_TIERS } from '@/features/canvas/pricing/types';
+import {
+  DEFAULT_COMFYUI_BASE_URL,
+  parseNodeIdList,
+  stringifyNodeIdList,
+} from '@/features/providers/comfyUi';
+import { checkProviderHealth, saveAppSettings } from '@/commands/app';
 import type { SettingsCategory } from '@/features/settings/settingsEvents';
+import type { AppTaskType, PersistedAppSettings, ProviderRouteConfig } from '@/types/app';
 
 interface SettingsDialogProps {
   isOpen: boolean;
@@ -32,6 +40,14 @@ interface SettingsCheckboxCardProps {
   checked: boolean;
   onCheckedChange: (checked: boolean) => void;
 }
+
+const TASK_TYPES: Array<{ value: AppTaskType; key: string }> = [
+  { value: 'text-to-image', key: 'settings.taskTypeTextToImage' },
+  { value: 'image-to-image', key: 'settings.taskTypeImageToImage' },
+  { value: 'image-to-video', key: 'settings.taskTypeImageToVideo' },
+  { value: 'audio-to-video', key: 'settings.taskTypeAudioToVideo' },
+  { value: 'reverse-prompt', key: 'settings.taskTypeReversePrompt' },
+];
 
 function SettingsCheckboxCard({
   title,
@@ -68,16 +84,66 @@ function SettingsCheckboxCard({
   );
 }
 
+function toPersistedSettings(input: {
+  customApiInterfaces: CustomApiInterfaceConfig[];
+  comfyUi: ComfyUiProviderConfig;
+  providerRoutes: ProviderRouteConfig[];
+  downloadPresetPaths: string[];
+  useUploadFilenameAsNodeTitle: boolean;
+  storyboardGenKeepStyleConsistent: boolean;
+  storyboardGenDisableTextInImage: boolean;
+  storyboardGenAutoInferEmptyFrame: boolean;
+  ignoreAtTagWhenCopyingAndGenerating: boolean;
+  enableStoryboardGenGridPreviewShortcut: boolean;
+  showStoryboardGenAdvancedRatioControls: boolean;
+  uiRadiusPreset: 'compact' | 'default' | 'large';
+  themeTonePreset: 'neutral' | 'warm' | 'cool';
+  accentColor: string;
+  canvasEdgeRoutingMode: 'spline' | 'orthogonal' | 'smartOrthogonal';
+  autoCheckAppUpdateOnLaunch: boolean;
+  enableUpdateDialog: boolean;
+  versionFeed: PersistedAppSettings['versionFeed'];
+}): PersistedAppSettings {
+  return {
+    customApiInterfaces: input.customApiInterfaces,
+    comfyUi: input.comfyUi,
+    providerRoutes: input.providerRoutes,
+    autoCheckAppUpdateOnLaunch: input.autoCheckAppUpdateOnLaunch,
+    enableUpdateDialog: input.enableUpdateDialog,
+    versionFeed: input.versionFeed,
+    downloadPresetPaths: input.downloadPresetPaths,
+    useUploadFilenameAsNodeTitle: input.useUploadFilenameAsNodeTitle,
+    storyboardGenKeepStyleConsistent: input.storyboardGenKeepStyleConsistent,
+    storyboardGenDisableTextInImage: input.storyboardGenDisableTextInImage,
+    storyboardGenAutoInferEmptyFrame: input.storyboardGenAutoInferEmptyFrame,
+    ignoreAtTagWhenCopyingAndGenerating: input.ignoreAtTagWhenCopyingAndGenerating,
+    enableStoryboardGenGridPreviewShortcut: input.enableStoryboardGenGridPreviewShortcut,
+    showStoryboardGenAdvancedRatioControls: input.showStoryboardGenAdvancedRatioControls,
+    uiRadiusPreset: input.uiRadiusPreset,
+    themeTonePreset: input.themeTonePreset,
+    accentColor: input.accentColor,
+    canvasEdgeRoutingMode: input.canvasEdgeRoutingMode,
+  };
+}
+
+function renderStatus(message: string | undefined) {
+  if (!message) {
+    return null;
+  }
+  return <p className="mt-1 text-xs text-text-muted">{message}</p>;
+}
+
 export function SettingsDialog({
   isOpen,
   onClose,
   initialCategory = 'general',
   onCheckUpdate,
 }: SettingsDialogProps) {
-  const { t, i18n } = useTranslation();
+  const { t } = useTranslation();
   const {
-    apiKeys,
     customApiInterfaces,
+    comfyUi,
+    providerRoutes,
     downloadPresetPaths,
     useUploadFilenameAsNodeTitle,
     storyboardGenKeepStyleConsistent,
@@ -86,18 +152,17 @@ export function SettingsDialog({
     ignoreAtTagWhenCopyingAndGenerating,
     enableStoryboardGenGridPreviewShortcut,
     showStoryboardGenAdvancedRatioControls,
-    showNodePrice,
-    priceDisplayCurrencyMode,
-    usdToCnyRate,
-    preferDiscountedPrice,
-    grsaiCreditTierId,
     uiRadiusPreset,
     themeTonePreset,
     accentColor,
     canvasEdgeRoutingMode,
     autoCheckAppUpdateOnLaunch,
     enableUpdateDialog,
+    versionFeed,
     setCustomApiInterfaces,
+    setComfyUi,
+    setProviderRoutes,
+    setVersionFeed,
     setDownloadPresetPaths,
     setUseUploadFilenameAsNodeTitle,
     setStoryboardGenKeepStyleConsistent,
@@ -106,11 +171,6 @@ export function SettingsDialog({
     setIgnoreAtTagWhenCopyingAndGenerating,
     setEnableStoryboardGenGridPreviewShortcut,
     setShowStoryboardGenAdvancedRatioControls,
-    setShowNodePrice,
-    setPriceDisplayCurrencyMode,
-    setUsdToCnyRate,
-    setPreferDiscountedPrice,
-    setGrsaiCreditTierId,
     setUiRadiusPreset,
     setThemeTonePreset,
     setAccentColor,
@@ -119,72 +179,44 @@ export function SettingsDialog({
     setEnableUpdateDialog,
   } = useSettingsStore();
   const [activeCategory, setActiveCategory] = useState<SettingsCategory>(initialCategory);
-  const [appVersion, setAppVersion] = useState<string>('');
-  const initialCustomApiInterfaces = useMemo(
-    () =>
-      customApiInterfaces.length > 0
-        ? customApiInterfaces
-        : [createDefaultCustomApiInterface({ apiKey: Object.values(apiKeys)[0] ?? '' })],
-    [apiKeys, customApiInterfaces]
-  );
-  const [localCustomApiInterfaces, setLocalCustomApiInterfaces] = useState<CustomApiInterfaceConfig[]>(
-    initialCustomApiInterfaces
-  );
+  const [appVersion, setAppVersion] = useState('');
+  const [localCustomApiInterfaces, setLocalCustomApiInterfaces] = useState(customApiInterfaces);
+  const [localComfyUi, setLocalComfyUi] = useState(comfyUi);
+  const [localProviderRoutes, setLocalProviderRoutes] = useState(providerRoutes);
   const [localDownloadPathInput, setLocalDownloadPathInput] = useState('');
   const [localDownloadPresetPaths, setLocalDownloadPresetPaths] = useState(downloadPresetPaths);
-  const [localUseUploadFilenameAsNodeTitle, setLocalUseUploadFilenameAsNodeTitle] = useState(
-    useUploadFilenameAsNodeTitle
-  );
-  const [localStoryboardGenKeepStyleConsistent, setLocalStoryboardGenKeepStyleConsistent] =
-    useState(storyboardGenKeepStyleConsistent);
-  const [localStoryboardGenDisableTextInImage, setLocalStoryboardGenDisableTextInImage] = useState(
-    storyboardGenDisableTextInImage
-  );
-  const [localStoryboardGenAutoInferEmptyFrame, setLocalStoryboardGenAutoInferEmptyFrame] = useState(
-    storyboardGenAutoInferEmptyFrame
-  );
-  const [localIgnoreAtTagWhenCopyingAndGenerating, setLocalIgnoreAtTagWhenCopyingAndGenerating] =
-    useState(ignoreAtTagWhenCopyingAndGenerating);
-  const [localEnableStoryboardGenGridPreviewShortcut, setLocalEnableStoryboardGenGridPreviewShortcut] =
-    useState(enableStoryboardGenGridPreviewShortcut);
-  const [localShowStoryboardGenAdvancedRatioControls, setLocalShowStoryboardGenAdvancedRatioControls] =
-    useState(showStoryboardGenAdvancedRatioControls);
-  const [localShowNodePrice, setLocalShowNodePrice] = useState(showNodePrice);
-  const [localPriceDisplayCurrencyMode, setLocalPriceDisplayCurrencyMode] = useState(
-    priceDisplayCurrencyMode
-  );
-  const [localUsdToCnyRate, setLocalUsdToCnyRate] = useState(String(usdToCnyRate));
-  const [localPreferDiscountedPrice, setLocalPreferDiscountedPrice] = useState(
-    preferDiscountedPrice
-  );
-  const [localGrsaiCreditTierId, setLocalGrsaiCreditTierId] = useState(grsaiCreditTierId);
+  const [localUseUploadFilenameAsNodeTitle, setLocalUseUploadFilenameAsNodeTitle] = useState(useUploadFilenameAsNodeTitle);
+  const [localStoryboardGenKeepStyleConsistent, setLocalStoryboardGenKeepStyleConsistent] = useState(storyboardGenKeepStyleConsistent);
+  const [localStoryboardGenDisableTextInImage, setLocalStoryboardGenDisableTextInImage] = useState(storyboardGenDisableTextInImage);
+  const [localStoryboardGenAutoInferEmptyFrame, setLocalStoryboardGenAutoInferEmptyFrame] = useState(storyboardGenAutoInferEmptyFrame);
+  const [localIgnoreAtTagWhenCopyingAndGenerating, setLocalIgnoreAtTagWhenCopyingAndGenerating] = useState(ignoreAtTagWhenCopyingAndGenerating);
+  const [localEnableStoryboardGenGridPreviewShortcut, setLocalEnableStoryboardGenGridPreviewShortcut] = useState(enableStoryboardGenGridPreviewShortcut);
+  const [localShowStoryboardGenAdvancedRatioControls, setLocalShowStoryboardGenAdvancedRatioControls] = useState(showStoryboardGenAdvancedRatioControls);
   const [localUiRadiusPreset, setLocalUiRadiusPreset] = useState(uiRadiusPreset);
   const [localThemeTonePreset, setLocalThemeTonePreset] = useState(themeTonePreset);
   const [localAccentColor, setLocalAccentColor] = useState(accentColor);
   const [localCanvasEdgeRoutingMode, setLocalCanvasEdgeRoutingMode] = useState(canvasEdgeRoutingMode);
-  const [localAutoCheckAppUpdateOnLaunch, setLocalAutoCheckAppUpdateOnLaunch] = useState(
-    autoCheckAppUpdateOnLaunch
-  );
+  const [localAutoCheckAppUpdateOnLaunch, setLocalAutoCheckAppUpdateOnLaunch] = useState(autoCheckAppUpdateOnLaunch);
   const [localEnableUpdateDialog, setLocalEnableUpdateDialog] = useState(enableUpdateDialog);
+  const [localVersionFeed, setLocalVersionFeed] = useState(versionFeed);
   const [checkUpdateStatus, setCheckUpdateStatus] = useState<'' | 'checking' | 'has-update' | 'up-to-date' | 'failed'>('');
   const [revealedApiKeys, setRevealedApiKeys] = useState<Record<string, boolean>>({});
+  const [providerHealth, setProviderHealth] = useState<Record<string, string>>({});
   const { shouldRender, isVisible } = useDialogTransition(isOpen, UI_DIALOG_TRANSITION_MS);
 
   useEffect(() => {
     let mounted = true;
-    const loadAppVersion = async () => {
-      try {
-        const version = await getVersion();
+    void getVersion()
+      .then((version) => {
         if (mounted) {
           setAppVersion(version);
         }
-      } catch {
+      })
+      .catch(() => {
         if (mounted) {
           setAppVersion('');
         }
-      }
-    };
-    void loadAppVersion();
+      });
     return () => {
       mounted = false;
     };
@@ -194,7 +226,10 @@ export function SettingsDialog({
     if (!isOpen) {
       return;
     }
-    setLocalCustomApiInterfaces(initialCustomApiInterfaces);
+    setActiveCategory(initialCategory);
+    setLocalCustomApiInterfaces(customApiInterfaces);
+    setLocalComfyUi(comfyUi);
+    setLocalProviderRoutes(providerRoutes);
     setLocalDownloadPresetPaths(downloadPresetPaths);
     setLocalUseUploadFilenameAsNodeTitle(useUploadFilenameAsNodeTitle);
     setLocalStoryboardGenKeepStyleConsistent(storyboardGenKeepStyleConsistent);
@@ -203,54 +238,45 @@ export function SettingsDialog({
     setLocalIgnoreAtTagWhenCopyingAndGenerating(ignoreAtTagWhenCopyingAndGenerating);
     setLocalEnableStoryboardGenGridPreviewShortcut(enableStoryboardGenGridPreviewShortcut);
     setLocalShowStoryboardGenAdvancedRatioControls(showStoryboardGenAdvancedRatioControls);
-    setLocalShowNodePrice(showNodePrice);
-    setLocalPriceDisplayCurrencyMode(priceDisplayCurrencyMode);
-    setLocalUsdToCnyRate(String(usdToCnyRate));
-    setLocalPreferDiscountedPrice(preferDiscountedPrice);
-    setLocalGrsaiCreditTierId(grsaiCreditTierId);
     setLocalUiRadiusPreset(uiRadiusPreset);
     setLocalThemeTonePreset(themeTonePreset);
     setLocalAccentColor(accentColor);
     setLocalCanvasEdgeRoutingMode(canvasEdgeRoutingMode);
     setLocalAutoCheckAppUpdateOnLaunch(autoCheckAppUpdateOnLaunch);
     setLocalEnableUpdateDialog(enableUpdateDialog);
+    setLocalVersionFeed(versionFeed);
+    setLocalDownloadPathInput('');
     setCheckUpdateStatus('');
     setRevealedApiKeys({});
-    setLocalDownloadPathInput('');
+    setProviderHealth({});
   }, [
-    initialCustomApiInterfaces,
-    isOpen,
-    downloadPresetPaths,
-    useUploadFilenameAsNodeTitle,
-    storyboardGenKeepStyleConsistent,
-    storyboardGenDisableTextInImage,
-    storyboardGenAutoInferEmptyFrame,
-    ignoreAtTagWhenCopyingAndGenerating,
-    enableStoryboardGenGridPreviewShortcut,
-    showStoryboardGenAdvancedRatioControls,
-    showNodePrice,
-    priceDisplayCurrencyMode,
-    usdToCnyRate,
-    preferDiscountedPrice,
-    grsaiCreditTierId,
-    uiRadiusPreset,
-    themeTonePreset,
     accentColor,
-    canvasEdgeRoutingMode,
     autoCheckAppUpdateOnLaunch,
+    canvasEdgeRoutingMode,
+    comfyUi,
+    customApiInterfaces,
+    downloadPresetPaths,
+    enableStoryboardGenGridPreviewShortcut,
     enableUpdateDialog,
+    ignoreAtTagWhenCopyingAndGenerating,
+    initialCategory,
+    isOpen,
+    providerRoutes,
+    showStoryboardGenAdvancedRatioControls,
+    storyboardGenAutoInferEmptyFrame,
+    storyboardGenDisableTextInImage,
+    storyboardGenKeepStyleConsistent,
+    themeTonePreset,
+    uiRadiusPreset,
+    useUploadFilenameAsNodeTitle,
+    versionFeed,
   ]);
 
-  useEffect(() => {
-    if (!isOpen) {
-      return;
-    }
-
-    setActiveCategory(initialCategory);
-  }, [initialCategory, isOpen]);
-
-  const handleSave = useCallback(() => {
+  const handleSave = useCallback(async () => {
     setCustomApiInterfaces(localCustomApiInterfaces);
+    setComfyUi(localComfyUi);
+    setProviderRoutes(localProviderRoutes);
+    setVersionFeed(localVersionFeed);
     setDownloadPresetPaths(localDownloadPresetPaths);
     setUseUploadFilenameAsNodeTitle(localUseUploadFilenameAsNodeTitle);
     setStoryboardGenKeepStyleConsistent(localStoryboardGenKeepStyleConsistent);
@@ -259,61 +285,88 @@ export function SettingsDialog({
     setIgnoreAtTagWhenCopyingAndGenerating(localIgnoreAtTagWhenCopyingAndGenerating);
     setEnableStoryboardGenGridPreviewShortcut(localEnableStoryboardGenGridPreviewShortcut);
     setShowStoryboardGenAdvancedRatioControls(localShowStoryboardGenAdvancedRatioControls);
-    setShowNodePrice(localShowNodePrice);
-    setPriceDisplayCurrencyMode(localPriceDisplayCurrencyMode);
-    setUsdToCnyRate(Number(localUsdToCnyRate));
-    setPreferDiscountedPrice(localPreferDiscountedPrice);
-    setGrsaiCreditTierId(localGrsaiCreditTierId);
     setUiRadiusPreset(localUiRadiusPreset);
     setThemeTonePreset(localThemeTonePreset);
     setAccentColor(localAccentColor);
     setCanvasEdgeRoutingMode(localCanvasEdgeRoutingMode);
     setAutoCheckAppUpdateOnLaunch(localAutoCheckAppUpdateOnLaunch);
     setEnableUpdateDialog(localEnableUpdateDialog);
+
+    try {
+      await saveAppSettings(
+        toPersistedSettings({
+          customApiInterfaces: localCustomApiInterfaces,
+          comfyUi: localComfyUi,
+          providerRoutes: localProviderRoutes,
+          versionFeed: localVersionFeed,
+          downloadPresetPaths: localDownloadPresetPaths,
+          useUploadFilenameAsNodeTitle: localUseUploadFilenameAsNodeTitle,
+          storyboardGenKeepStyleConsistent: localStoryboardGenKeepStyleConsistent,
+          storyboardGenDisableTextInImage: localStoryboardGenDisableTextInImage,
+          storyboardGenAutoInferEmptyFrame: localStoryboardGenAutoInferEmptyFrame,
+          ignoreAtTagWhenCopyingAndGenerating: localIgnoreAtTagWhenCopyingAndGenerating,
+          enableStoryboardGenGridPreviewShortcut: localEnableStoryboardGenGridPreviewShortcut,
+          showStoryboardGenAdvancedRatioControls: localShowStoryboardGenAdvancedRatioControls,
+          uiRadiusPreset: localUiRadiusPreset,
+          themeTonePreset: localThemeTonePreset,
+          accentColor: localAccentColor,
+          canvasEdgeRoutingMode: localCanvasEdgeRoutingMode,
+          autoCheckAppUpdateOnLaunch: localAutoCheckAppUpdateOnLaunch,
+          enableUpdateDialog: localEnableUpdateDialog,
+        })
+      );
+    } catch (error) {
+      console.error('Failed to save app settings', error);
+    }
+
     onClose();
   }, [
+    localAccentColor,
+    localAutoCheckAppUpdateOnLaunch,
+    localCanvasEdgeRoutingMode,
+    localComfyUi,
     localCustomApiInterfaces,
     localDownloadPresetPaths,
-    localUseUploadFilenameAsNodeTitle,
-    localStoryboardGenKeepStyleConsistent,
-    localStoryboardGenDisableTextInImage,
-    localStoryboardGenAutoInferEmptyFrame,
-    localIgnoreAtTagWhenCopyingAndGenerating,
     localEnableStoryboardGenGridPreviewShortcut,
-    localShowStoryboardGenAdvancedRatioControls,
-    localShowNodePrice,
-    localPriceDisplayCurrencyMode,
-    localUsdToCnyRate,
-    localPreferDiscountedPrice,
-    localGrsaiCreditTierId,
-    localUiRadiusPreset,
-    localThemeTonePreset,
-    localAccentColor,
-    localCanvasEdgeRoutingMode,
-    localAutoCheckAppUpdateOnLaunch,
     localEnableUpdateDialog,
+    localIgnoreAtTagWhenCopyingAndGenerating,
+    localProviderRoutes,
+    localShowStoryboardGenAdvancedRatioControls,
+    localStoryboardGenAutoInferEmptyFrame,
+    localStoryboardGenDisableTextInImage,
+    localStoryboardGenKeepStyleConsistent,
+    localThemeTonePreset,
+    localUiRadiusPreset,
+    localUseUploadFilenameAsNodeTitle,
+    localVersionFeed,
+    onClose,
+    setAccentColor,
+    setAutoCheckAppUpdateOnLaunch,
+    setCanvasEdgeRoutingMode,
+    setComfyUi,
     setCustomApiInterfaces,
     setDownloadPresetPaths,
-    setUseUploadFilenameAsNodeTitle,
-    setStoryboardGenKeepStyleConsistent,
-    setStoryboardGenDisableTextInImage,
-    setStoryboardGenAutoInferEmptyFrame,
-    setIgnoreAtTagWhenCopyingAndGenerating,
     setEnableStoryboardGenGridPreviewShortcut,
-    setShowStoryboardGenAdvancedRatioControls,
-    setShowNodePrice,
-    setPriceDisplayCurrencyMode,
-    setUsdToCnyRate,
-    setPreferDiscountedPrice,
-    setGrsaiCreditTierId,
-    setUiRadiusPreset,
-    setThemeTonePreset,
-    setAccentColor,
-    setCanvasEdgeRoutingMode,
-    setAutoCheckAppUpdateOnLaunch,
     setEnableUpdateDialog,
-    onClose,
+    setIgnoreAtTagWhenCopyingAndGenerating,
+    setProviderRoutes,
+    setShowStoryboardGenAdvancedRatioControls,
+    setStoryboardGenAutoInferEmptyFrame,
+    setStoryboardGenDisableTextInImage,
+    setStoryboardGenKeepStyleConsistent,
+    setThemeTonePreset,
+    setUiRadiusPreset,
+    setUseUploadFilenameAsNodeTitle,
+    setVersionFeed,
   ]);
+
+  const handleCheckUpdate = useCallback(async () => {
+    if (!onCheckUpdate) {
+      return;
+    }
+    setCheckUpdateStatus('checking');
+    setCheckUpdateStatus(await onCheckUpdate());
+  }, [onCheckUpdate]);
 
   const handleAddCustomApiInterface = useCallback(() => {
     setLocalCustomApiInterfaces((previous) => [
@@ -324,67 +377,21 @@ export function SettingsDialog({
     ]);
   }, [t]);
 
-  const handleUpdateCustomApiInterface = useCallback(
-    (
-      interfaceId: string,
-      field: keyof Pick<
-        CustomApiInterfaceConfig,
-        'name' | 'apiKey' | 'baseUrl' | 'omitSizeParams' | 'requestMode'
-      >,
-      value: string | boolean
-    ) => {
-      setLocalCustomApiInterfaces((previous) =>
-        previous.map((item) => (item.id === interfaceId ? { ...item, [field]: value } : item))
-      );
-    },
-    []
-  );
-
-  const handleUpdateCustomApiInterfaceModels = useCallback(
-    (interfaceId: string, value: string) => {
-      setLocalCustomApiInterfaces((previous) =>
-        previous.map((item) =>
-          item.id === interfaceId ? { ...item, modelIds: parseModelIdsInput(value) } : item
-        )
-      );
-    },
-    []
-  );
-
   const handleRemoveCustomApiInterface = useCallback((interfaceId: string) => {
-    setLocalCustomApiInterfaces((previous) => {
-      if (previous.length <= 1) {
-        return previous;
-      }
-      return previous.filter((item) => item.id !== interfaceId);
-    });
+    setLocalCustomApiInterfaces((previous) =>
+      previous.length <= 1 ? previous : previous.filter((item) => item.id !== interfaceId)
+    );
   }, []);
-
-  const handleCheckUpdate = useCallback(async () => {
-    if (!onCheckUpdate) {
-      return;
-    }
-
-    setCheckUpdateStatus('checking');
-    const status = await onCheckUpdate();
-    setCheckUpdateStatus(status);
-  }, [onCheckUpdate]);
 
   const handlePickDownloadPath = useCallback(async () => {
     try {
-      const selected = await open({
-        directory: true,
-        multiple: false,
-      });
+      const selected = await open({ directory: true, multiple: false });
       if (!selected || Array.isArray(selected)) {
         return;
       }
-      setLocalDownloadPresetPaths((previous) => {
-        if (previous.includes(selected)) {
-          return previous;
-        }
-        return [...previous, selected].slice(0, 8);
-      });
+      setLocalDownloadPresetPaths((previous) =>
+        previous.includes(selected) ? previous : [...previous, selected].slice(0, 8)
+      );
     } catch (error) {
       console.error('Failed to pick download path', error);
     }
@@ -395,20 +402,28 @@ export function SettingsDialog({
     if (!next) {
       return;
     }
-    setLocalDownloadPresetPaths((previous) => {
-      if (previous.includes(next)) {
-        return previous;
-      }
-      return [...previous, next].slice(0, 8);
-    });
+    setLocalDownloadPresetPaths((previous) =>
+      previous.includes(next) ? previous : [...previous, next].slice(0, 8)
+    );
     setLocalDownloadPathInput('');
   }, [localDownloadPathInput]);
 
-  const handleRemoveDownloadPath = useCallback((path: string) => {
-    setLocalDownloadPresetPaths((previous) => previous.filter((value) => value !== path));
-  }, []);
+  const customRouteOptions = useMemo(
+    () => localCustomApiInterfaces.map((item) => ({ id: item.id, label: item.name })),
+    [localCustomApiInterfaces]
+  );
+  const comfyRouteOptions = useMemo(
+    () =>
+      localComfyUi.workflows.map((workflow) => ({
+        id: workflow.id,
+        label: `${workflow.name} (${workflow.taskType})`,
+      })),
+    [localComfyUi.workflows]
+  );
 
-  if (!shouldRender) return null;
+  if (!shouldRender) {
+    return null;
+  }
 
   return (
     <div className={`fixed ${UI_CONTENT_OVERLAY_INSET_CLASS} z-50 flex items-center justify-center`}>
@@ -416,628 +431,81 @@ export function SettingsDialog({
         className={`absolute inset-0 bg-black/90 transition-opacity duration-200 ${isVisible ? 'opacity-100' : 'opacity-0'}`}
         onClick={onClose}
       />
-      <div className="relative w-[min(96vw,1120px)]">
+      <div className="relative w-[min(96vw,1180px)]">
         <div
-          className={`relative mx-auto h-[500px] w-[700px] overflow-hidden rounded-lg border border-border-dark bg-surface-dark shadow-xl transition-opacity duration-200 ${isVisible ? 'opacity-100' : 'opacity-0'} flex`}
+          className={`relative mx-auto flex h-[min(88vh,760px)] w-full overflow-hidden rounded-lg border border-border-dark bg-surface-dark shadow-xl transition-opacity duration-200 ${isVisible ? 'opacity-100' : 'opacity-0'}`}
         >
-          {/* Close button */}
-          <button
-            onClick={onClose}
-            className="absolute top-3 right-3 p-1 hover:bg-bg-dark rounded transition-colors z-10"
-          >
-            <X className="w-5 h-5 text-text-muted" />
+          <button onClick={onClose} className="absolute right-3 top-3 z-10 rounded p-1 hover:bg-bg-dark">
+            <X className="h-5 w-5 text-text-muted" />
           </button>
 
-          {/* Sidebar */}
-          <div className="w-[180px] bg-bg-dark border-r border-border-dark flex flex-col">
+          <div className="w-[190px] border-r border-border-dark bg-bg-dark">
             <div className="px-4 py-4">
-              <span className="text-xs font-medium text-text-muted uppercase tracking-wider">
+              <span className="text-xs font-medium uppercase tracking-wider text-text-muted">
                 {t('settings.title')}
               </span>
             </div>
-
-            <nav className="flex-1">
+            {(['general', 'providers', 'appearance', 'experimental', 'about'] as SettingsCategory[]).map((category) => (
               <button
-                onClick={() => setActiveCategory('general')}
-                className={`
-                w-full flex items-center gap-3 px-4 py-2.5 text-left
-                transition-colors
-                ${activeCategory === 'general'
-                    ? 'bg-accent/10 text-text-dark border-l-2 border-accent'
+                key={category}
+                onClick={() => setActiveCategory(category)}
+                className={`w-full px-4 py-2.5 text-left transition-colors ${
+                  activeCategory === category
+                    ? 'border-l-2 border-accent bg-accent/10 text-text-dark'
                     : 'text-text-muted hover:bg-bg-dark hover:text-text-dark'
-                  }
-              `}
+                }`}
               >
-                <span className="text-sm">{t('settings.general')}</span>
+                <span className="text-sm">{t(`settings.${category}`)}</span>
               </button>
-
-              <button
-                onClick={() => setActiveCategory('providers')}
-                className={`
-                w-full flex items-center gap-3 px-4 py-2.5 text-left
-                transition-colors
-                ${activeCategory === 'providers'
-                    ? 'bg-accent/10 text-text-dark border-l-2 border-accent'
-                    : 'text-text-muted hover:bg-bg-dark hover:text-text-dark'
-                  }
-              `}
-              >
-                <span className="text-sm">{t('settings.providers')}</span>
-              </button>
-
-              <button
-                onClick={() => setActiveCategory('appearance')}
-                className={`
-                w-full flex items-center gap-3 px-4 py-2.5 text-left
-                transition-colors
-                ${activeCategory === 'appearance'
-                    ? 'bg-accent/10 text-text-dark border-l-2 border-accent'
-                    : 'text-text-muted hover:bg-bg-dark hover:text-text-dark'
-                  }
-              `}
-              >
-                <span className="text-sm">{t('settings.appearance')}</span>
-              </button>
-
-              <button
-                onClick={() => setActiveCategory('pricing')}
-                className={`
-                w-full flex items-center gap-3 px-4 py-2.5 text-left
-                transition-colors
-                ${activeCategory === 'pricing'
-                    ? 'bg-accent/10 text-text-dark border-l-2 border-accent'
-                    : 'text-text-muted hover:bg-bg-dark hover:text-text-dark'
-                  }
-              `}
-              >
-                <span className="text-sm">{t('settings.pricing')}</span>
-              </button>
-
-              <button
-                onClick={() => setActiveCategory('experimental')}
-                className={`
-                w-full flex items-center gap-3 px-4 py-2.5 text-left
-                transition-colors
-                ${activeCategory === 'experimental'
-                    ? 'bg-accent/10 text-text-dark border-l-2 border-accent'
-                    : 'text-text-muted hover:bg-bg-dark hover:text-text-dark'
-                  }
-              `}
-              >
-                <span className="text-sm">{t('settings.experimental')}</span>
-              </button>
-
-              <button
-                onClick={() => setActiveCategory('about')}
-                className={`
-                w-full flex items-center gap-3 px-4 py-2.5 text-left
-                transition-colors
-                ${activeCategory === 'about'
-                    ? 'bg-accent/10 text-text-dark border-l-2 border-accent'
-                    : 'text-text-muted hover:bg-bg-dark hover:text-text-dark'
-                  }
-              `}
-              >
-                <span className="text-sm">{t('settings.about')}</span>
-              </button>
-            </nav>
+            ))}
           </div>
 
-          {/* Content */}
-          <div className="flex-1 flex flex-col">
-            {activeCategory === 'providers' && (
-              <>
-                <div className="px-6 py-5 border-b border-border-dark">
-                  <h2 className="text-lg font-semibold text-text-dark">
-                    {t('settings.customApiSettingsTitle')}
-                  </h2>
-                  <p className="text-sm text-text-muted mt-1">
-                    {t('settings.customApiSettingsDesc')}
-                  </p>
-                </div>
+          <div className="flex min-w-0 flex-1 flex-col">
+            <div className="border-b border-border-dark px-6 py-5">
+              <h2 className="text-lg font-semibold text-text-dark">{t(`settings.${activeCategory}`)}</h2>
+              <p className="mt-1 text-sm text-text-muted">{t(`settings.${activeCategory}Desc`)}</p>
+            </div>
 
-                <div className="ui-scrollbar flex-1 space-y-4 overflow-y-auto p-6">
-                  <div className="rounded-lg border border-border-dark bg-bg-dark p-4">
-                    <div className="flex items-start justify-between gap-4">
-                      <div>
-                        <h3 className="text-sm font-medium text-text-dark">
-                          {t('settings.customApiListTitle')}
-                        </h3>
-                        <p className="mt-1 text-xs text-text-muted">
-                          {t('settings.customApiListHint')}
-                        </p>
-                      </div>
-                      <button
-                        type="button"
-                        className="inline-flex h-8 items-center justify-center rounded border border-border-dark bg-surface-dark px-3 text-xs text-text-dark transition-colors hover:bg-black/20"
-                        onClick={handleAddCustomApiInterface}
-                      >
-                        <Plus className="mr-1 h-3.5 w-3.5" />
-                        {t('settings.addCustomApi')}
-                      </button>
-                    </div>
-                  </div>
-
-                  {localCustomApiInterfaces.map((apiInterface, index) => {
-                    const isRevealed = Boolean(revealedApiKeys[apiInterface.id]);
-
-                    return (
-                      <div
-                        key={apiInterface.id}
-                        className="rounded-lg border border-border-dark bg-bg-dark p-4"
-                      >
-                        <div className="mb-3 flex items-center justify-between gap-3">
-                          <div>
-                            <h3 className="text-sm font-medium text-text-dark">
-                              {apiInterface.name || `${t('settings.customApiFallbackName')} ${index + 1}`}
-                            </h3>
-                            <p className="mt-1 text-xs text-text-muted">
-                              {t('settings.customApiCardHint')}
-                            </p>
-                          </div>
-                          {localCustomApiInterfaces.length > 1 && (
-                            <button
-                              type="button"
-                              className="inline-flex h-8 w-8 items-center justify-center rounded text-text-muted transition-colors hover:bg-black/20 hover:text-text-dark"
-                              onClick={() => handleRemoveCustomApiInterface(apiInterface.id)}
-                              title={t('common.delete')}
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </button>
-                          )}
-                        </div>
-
-                        <div className="grid gap-3 md:grid-cols-2">
-                          <div>
-                            <div className="mb-1 text-xs font-medium text-text-dark">
-                              {t('settings.customApiName')}
-                            </div>
-                            <input
-                              type="text"
-                              value={apiInterface.name}
-                              onChange={(event) =>
-                                handleUpdateCustomApiInterface(
-                                  apiInterface.id,
-                                  'name',
-                                  event.target.value
-                                )
-                              }
-                              placeholder={t('settings.customApiNamePlaceholder')}
-                              className="w-full rounded border border-border-dark bg-bg-dark px-3 py-2 text-sm text-text-dark placeholder:text-text-muted"
-                            />
-                          </div>
-
-                          <div>
-                            <div className="mb-1 text-xs font-medium text-text-dark">
-                              {t('settings.customApiBaseUrl')}
-                            </div>
-                            <input
-                              type="text"
-                              value={apiInterface.baseUrl}
-                              onChange={(event) =>
-                                handleUpdateCustomApiInterface(
-                                  apiInterface.id,
-                                  'baseUrl',
-                                  event.target.value
-                                )
-                              }
-                              placeholder={DEFAULT_CUSTOM_API_BASE_URL}
-                              className="w-full rounded border border-border-dark bg-bg-dark px-3 py-2 text-sm text-text-dark placeholder:text-text-muted"
-                            />
-                          </div>
-                        </div>
-
-                        <div className="mt-3">
-                          <div className="mb-1 text-xs font-medium text-text-dark">
-                            {t('settings.customApiRequestMode')}
-                          </div>
-                          <p className="mb-2 text-xs text-text-muted">
-                            {t('settings.customApiRequestModeHint')}
-                          </p>
-                          <UiSelect
-                            value={apiInterface.requestMode}
-                            onChange={(event) =>
-                              handleUpdateCustomApiInterface(
-                                apiInterface.id,
-                                'requestMode',
-                                event.target.value
-                              )
-                            }
-                            className="h-9 text-sm"
-                          >
-                            <option value="images">{t('settings.customApiRequestModeImages')}</option>
-                            <option value="chat-completions">
-                              {t('settings.customApiRequestModeChatCompletions')}
-                            </option>
-                          </UiSelect>
-                        </div>
-
-                        <div className="mt-3 relative">
-                          <div className="mb-1 text-xs font-medium text-text-dark">
-                            {t('settings.apiKey')}
-                          </div>
-                          <input
-                            type={isRevealed ? 'text' : 'password'}
-                            value={apiInterface.apiKey}
-                            onChange={(event) =>
-                              handleUpdateCustomApiInterface(
-                                apiInterface.id,
-                                'apiKey',
-                                event.target.value
-                              )
-                            }
-                            placeholder={t('settings.enterApiKey')}
-                            className="w-full rounded border border-border-dark bg-bg-dark px-3 py-2 pr-10 text-sm text-text-dark placeholder:text-text-muted"
-                          />
-                          <button
-                            type="button"
-                            onClick={() =>
-                              setRevealedApiKeys((previous) => ({
-                                ...previous,
-                                [apiInterface.id]: !isRevealed,
-                              }))
-                            }
-                            className="absolute right-2 top-[30px] rounded p-1 hover:bg-surface-dark"
-                          >
-                            {isRevealed ? (
-                              <EyeOff className="h-4 w-4 text-text-muted" />
-                            ) : (
-                              <Eye className="h-4 w-4 text-text-muted" />
-                            )}
-                          </button>
-                        </div>
-
-                        <div className="mt-3">
-                          <label className="flex cursor-pointer items-start gap-3 rounded border border-border-dark bg-surface-dark px-3 py-2.5">
-                            <UiCheckbox
-                              checked={apiInterface.omitSizeParams}
-                              onCheckedChange={(checked) =>
-                                handleUpdateCustomApiInterface(
-                                  apiInterface.id,
-                                  'omitSizeParams',
-                                  checked
-                                )
-                              }
-                              className="mt-0.5 shrink-0"
-                            />
-                            <div>
-                              <div className="text-xs font-medium text-text-dark">
-                                {t('settings.customApiOmitSizeParams')}
-                              </div>
-                              <p className="mt-1 text-xs text-text-muted">
-                                {t('settings.customApiOmitSizeParamsHint')}
-                              </p>
-                            </div>
-                          </label>
-                        </div>
-
-                        <div className="mt-3">
-                          <div className="mb-1 text-xs font-medium text-text-dark">
-                            {t('settings.customApiModels')}
-                          </div>
-                          <p className="mb-2 text-xs text-text-muted">
-                            {t('settings.customApiModelsHint')}
-                          </p>
-                          <textarea
-                            value={stringifyModelIds(apiInterface.modelIds)}
-                            onChange={(event) =>
-                              handleUpdateCustomApiInterfaceModels(
-                                apiInterface.id,
-                                event.target.value
-                              )
-                            }
-                            placeholder={t('settings.customApiModelsPlaceholder')}
-                            rows={5}
-                            className="ui-scrollbar w-full resize-y rounded border border-border-dark bg-bg-dark px-3 py-2 text-sm text-text-dark placeholder:text-text-muted"
-                          />
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-
-                <div className="px-6 py-4 border-t border-border-dark flex justify-end">
-                  <button
-                    onClick={handleSave}
-                    className="px-4 py-2 text-sm font-medium bg-accent text-white rounded
-                             hover:bg-accent/80 transition-colors"
-                  >
-                    {t('common.save')}
-                  </button>
-                </div>
-              </>
-            )}
-
-            {activeCategory === 'appearance' && (
-              <>
-                <div className="px-6 py-5 border-b border-border-dark">
-                  <h2 className="text-lg font-semibold text-text-dark">
-                    {t('settings.appearance')}
-                  </h2>
-                  <p className="text-sm text-text-muted mt-1">
-                    {t('settings.appearanceDesc')}
-                  </p>
-                </div>
-
-                <div className="ui-scrollbar flex-1 space-y-4 overflow-y-auto p-6">
-                  <div className="rounded-lg border border-border-dark bg-bg-dark p-4">
-                    <h3 className="text-sm font-medium text-text-dark">
-                      {t('settings.radiusPreset')}
-                    </h3>
-                    <p className="mt-1 text-xs text-text-muted">
-                      {t('settings.radiusPresetDesc')}
-                    </p>
-                    <div className="mt-3">
-                      <UiSelect
-                        value={localUiRadiusPreset}
-                        onChange={(event) =>
-                          setLocalUiRadiusPreset(event.target.value as typeof localUiRadiusPreset)
-                        }
-                        className="h-9 text-sm"
-                      >
-                        <option value="compact">{t('settings.radiusCompact')}</option>
-                        <option value="default">{t('settings.radiusDefault')}</option>
-                        <option value="large">{t('settings.radiusLarge')}</option>
-                      </UiSelect>
-                    </div>
-                  </div>
-
-                  <div className="rounded-lg border border-border-dark bg-bg-dark p-4">
-                    <h3 className="text-sm font-medium text-text-dark">
-                      {t('settings.themeTone')}
-                    </h3>
-                    <p className="mt-1 text-xs text-text-muted">
-                      {t('settings.themeToneDesc')}
-                    </p>
-                    <div className="mt-3">
-                      <UiSelect
-                        value={localThemeTonePreset}
-                        onChange={(event) =>
-                          setLocalThemeTonePreset(event.target.value as typeof localThemeTonePreset)
-                        }
-                        className="h-9 text-sm"
-                      >
-                        <option value="neutral">{t('settings.toneNeutral')}</option>
-                        <option value="warm">{t('settings.toneWarm')}</option>
-                        <option value="cool">{t('settings.toneCool')}</option>
-                      </UiSelect>
-                    </div>
-                  </div>
-
-                  <div className="rounded-lg border border-border-dark bg-bg-dark p-4">
-                    <h3 className="text-sm font-medium text-text-dark">
-                      {t('settings.edgeRoutingMode')}
-                    </h3>
-                    <p className="mt-1 text-xs text-text-muted">
-                      {t('settings.edgeRoutingModeDesc')}
-                    </p>
-                    <div className="mt-3">
-                      <UiSelect
-                        value={localCanvasEdgeRoutingMode}
-                        onChange={(event) =>
-                          setLocalCanvasEdgeRoutingMode(
-                            event.target.value as typeof localCanvasEdgeRoutingMode
-                          )
-                        }
-                        className="h-9 text-sm"
-                      >
-                        <option value="spline">{t('settings.edgeRoutingSpline')}</option>
-                        <option value="orthogonal">{t('settings.edgeRoutingOrthogonal')}</option>
-                        <option value="smartOrthogonal">{t('settings.edgeRoutingSmartOrthogonal')}</option>
-                      </UiSelect>
-                    </div>
-                  </div>
-
-                  <div className="rounded-lg border border-border-dark bg-bg-dark p-4">
-                    <h3 className="text-sm font-medium text-text-dark">
-                      {t('settings.accentColor')}
-                    </h3>
-                    <p className="mt-1 text-xs text-text-muted">
-                      {t('settings.accentColorDesc')}
-                    </p>
-                    <div className="mt-3 flex items-center gap-2">
-                      <input
-                        type="color"
-                        value={localAccentColor}
-                        onChange={(event) => setLocalAccentColor(event.target.value)}
-                        className="h-9 w-12 rounded border border-border-dark bg-surface-dark p-1"
-                      />
-                      <input
-                        value={localAccentColor}
-                        onChange={(event) => setLocalAccentColor(event.target.value)}
-                        placeholder="#3B82F6"
-                        className="h-9 flex-1 rounded border border-border-dark bg-surface-dark px-3 text-sm text-text-dark outline-none placeholder:text-text-muted"
-                      />
-                      <button
-                        type="button"
-                        className="inline-flex h-9 items-center justify-center rounded border border-border-dark bg-surface-dark px-3 text-xs text-text-dark transition-colors hover:bg-bg-dark"
-                        onClick={() => setLocalAccentColor('#3B82F6')}
-                      >
-                        {t('settings.resetAccentColor')}
-                      </button>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="flex justify-end border-t border-border-dark px-6 py-4">
-                  <button
-                    onClick={handleSave}
-                    className="rounded bg-accent px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-accent/80"
-                  >
-                    {t('common.save')}
-                  </button>
-                </div>
-              </>
-            )}
-
-            {activeCategory === 'pricing' && (
-              <>
-                <div className="px-6 py-5 border-b border-border-dark">
-                  <h2 className="text-lg font-semibold text-text-dark">
-                    {t('settings.pricing')}
-                  </h2>
-                  <p className="text-sm text-text-muted mt-1">
-                    {t('settings.pricingDesc')}
-                  </p>
-                </div>
-
-                <div className="ui-scrollbar flex-1 space-y-4 overflow-y-auto p-6">
-                  <SettingsCheckboxCard
-                    checked={localShowNodePrice}
-                    onCheckedChange={setLocalShowNodePrice}
-                    title={t('settings.showNodePrice')}
-                    description={t('settings.showNodePriceDesc')}
-                  />
-
-                  <div className="rounded-lg border border-border-dark bg-bg-dark p-4">
-                    <h3 className="text-sm font-medium text-text-dark">
-                      {t('settings.priceDisplayCurrencyMode')}
-                    </h3>
-                    <p className="mt-1 text-xs text-text-muted">
-                      {t('settings.priceDisplayCurrencyModeDesc')}
-                    </p>
-                    <div className="mt-3">
-                      <UiSelect
-                        value={localPriceDisplayCurrencyMode}
-                        onChange={(event) =>
-                          setLocalPriceDisplayCurrencyMode(
-                            event.target.value as typeof localPriceDisplayCurrencyMode
-                          )
-                        }
-                        className="h-9 text-sm"
-                      >
-                        <option value="auto">{t('settings.priceCurrencyAuto')}</option>
-                        <option value="cny">{t('settings.priceCurrencyCny')}</option>
-                        <option value="usd">{t('settings.priceCurrencyUsd')}</option>
-                      </UiSelect>
-                    </div>
-                  </div>
-
-                  <div className="rounded-lg border border-border-dark bg-bg-dark p-4">
-                    <h3 className="text-sm font-medium text-text-dark">
-                      {t('settings.usdToCnyRate')}
-                    </h3>
-                    <p className="mt-1 text-xs text-text-muted">
-                      {t('settings.usdToCnyRateDesc')}
-                    </p>
-                    <div className="mt-3">
-                      <input
-                        type="number"
-                        min="0.01"
-                        step="0.01"
-                        value={localUsdToCnyRate}
-                        onChange={(event) => setLocalUsdToCnyRate(event.target.value)}
-                        className="h-9 w-full rounded border border-border-dark bg-surface-dark px-3 text-sm text-text-dark outline-none placeholder:text-text-muted"
-                      />
-                    </div>
-                  </div>
-
-                  <SettingsCheckboxCard
-                    checked={localPreferDiscountedPrice}
-                    onCheckedChange={setLocalPreferDiscountedPrice}
-                    title={t('settings.preferDiscountedPrice')}
-                    description={t('settings.preferDiscountedPriceDesc')}
-                  />
-
-                  <div className="rounded-lg border border-border-dark bg-bg-dark p-4">
-                    <h3 className="text-sm font-medium text-text-dark">
-                      {t('settings.grsaiCreditTier')}
-                    </h3>
-                    <p className="mt-1 text-xs text-text-muted">
-                      {t('settings.grsaiCreditTierDesc')}
-                    </p>
-                    <div className="mt-3">
-                      <UiSelect
-                        value={localGrsaiCreditTierId}
-                        onChange={(event) =>
-                          setLocalGrsaiCreditTierId(event.target.value as typeof localGrsaiCreditTierId)
-                        }
-                        className="h-9 text-sm"
-                      >
-                        {GRSAI_CREDIT_TIERS.map((tier) => (
-                          <option key={tier.id} value={tier.id}>
-                            {t('settings.grsaiCreditTierOption', {
-                              price: tier.priceCny.toFixed(2),
-                              credits: tier.credits.toLocaleString(i18n.language.startsWith('zh') ? 'zh-CN' : 'en-US'),
-                            })}
-                          </option>
-                        ))}
-                      </UiSelect>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="flex justify-end border-t border-border-dark px-6 py-4">
-                  <button
-                    onClick={handleSave}
-                    className="rounded bg-accent px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-accent/80"
-                  >
-                    {t('common.save')}
-                  </button>
-                </div>
-              </>
-            )}
-
-            {activeCategory === 'general' && (
-              <>
-                <div className="px-6 py-5 border-b border-border-dark">
-                  <h2 className="text-lg font-semibold text-text-dark">
-                    {t('settings.general')}
-                  </h2>
-                  <p className="text-sm text-text-muted mt-1">
-                    {t('settings.generalDesc')}
-                  </p>
-                </div>
-
-                <div className="ui-scrollbar flex-1 space-y-4 overflow-y-auto p-6">
+            <div className="ui-scrollbar flex-1 space-y-4 overflow-y-auto p-6">
+              {activeCategory === 'general' && (
+                <>
                   <SettingsCheckboxCard
                     checked={localStoryboardGenKeepStyleConsistent}
                     onCheckedChange={setLocalStoryboardGenKeepStyleConsistent}
                     title={t('settings.storyboardGenKeepStyleConsistent')}
                     description={t('settings.storyboardGenKeepStyleConsistentDesc')}
                   />
-
                   <SettingsCheckboxCard
                     checked={localIgnoreAtTagWhenCopyingAndGenerating}
                     onCheckedChange={setLocalIgnoreAtTagWhenCopyingAndGenerating}
                     title={t('settings.ignoreAtTagWhenCopyingAndGenerating')}
                     description={t('settings.ignoreAtTagWhenCopyingAndGeneratingDesc')}
                   />
-
                   <SettingsCheckboxCard
                     checked={localStoryboardGenDisableTextInImage}
                     onCheckedChange={setLocalStoryboardGenDisableTextInImage}
                     title={t('settings.storyboardGenDisableTextInImage')}
                     description={t('settings.storyboardGenDisableTextInImageDesc')}
                   />
-
                   <SettingsCheckboxCard
                     checked={localUseUploadFilenameAsNodeTitle}
                     onCheckedChange={setLocalUseUploadFilenameAsNodeTitle}
                     title={t('settings.useUploadFilenameAsNodeTitle')}
                     description={t('settings.useUploadFilenameAsNodeTitleDesc')}
                   />
-
                   <div className="rounded-lg border border-border-dark bg-bg-dark p-4">
-                    <div className="mb-3">
-                      <h3 className="text-sm font-medium text-text-dark">
-                        {t('settings.downloadPresetPaths')}
-                      </h3>
-                      <p className="mt-1 text-xs text-text-muted">
-                        {t('settings.downloadPresetPathsDesc')}
-                      </p>
-                    </div>
-
-                    <div className="mb-2 flex items-center gap-2">
+                    <h3 className="text-sm font-medium text-text-dark">{t('settings.downloadPresetPaths')}</h3>
+                    <p className="mt-1 text-xs text-text-muted">{t('settings.downloadPresetPathsDesc')}</p>
+                    <div className="mb-2 mt-3 flex items-center gap-2">
                       <input
                         value={localDownloadPathInput}
                         onChange={(event) => setLocalDownloadPathInput(event.target.value)}
                         placeholder={t('settings.downloadPathPlaceholder')}
-                        className="h-9 flex-1 rounded border border-border-dark bg-surface-dark px-3 text-sm text-text-dark outline-none placeholder:text-text-muted"
+                        className="h-9 flex-1 rounded border border-border-dark bg-surface-dark px-3 text-sm text-text-dark"
                       />
                       <button
                         type="button"
-                        className="inline-flex h-9 items-center justify-center rounded border border-border-dark bg-surface-dark px-3 text-xs text-text-dark transition-colors hover:bg-bg-dark"
+                        className="inline-flex h-9 items-center justify-center rounded border border-border-dark bg-surface-dark px-3 text-xs text-text-dark"
                         onClick={handleAddDownloadPathFromInput}
                       >
                         <Plus className="mr-1 h-3.5 w-3.5" />
@@ -1045,216 +513,578 @@ export function SettingsDialog({
                       </button>
                       <button
                         type="button"
-                        className="inline-flex h-9 items-center justify-center rounded border border-border-dark bg-surface-dark px-3 text-xs text-text-dark transition-colors hover:bg-bg-dark"
-                        onClick={() => {
-                          void handlePickDownloadPath();
-                        }}
+                        className="inline-flex h-9 items-center justify-center rounded border border-border-dark bg-surface-dark px-3 text-xs text-text-dark"
+                        onClick={() => void handlePickDownloadPath()}
                       >
                         <FolderOpen className="mr-1 h-3.5 w-3.5" />
                         {t('settings.chooseFolder')}
                       </button>
                     </div>
-
-                    <div className="space-y-1">
-                      {localDownloadPresetPaths.length > 0 ? (
+                    <div className="space-y-2">
+                      {localDownloadPresetPaths.length === 0 ? (
+                        <div className="rounded border border-dashed border-border-dark px-3 py-2 text-xs text-text-muted">
+                          {t('settings.noDownloadPresetPaths')}
+                        </div>
+                      ) : (
                         localDownloadPresetPaths.map((path) => (
-                          <div
-                            key={path}
-                            className="flex items-center gap-2 rounded border border-border-dark bg-surface-dark px-2 py-1.5"
-                          >
+                          <div key={path} className="flex items-center justify-between gap-3 rounded border border-border-dark bg-surface-dark px-3 py-2">
                             <span className="truncate text-xs text-text-dark">{path}</span>
                             <button
                               type="button"
-                              className="ml-auto inline-flex h-6 w-6 items-center justify-center rounded text-text-muted transition-colors hover:bg-bg-dark hover:text-text-dark"
-                              onClick={() => handleRemoveDownloadPath(path)}
-                              title={t('common.delete')}
+                              className="inline-flex h-7 w-7 items-center justify-center rounded text-text-muted hover:bg-bg-dark"
+                              onClick={() =>
+                                setLocalDownloadPresetPaths((previous) => previous.filter((item) => item !== path))
+                              }
                             >
-                              <Trash2 className="h-3.5 w-3.5" />
+                              <Trash2 className="h-4 w-4" />
                             </button>
                           </div>
                         ))
-                      ) : (
-                        <div className="text-xs text-text-muted">{t('settings.noDownloadPresetPaths')}</div>
                       )}
                     </div>
                   </div>
-                </div>
-
-                <div className="flex justify-end border-t border-border-dark px-6 py-4">
-                  <button
-                    onClick={handleSave}
-                    className="rounded bg-accent px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-accent/80"
-                  >
-                    {t('common.save')}
-                  </button>
-                </div>
-              </>
-            )}
-
-            {activeCategory === 'experimental' && (
-              <>
-                <div className="px-6 py-5 border-b border-border-dark">
-                  <h2 className="text-lg font-semibold text-text-dark">
-                    {t('settings.experimental')}
-                  </h2>
-                  <p className="text-sm text-text-muted mt-1">
-                    {t('settings.experimentalDesc')}
-                  </p>
-                </div>
-
-                <div className="ui-scrollbar flex-1 space-y-4 overflow-y-auto p-6">
+                </>
+              )}
+              {activeCategory === 'providers' && (
+                <>
+                  <div className="rounded-lg border border-border-dark bg-bg-dark p-4">
+                    <div className="flex items-start justify-between gap-4">
+                      <div>
+                        <h3 className="text-sm font-medium text-text-dark">{t('settings.customApiListTitle')}</h3>
+                        <p className="mt-1 text-xs text-text-muted">{t('settings.customApiListHint')}</p>
+                      </div>
+                      <button
+                        type="button"
+                        className="inline-flex h-8 items-center justify-center rounded border border-border-dark bg-surface-dark px-3 text-xs text-text-dark"
+                        onClick={handleAddCustomApiInterface}
+                      >
+                        <Plus className="mr-1 h-3.5 w-3.5" />
+                        {t('settings.addCustomApi')}
+                      </button>
+                    </div>
+                  </div>
+                  {localCustomApiInterfaces.map((apiInterface, index) => {
+                    const isRevealed = Boolean(revealedApiKeys[apiInterface.id]);
+                    return (
+                      <div key={apiInterface.id} className="rounded-lg border border-border-dark bg-bg-dark p-4">
+                        <div className="mb-3 flex items-center justify-between gap-3">
+                          <div>
+                            <h3 className="text-sm font-medium text-text-dark">
+                              {apiInterface.name || `${t('settings.customApiFallbackName')} ${index + 1}`}
+                            </h3>
+                            {renderStatus(providerHealth[apiInterface.id] ?? t('settings.customApiCardHint'))}
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <button
+                              type="button"
+                              className="inline-flex h-8 items-center justify-center rounded border border-border-dark bg-surface-dark px-3 text-xs text-text-dark"
+                              onClick={() =>
+                                void checkProviderHealth('custom-api', apiInterface.baseUrl).then((result) =>
+                                  setProviderHealth((previous) => ({ ...previous, [apiInterface.id]: result.message }))
+                                ).catch((error) =>
+                                  setProviderHealth((previous) => ({ ...previous, [apiInterface.id]: String(error) }))
+                                )
+                              }
+                            >
+                              <RefreshCw className="mr-1 h-3.5 w-3.5" />
+                              {t('settings.testConnection')}
+                            </button>
+                            {localCustomApiInterfaces.length > 1 && (
+                              <button
+                                type="button"
+                                className="inline-flex h-8 w-8 items-center justify-center rounded text-text-muted hover:bg-black/20 hover:text-text-dark"
+                                onClick={() => handleRemoveCustomApiInterface(apiInterface.id)}
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                        <div className="grid gap-3 md:grid-cols-2">
+                          <input
+                            value={apiInterface.name}
+                            onChange={(event) =>
+                              setLocalCustomApiInterfaces((previous) =>
+                                previous.map((item) =>
+                                  item.id === apiInterface.id ? { ...item, name: event.target.value } : item
+                                )
+                              )
+                            }
+                            placeholder={t('settings.customApiNamePlaceholder')}
+                            className="rounded border border-border-dark bg-surface-dark px-3 py-2 text-sm text-text-dark"
+                          />
+                          <input
+                            value={apiInterface.baseUrl}
+                            onChange={(event) =>
+                              setLocalCustomApiInterfaces((previous) =>
+                                previous.map((item) =>
+                                  item.id === apiInterface.id ? { ...item, baseUrl: event.target.value } : item
+                                )
+                              )
+                            }
+                            placeholder={DEFAULT_CUSTOM_API_BASE_URL}
+                            className="rounded border border-border-dark bg-surface-dark px-3 py-2 text-sm text-text-dark"
+                          />
+                        </div>
+                        <div className="mt-3 grid gap-3 md:grid-cols-2">
+                          <UiSelect
+                            value={apiInterface.requestMode}
+                            onChange={(event) =>
+                              setLocalCustomApiInterfaces((previous) =>
+                                previous.map((item) =>
+                                  item.id === apiInterface.id
+                                    ? { ...item, requestMode: event.target.value as CustomApiInterfaceConfig['requestMode'] }
+                                    : item
+                                )
+                              )
+                            }
+                            className="h-9 text-sm"
+                          >
+                            <option value="images">{t('settings.customApiRequestModeImages')}</option>
+                            <option value="chat-completions">{t('settings.customApiRequestModeChatCompletions')}</option>
+                          </UiSelect>
+                          <div className="relative">
+                            <input
+                              type={isRevealed ? 'text' : 'password'}
+                              value={apiInterface.apiKey}
+                              onChange={(event) =>
+                                setLocalCustomApiInterfaces((previous) =>
+                                  previous.map((item) =>
+                                    item.id === apiInterface.id ? { ...item, apiKey: event.target.value } : item
+                                  )
+                                )
+                              }
+                              placeholder={t('settings.enterApiKey')}
+                              className="w-full rounded border border-border-dark bg-surface-dark px-3 py-2 pr-10 text-sm text-text-dark"
+                            />
+                            <button
+                              type="button"
+                              className="absolute right-2 top-2 rounded p-1 hover:bg-bg-dark"
+                              onClick={() =>
+                                setRevealedApiKeys((previous) => ({
+                                  ...previous,
+                                  [apiInterface.id]: !isRevealed,
+                                }))
+                              }
+                            >
+                              {isRevealed ? <EyeOff className="h-4 w-4 text-text-muted" /> : <Eye className="h-4 w-4 text-text-muted" />}
+                            </button>
+                          </div>
+                        </div>
+                        <label className="mt-3 flex items-start gap-3 rounded border border-border-dark bg-surface-dark px-3 py-2.5">
+                          <UiCheckbox
+                            checked={apiInterface.omitSizeParams}
+                            onCheckedChange={(checked) =>
+                              setLocalCustomApiInterfaces((previous) =>
+                                previous.map((item) =>
+                                  item.id === apiInterface.id ? { ...item, omitSizeParams: checked } : item
+                                )
+                              )
+                            }
+                            className="mt-0.5"
+                          />
+                          <div>
+                            <div className="text-xs font-medium text-text-dark">{t('settings.customApiOmitSizeParams')}</div>
+                            <p className="mt-1 text-xs text-text-muted">{t('settings.customApiOmitSizeParamsHint')}</p>
+                          </div>
+                        </label>
+                        <textarea
+                          value={stringifyModelIds(apiInterface.modelIds)}
+                          onChange={(event) =>
+                            setLocalCustomApiInterfaces((previous) =>
+                              previous.map((item) =>
+                                item.id === apiInterface.id ? { ...item, modelIds: parseModelIdsInput(event.target.value) } : item
+                              )
+                            )
+                          }
+                          rows={5}
+                          placeholder={t('settings.customApiModelsPlaceholder')}
+                          className="ui-scrollbar mt-3 w-full resize-y rounded border border-border-dark bg-surface-dark px-3 py-2 text-sm text-text-dark"
+                        />
+                      </div>
+                    );
+                  })}
+                  <div className="rounded-lg border border-border-dark bg-bg-dark p-4">
+                    <div className="mb-3 flex items-start justify-between gap-3">
+                      <div>
+                        <h3 className="text-sm font-medium text-text-dark">{t('settings.comfyTitle')}</h3>
+                        {renderStatus(providerHealth.comfyui ?? t('settings.comfyDesc'))}
+                      </div>
+                      <button
+                        type="button"
+                        className="inline-flex h-8 items-center justify-center rounded border border-border-dark bg-surface-dark px-3 text-xs text-text-dark"
+                        onClick={() =>
+                          void checkProviderHealth('comfyui', localComfyUi.baseUrl).then((result) =>
+                            setProviderHealth((previous) => ({ ...previous, comfyui: result.message }))
+                          ).catch((error) =>
+                            setProviderHealth((previous) => ({ ...previous, comfyui: String(error) }))
+                          )
+                        }
+                      >
+                        <RefreshCw className="mr-1 h-3.5 w-3.5" />
+                        {t('settings.testConnection')}
+                      </button>
+                    </div>
+                    <SettingsCheckboxCard
+                      checked={localComfyUi.enabled}
+                      onCheckedChange={(checked) =>
+                        setLocalComfyUi((previous) => ({ ...previous, enabled: checked }))
+                      }
+                      title={t('settings.comfyEnabled')}
+                      description={t('settings.comfyEnabledDesc')}
+                    />
+                    <input
+                      value={localComfyUi.baseUrl}
+                      onChange={(event) =>
+                        setLocalComfyUi((previous) => ({ ...previous, baseUrl: event.target.value }))
+                      }
+                      placeholder={DEFAULT_COMFYUI_BASE_URL}
+                      className="mt-3 w-full rounded border border-border-dark bg-surface-dark px-3 py-2 text-sm text-text-dark"
+                    />
+                    <div className="mt-3 flex items-center justify-between gap-3">
+                      <div className="text-xs text-text-muted">{t('settings.comfyWorkflowHint')}</div>
+                      <button
+                        type="button"
+                        className="inline-flex h-8 items-center justify-center rounded border border-border-dark bg-surface-dark px-3 text-xs text-text-dark"
+                        onClick={() =>
+                          setLocalComfyUi((previous) => ({
+                            ...previous,
+                            workflows: [
+                              ...previous.workflows,
+                              createDefaultComfyWorkflow('text-to-image', {
+                                name: `${t('settings.comfyWorkflowFallbackName')} ${previous.workflows.length + 1}`,
+                              }),
+                            ],
+                          }))
+                        }
+                      >
+                        <Plus className="mr-1 h-3.5 w-3.5" />
+                        {t('settings.addComfyWorkflow')}
+                      </button>
+                    </div>
+                    <div className="mt-3 space-y-3">
+                      {localComfyUi.workflows.map((workflow, index) => (
+                        <div key={workflow.id} className="rounded border border-border-dark bg-surface-dark p-3">
+                          <div className="mb-3 flex items-center justify-between gap-3">
+                            <div>
+                              <div className="text-sm font-medium text-text-dark">
+                                {workflow.name || `${t('settings.comfyWorkflowFallbackName')} ${index + 1}`}
+                              </div>
+                              <div className="mt-1 text-xs text-text-muted">{workflow.taskType}</div>
+                            </div>
+                            <button
+                              type="button"
+                              className="inline-flex h-8 w-8 items-center justify-center rounded text-text-muted hover:bg-bg-dark"
+                              onClick={() =>
+                                setLocalComfyUi((previous) => ({
+                                  ...previous,
+                                  workflows: previous.workflows.filter((item) => item.id !== workflow.id),
+                                }))
+                              }
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </button>
+                          </div>
+                          <div className="grid gap-3 md:grid-cols-2">
+                            <input
+                              value={workflow.name}
+                              onChange={(event) =>
+                                setLocalComfyUi((previous) => ({
+                                  ...previous,
+                                  workflows: previous.workflows.map((item) =>
+                                    item.id === workflow.id ? { ...item, name: event.target.value } : item
+                                  ),
+                                }))
+                              }
+                              placeholder={t('settings.comfyWorkflowName')}
+                              className="rounded border border-border-dark bg-bg-dark px-3 py-2 text-sm text-text-dark"
+                            />
+                            <UiSelect
+                              value={workflow.taskType}
+                              onChange={(event) =>
+                                setLocalComfyUi((previous) => ({
+                                  ...previous,
+                                  workflows: previous.workflows.map((item) =>
+                                    item.id === workflow.id
+                                      ? { ...item, taskType: event.target.value as AppTaskType }
+                                      : item
+                                  ),
+                                }))
+                              }
+                              className="h-9 text-sm"
+                            >
+                              {TASK_TYPES.map((option) => (
+                                <option key={option.value} value={option.value}>
+                                  {t(option.key)}
+                                </option>
+                              ))}
+                            </UiSelect>
+                          </div>
+                          <div className="mt-3 grid gap-3 md:grid-cols-2">
+                            <input
+                              value={workflow.outputNodeId}
+                              onChange={(event) =>
+                                setLocalComfyUi((previous) => ({
+                                  ...previous,
+                                  workflows: previous.workflows.map((item) =>
+                                    item.id === workflow.id ? { ...item, outputNodeId: event.target.value } : item
+                                  ),
+                                }))
+                              }
+                              placeholder={t('settings.comfyOutputNodeId')}
+                              className="rounded border border-border-dark bg-bg-dark px-3 py-2 text-sm text-text-dark"
+                            />
+                            <input
+                              value={workflow.imageInputNodeId}
+                              onChange={(event) =>
+                                setLocalComfyUi((previous) => ({
+                                  ...previous,
+                                  workflows: previous.workflows.map((item) =>
+                                    item.id === workflow.id ? { ...item, imageInputNodeId: event.target.value } : item
+                                  ),
+                                }))
+                              }
+                              placeholder={t('settings.comfyImageInputNodeId')}
+                              className="rounded border border-border-dark bg-bg-dark px-3 py-2 text-sm text-text-dark"
+                            />
+                          </div>
+                          <div className="mt-3 grid gap-3 md:grid-cols-2">
+                            <input
+                              value={stringifyNodeIdList(workflow.positivePromptNodeIds)}
+                              onChange={(event) =>
+                                setLocalComfyUi((previous) => ({
+                                  ...previous,
+                                  workflows: previous.workflows.map((item) =>
+                                    item.id === workflow.id ? { ...item, positivePromptNodeIds: parseNodeIdList(event.target.value) } : item
+                                  ),
+                                }))
+                              }
+                              placeholder={t('settings.comfyPositivePromptNodes')}
+                              className="rounded border border-border-dark bg-bg-dark px-3 py-2 text-sm text-text-dark"
+                            />
+                            <input
+                              value={stringifyNodeIdList(workflow.negativePromptNodeIds)}
+                              onChange={(event) =>
+                                setLocalComfyUi((previous) => ({
+                                  ...previous,
+                                  workflows: previous.workflows.map((item) =>
+                                    item.id === workflow.id ? { ...item, negativePromptNodeIds: parseNodeIdList(event.target.value) } : item
+                                  ),
+                                }))
+                              }
+                              placeholder={t('settings.comfyNegativePromptNodes')}
+                              className="rounded border border-border-dark bg-bg-dark px-3 py-2 text-sm text-text-dark"
+                            />
+                          </div>
+                          <textarea
+                            value={workflow.promptApiJson}
+                            onChange={(event) =>
+                              setLocalComfyUi((previous) => ({
+                                ...previous,
+                                workflows: previous.workflows.map((item) =>
+                                  item.id === workflow.id ? { ...item, promptApiJson: event.target.value } : item
+                                ),
+                              }))
+                            }
+                            rows={8}
+                            placeholder={t('settings.comfyPromptApiJson')}
+                            className="ui-scrollbar mt-3 w-full resize-y rounded border border-border-dark bg-bg-dark px-3 py-2 text-sm text-text-dark"
+                          />
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                  <div className="rounded-lg border border-border-dark bg-bg-dark p-4">
+                    <h3 className="text-sm font-medium text-text-dark">{t('settings.providerRoutingTitle')}</h3>
+                    <p className="mt-1 text-xs text-text-muted">{t('settings.providerRoutingDesc')}</p>
+                    <div className="mt-3 space-y-3">
+                      {localProviderRoutes.map((route) => (
+                        <div key={route.taskType} className="grid gap-3 rounded border border-border-dark bg-surface-dark p-3 md:grid-cols-[180px_160px_1fr]">
+                          <div className="text-sm text-text-dark">
+                            {t(TASK_TYPES.find((item) => item.value === route.taskType)?.key ?? '')}
+                          </div>
+                          <UiSelect
+                            value={route.providerKind}
+                            onChange={(event) =>
+                              setLocalProviderRoutes((previous) =>
+                                previous.map((item) =>
+                                  item.taskType === route.taskType
+                                    ? { ...item, providerKind: event.target.value === 'comfyui' ? 'comfyui' : 'custom-api', targetId: null }
+                                    : item
+                                )
+                              )
+                            }
+                            className="h-9 text-sm"
+                          >
+                            <option value="custom-api">{t('settings.providers')}</option>
+                            <option value="comfyui">{t('settings.comfyTitle')}</option>
+                          </UiSelect>
+                          <UiSelect
+                            value={route.targetId ?? ''}
+                            onChange={(event) =>
+                              setLocalProviderRoutes((previous) =>
+                                previous.map((item) =>
+                                  item.taskType === route.taskType ? { ...item, targetId: event.target.value || null } : item
+                                )
+                              )
+                            }
+                            className="h-9 text-sm"
+                          >
+                            <option value="">{t('settings.routeUseDefault')}</option>
+                            {(route.providerKind === 'comfyui' ? comfyRouteOptions : customRouteOptions).map((option) => (
+                              <option key={option.id} value={option.id}>
+                                {option.label}
+                              </option>
+                            ))}
+                          </UiSelect>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </>
+              )}
+              {activeCategory === 'appearance' && (
+                <>
+                  <div className="rounded-lg border border-border-dark bg-bg-dark p-4">
+                    <h3 className="text-sm font-medium text-text-dark">{t('settings.radiusPreset')}</h3>
+                    <p className="mt-1 text-xs text-text-muted">{t('settings.radiusPresetDesc')}</p>
+                    <UiSelect
+                      value={localUiRadiusPreset}
+                      onChange={(event) => setLocalUiRadiusPreset(event.target.value as typeof localUiRadiusPreset)}
+                      className="mt-3 h-9 text-sm"
+                    >
+                      <option value="compact">{t('settings.radiusCompact')}</option>
+                      <option value="default">{t('settings.radiusDefault')}</option>
+                      <option value="large">{t('settings.radiusLarge')}</option>
+                    </UiSelect>
+                  </div>
+                  <div className="rounded-lg border border-border-dark bg-bg-dark p-4">
+                    <h3 className="text-sm font-medium text-text-dark">{t('settings.themeTone')}</h3>
+                    <p className="mt-1 text-xs text-text-muted">{t('settings.themeToneDesc')}</p>
+                    <UiSelect
+                      value={localThemeTonePreset}
+                      onChange={(event) =>
+                        setLocalThemeTonePreset(event.target.value as typeof localThemeTonePreset)
+                      }
+                      className="mt-3 h-9 text-sm"
+                    >
+                      <option value="neutral">{t('settings.toneNeutral')}</option>
+                      <option value="warm">{t('settings.toneWarm')}</option>
+                      <option value="cool">{t('settings.toneCool')}</option>
+                    </UiSelect>
+                  </div>
+                </>
+              )}
+              {activeCategory === 'experimental' && (
+                <>
                   <SettingsCheckboxCard
                     checked={localEnableStoryboardGenGridPreviewShortcut}
                     onCheckedChange={setLocalEnableStoryboardGenGridPreviewShortcut}
                     title={t('settings.enableStoryboardGenGridPreviewShortcut')}
                     description={t('settings.enableStoryboardGenGridPreviewShortcutDesc')}
                   />
-
                   <SettingsCheckboxCard
                     checked={localShowStoryboardGenAdvancedRatioControls}
                     onCheckedChange={setLocalShowStoryboardGenAdvancedRatioControls}
                     title={t('settings.showStoryboardGenAdvancedRatioControls')}
                     description={t('settings.showStoryboardGenAdvancedRatioControlsDesc')}
                   />
-
                   <SettingsCheckboxCard
                     checked={localStoryboardGenAutoInferEmptyFrame}
                     onCheckedChange={setLocalStoryboardGenAutoInferEmptyFrame}
                     title={t('settings.storyboardGenAutoInferEmptyFrame')}
                     description={t('settings.storyboardGenAutoInferEmptyFrameDesc')}
                   />
-                </div>
-
-                <div className="flex justify-end border-t border-border-dark px-6 py-4">
-                  <button
-                    onClick={handleSave}
-                    className="rounded bg-accent px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-accent/80"
-                  >
-                    {t('common.save')}
-                  </button>
-                </div>
-              </>
-            )}
-
-            {activeCategory === 'about' && (
-              <>
-                <div className="px-6 py-5 border-b border-border-dark">
-                  <h2 className="text-lg font-semibold text-text-dark">
-                    {t('settings.about')}
-                  </h2>
-                  <p className="text-sm text-text-muted mt-1">
-                    {t('settings.aboutDesc')}
-                  </p>
-                </div>
-
-                <div className="ui-scrollbar flex-1 space-y-4 overflow-y-auto p-6">
-                  <div className="rounded-lg border border-border-dark bg-bg-dark p-4">
-                    <div className="flex items-start gap-4">
-                      <img
-                        src="/app-icon.png"
-                        alt={t('settings.aboutAppName')}
-                        className="h-14 w-14 rounded-lg border border-border-dark object-cover"
-                      />
-                      <div className="min-w-0 flex-1">
-                        <a
-                          href="https://space.bilibili.com/39337803"
-                          target="_blank"
-                          rel="noreferrer"
-                          className="text-base font-semibold text-accent hover:underline"
-                        >
-                          {t('settings.aboutAppName')}
-                        </a>
-                        <p className="mt-1 text-sm text-text-muted">
-                          {t('settings.aboutIntro')}
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-
+                </>
+              )}
+              {activeCategory === 'about' && (
+                <>
                   <div className="rounded-lg border border-border-dark bg-bg-dark p-4 space-y-2 text-sm">
                     <p className="text-text-dark">
-                      {t('settings.aboutVersionLabel')}: <span className="text-text-muted">{appVersion || t('settings.aboutVersionUnknown')}</span>
-                    </p>
-                    <p className="text-text-dark">
-                      {t('settings.aboutAuthorLabel')}:{' '}
-                      <a
-                        href="https://space.bilibili.com/39337803"
-                        target="_blank"
-                        rel="noreferrer"
-                        className="text-accent hover:underline"
-                      >
-                        {t('settings.aboutAuthor')}
-                      </a>
+                      {t('settings.aboutVersionLabel')}:{' '}
+                      <span className="text-text-muted">{appVersion || t('settings.aboutVersionUnknown')}</span>
                     </p>
                     <p className="text-text-dark">
                       {t('settings.aboutRepositoryLabel')}:{' '}
-                      <a
-                        href="https://github.com/henjicc/Storyboard-Copilot"
-                        target="_blank"
-                        rel="noreferrer"
-                        className="text-accent hover:underline break-all"
-                      >
-                        https://github.com/henjicc/Storyboard-Copilot
-                      </a>
+                      <span className="break-all text-text-muted">{localVersionFeed.githubRepo}</span>
                     </p>
                   </div>
-
-                  <div className="space-y-3">
-                    <SettingsCheckboxCard
-                      checked={localAutoCheckAppUpdateOnLaunch}
-                      onCheckedChange={setLocalAutoCheckAppUpdateOnLaunch}
-                      title={t('settings.autoCheckUpdateOnLaunch')}
-                      description={t('settings.autoCheckUpdateOnLaunchDesc')}
-                    />
-                    <SettingsCheckboxCard
-                      checked={localEnableUpdateDialog}
-                      onCheckedChange={setLocalEnableUpdateDialog}
-                      title={t('settings.enableUpdateDialog')}
-                      description={t('settings.enableUpdateDialogDesc')}
-                    />
-                    <div className="pt-1">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          void handleCheckUpdate();
-                        }}
-                        className="rounded border border-border-dark bg-surface-dark px-3 py-2 text-sm text-text-dark transition-colors hover:bg-bg-dark disabled:cursor-not-allowed disabled:opacity-50"
-                        disabled={checkUpdateStatus === 'checking'}
+                  <div className="rounded-lg border border-border-dark bg-bg-dark p-4">
+                    <h3 className="text-sm font-medium text-text-dark">{t('settings.versionFeedTitle')}</h3>
+                    <p className="mt-1 text-xs text-text-muted">{t('settings.versionFeedDesc')}</p>
+                    <div className="mt-3 grid gap-3 md:grid-cols-2">
+                      <UiSelect
+                        value={localVersionFeed.source}
+                        onChange={(event) =>
+                          setLocalVersionFeed((previous) => ({
+                            ...previous,
+                            source: event.target.value === 'custom' ? 'custom' : 'github',
+                          }))
+                        }
+                        className="h-9 text-sm"
                       >
-                        {checkUpdateStatus === 'checking'
-                          ? t('settings.checkingUpdate')
-                          : t('settings.checkUpdateNow')}
-                      </button>
-                      {checkUpdateStatus !== '' && (
-                        <p className="mt-2 text-xs text-text-muted">
-                          {checkUpdateStatus === 'has-update' && t('settings.checkUpdateHasUpdate')}
-                          {checkUpdateStatus === 'up-to-date' && t('settings.checkUpdateUpToDate')}
-                          {checkUpdateStatus === 'failed' && t('settings.checkUpdateFailed')}
-                          {checkUpdateStatus === 'checking' && t('settings.checkingUpdate')}
-                        </p>
-                      )}
+                        <option value="github">{t('settings.versionFeedSourceGithub')}</option>
+                        <option value="custom">{t('settings.versionFeedSourceCustom')}</option>
+                      </UiSelect>
+                      <input
+                        value={localVersionFeed.githubRepo}
+                        onChange={(event) =>
+                          setLocalVersionFeed((previous) => ({ ...previous, githubRepo: event.target.value }))
+                        }
+                        placeholder={t('settings.versionFeedGithubRepo')}
+                        className="rounded border border-border-dark bg-surface-dark px-3 py-2 text-sm text-text-dark"
+                      />
                     </div>
+                    <input
+                      value={localVersionFeed.customFeedUrl}
+                      onChange={(event) =>
+                        setLocalVersionFeed((previous) => ({ ...previous, customFeedUrl: event.target.value }))
+                      }
+                      placeholder={t('settings.versionFeedCustomUrl')}
+                      className="mt-3 w-full rounded border border-border-dark bg-surface-dark px-3 py-2 text-sm text-text-dark"
+                    />
                   </div>
-                </div>
-
-                <div className="flex justify-end border-t border-border-dark px-6 py-4">
-                  <div className="flex gap-2">
+                  <SettingsCheckboxCard
+                    checked={localAutoCheckAppUpdateOnLaunch}
+                    onCheckedChange={setLocalAutoCheckAppUpdateOnLaunch}
+                    title={t('settings.autoCheckUpdateOnLaunch')}
+                    description={t('settings.autoCheckUpdateOnLaunchDesc')}
+                  />
+                  <SettingsCheckboxCard
+                    checked={localEnableUpdateDialog}
+                    onCheckedChange={setLocalEnableUpdateDialog}
+                    title={t('settings.enableUpdateDialog')}
+                    description={t('settings.enableUpdateDialogDesc')}
+                  />
+                  <div className="pt-1">
                     <button
-                      onClick={onClose}
-                      className="rounded border border-border-dark px-4 py-2 text-sm font-medium text-text-dark transition-colors hover:bg-bg-dark"
+                      type="button"
+                      onClick={() => void handleCheckUpdate()}
+                      className="rounded border border-border-dark bg-surface-dark px-3 py-2 text-sm text-text-dark disabled:opacity-50"
+                      disabled={checkUpdateStatus === 'checking'}
                     >
-                      {t('common.close')}
+                      {checkUpdateStatus === 'checking' ? t('settings.checkingUpdate') : t('settings.checkUpdateNow')}
                     </button>
-                    <button
-                      onClick={handleSave}
-                      className="rounded bg-accent px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-accent/80"
-                    >
-                      {t('common.save')}
-                    </button>
+                    {checkUpdateStatus !== '' && (
+                      <p className="mt-2 text-xs text-text-muted">
+                        {checkUpdateStatus === 'has-update' && t('settings.checkUpdateHasUpdate')}
+                        {checkUpdateStatus === 'up-to-date' && t('settings.checkUpdateUpToDate')}
+                        {checkUpdateStatus === 'failed' && t('settings.checkUpdateFailed')}
+                        {checkUpdateStatus === 'checking' && t('settings.checkingUpdate')}
+                      </p>
+                    )}
                   </div>
-                </div>
-              </>
-            )}
+                </>
+              )}
+            </div>
+            <div className="flex justify-end gap-2 border-t border-border-dark px-6 py-4">
+              <button onClick={onClose} className="rounded border border-border-dark px-4 py-2 text-sm font-medium text-text-dark">
+                {t('common.close')}
+              </button>
+              <button onClick={() => void handleSave()} className="rounded bg-accent px-4 py-2 text-sm font-medium text-white">
+                {t('common.save')}
+              </button>
+            </div>
           </div>
         </div>
       </div>

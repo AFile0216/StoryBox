@@ -53,7 +53,6 @@ import {
   resolveImageModelResolution,
   resolveImageModelResolutions,
 } from '@/features/canvas/models';
-import { resolveModelPriceDisplay } from '@/features/canvas/pricing';
 import {
   NODE_CONTROL_CHIP_CLASS,
   NODE_CONTROL_ICON_CLASS,
@@ -63,7 +62,6 @@ import {
 } from '@/features/canvas/ui/nodeControlStyles';
 import { ModelParamsControls } from '@/features/canvas/ui/ModelParamsControls';
 import { CanvasNodeImage } from '@/features/canvas/ui/CanvasNodeImage';
-import { NodePriceBadge } from '@/features/canvas/ui/NodePriceBadge';
 import { UiButton } from '@/components/ui';
 import { useCanvasStore } from '@/stores/canvasStore';
 import { useSettingsStore } from '@/stores/settingsStore';
@@ -222,7 +220,7 @@ function buildAiResultNodeTitle(prompt: string, fallbackTitle: string): string {
 }
 
 export const ImageEditNode = memo(({ id, data, selected, width, height }: ImageEditNodeProps) => {
-  const { t, i18n } = useTranslation();
+  const { t } = useTranslation();
   const updateNodeInternals = useUpdateNodeInternals();
   const [error, setError] = useState<string | null>(null);
 
@@ -244,11 +242,7 @@ export const ImageEditNode = memo(({ id, data, selected, width, height }: ImageE
   const findNodePosition = useCanvasStore((state) => state.findNodePosition);
   const addEdge = useCanvasStore((state) => state.addEdge);
   const customApiInterfaces = useSettingsStore((state) => state.customApiInterfaces);
-  const showNodePrice = useSettingsStore((state) => state.showNodePrice);
-  const priceDisplayCurrencyMode = useSettingsStore((state) => state.priceDisplayCurrencyMode);
-  const usdToCnyRate = useSettingsStore((state) => state.usdToCnyRate);
-  const preferDiscountedPrice = useSettingsStore((state) => state.preferDiscountedPrice);
-  const grsaiCreditTierId = useSettingsStore((state) => state.grsaiCreditTierId);
+  const comfyUi = useSettingsStore((state) => state.comfyUi);
 
   const incomingImages = useMemo(
     () => graphImageResolver.collectInputImages(id, nodes, edges),
@@ -269,7 +263,7 @@ export const ImageEditNode = memo(({ id, data, selected, width, height }: ImageE
     [incomingImageItems]
   );
 
-  const imageModels = useMemo(() => listImageModels(), [customApiInterfaces]);
+  const imageModels = useMemo(() => listImageModels(), [comfyUi, customApiInterfaces]);
 
   const selectedModel = useMemo(() => {
     const modelId = data.model ?? DEFAULT_IMAGE_MODEL_ID;
@@ -277,10 +271,27 @@ export const ImageEditNode = memo(({ id, data, selected, width, height }: ImageE
   }, [data.model]);
   const selectedInterface = useMemo(
     () =>
-      customApiInterfaces.find((item) => item.id === selectedModel.interfaceId),
-    [customApiInterfaces, selectedModel.interfaceId]
+      selectedModel.providerKind === 'custom-api'
+        ? customApiInterfaces.find((item) => item.id === selectedModel.interfaceId)
+        : undefined,
+    [customApiInterfaces, selectedModel.interfaceId, selectedModel.providerKind]
+  );
+  const selectedComfyWorkflow = useMemo(
+    () =>
+      selectedModel.providerKind === 'comfyui'
+        ? comfyUi.workflows.find((item) => item.id === selectedModel.workflowId)
+        : undefined,
+    [comfyUi.workflows, selectedModel.providerKind, selectedModel.workflowId]
   );
   const providerApiKey = selectedInterface?.apiKey ?? '';
+  const providerReady = selectedModel.providerKind === 'comfyui'
+    ? Boolean(
+      comfyUi.enabled &&
+      comfyUi.baseUrl.trim() &&
+      selectedComfyWorkflow?.promptApiJson.trim() &&
+      selectedComfyWorkflow?.outputNodeId.trim()
+    )
+    : Boolean(providerApiKey);
   const effectiveExtraParams = useMemo(() => data.extraParams ?? {}, [data.extraParams]);
   const resolutionOptions = useMemo(
     () => resolveImageModelResolutions(selectedModel, { extraParams: effectiveExtraParams }),
@@ -312,60 +323,6 @@ export const ImageEditNode = memo(({ id, data, selected, width, height }: ImageE
   });
   const showWebSearchToggle = false;
   const webSearchEnabled = Boolean(data.extraParams?.enable_web_search);
-  const resolvedPriceDisplay = useMemo(
-    () =>
-      showNodePrice
-        ? resolveModelPriceDisplay(selectedModel, {
-          resolution: selectedResolution.value,
-          extraParams: effectiveExtraParams,
-          language: i18n.language,
-          settings: {
-            displayCurrencyMode: priceDisplayCurrencyMode,
-            usdToCnyRate,
-            preferDiscountedPrice,
-            grsaiCreditTierId,
-          },
-        })
-        : null,
-    [
-      grsaiCreditTierId,
-      i18n.language,
-      preferDiscountedPrice,
-      priceDisplayCurrencyMode,
-      effectiveExtraParams,
-      selectedModel,
-      selectedResolution.value,
-      showNodePrice,
-      usdToCnyRate,
-    ]
-  );
-  const resolvedPriceTooltip = useMemo(() => {
-    if (!resolvedPriceDisplay) {
-      return undefined;
-    }
-
-    const lines = [resolvedPriceDisplay.label];
-    if (resolvedPriceDisplay.nativeLabel) {
-      lines.push(t('pricing.nativePrice', { value: resolvedPriceDisplay.nativeLabel }));
-    }
-    if (resolvedPriceDisplay.originalLabel) {
-      lines.push(t('pricing.originalPrice', { value: resolvedPriceDisplay.originalLabel }));
-    }
-    if (resolvedPriceDisplay.pointsCost) {
-      lines.push(t('pricing.pointsCost', { count: resolvedPriceDisplay.pointsCost }));
-    }
-    if (resolvedPriceDisplay.grsaiCreditTier) {
-      lines.push(
-        t('pricing.grsaiTier', {
-          price: resolvedPriceDisplay.grsaiCreditTier.priceCny.toFixed(2),
-          credits: resolvedPriceDisplay.grsaiCreditTier.credits.toLocaleString(
-            i18n.language.startsWith('zh') ? 'zh-CN' : 'en-US'
-          ),
-        })
-      );
-    }
-    return lines.join('\n');
-  }, [i18n.language, resolvedPriceDisplay, t]);
 
   const supportedAspectRatioValues = useMemo(
     () => selectedModel.aspectRatios.map((item) => item.value),
@@ -456,14 +413,19 @@ export const ImageEditNode = memo(({ id, data, selected, width, height }: ImageE
       return;
     }
 
-    if (!providerApiKey) {
-      const errorMessage = t('node.imageEdit.apiKeyRequired');
+    if (!providerReady) {
+      const errorMessage = selectedModel.providerKind === 'comfyui'
+        ? t('settings.comfyMissingWorkflowConfig')
+        : t('node.imageEdit.apiKeyRequired');
       setError(errorMessage);
       void showErrorDialog(errorMessage, t('common.error'));
       return;
     }
 
-    if (!selectedInterface || !selectedModel.apiModel) {
+    if (
+      (selectedModel.providerKind === 'custom-api' && (!selectedInterface || !selectedModel.apiModel)) ||
+      (selectedModel.providerKind === 'comfyui' && !selectedComfyWorkflow)
+    ) {
       const errorMessage = t('node.imageEdit.modelRequired');
       setError(errorMessage);
       void showErrorDialog(errorMessage, t('common.error'));
@@ -520,19 +482,33 @@ export const ImageEditNode = memo(({ id, data, selected, width, height }: ImageE
         aspectRatio: resolvedRequestAspectRatio,
         referenceImages: incomingImages,
         extraParams: effectiveExtraParams,
-        runtimeConfig: {
-          interfaceId: selectedInterface.id,
-          interfaceName: selectedInterface.name,
-          apiKey: selectedInterface.apiKey,
-          baseUrl: selectedInterface.baseUrl,
-          apiModel: selectedModel.apiModel,
-          omitSizeParams: selectedInterface.omitSizeParams,
-          requestMode: selectedInterface.requestMode,
-        },
+        runtimeConfig: selectedModel.providerKind === 'comfyui'
+          ? {
+            providerType: 'comfyui',
+            baseUrl: comfyUi.baseUrl,
+            workflowId: selectedComfyWorkflow?.id,
+            workflowName: selectedComfyWorkflow?.name,
+            workflowPromptApiJson: selectedComfyWorkflow?.promptApiJson,
+            imageInputNodeId: selectedComfyWorkflow?.imageInputNodeId,
+            imageInputField: selectedComfyWorkflow?.imageInputField,
+            outputNodeId: selectedComfyWorkflow?.outputNodeId,
+            positivePromptNodeIds: selectedComfyWorkflow?.positivePromptNodeIds,
+            negativePromptNodeIds: selectedComfyWorkflow?.negativePromptNodeIds,
+          }
+          : {
+            providerType: 'custom-api',
+            interfaceId: selectedInterface?.id,
+            interfaceName: selectedInterface?.name,
+            apiKey: selectedInterface?.apiKey,
+            baseUrl: selectedInterface?.baseUrl ?? '',
+            apiModel: selectedModel.apiModel,
+            omitSizeParams: selectedInterface?.omitSizeParams,
+            requestMode: selectedInterface?.requestMode,
+          },
       });
       const generationDebugContext: GenerationDebugContext = {
         sourceType: 'imageEdit',
-        providerId: selectedInterface.name,
+        providerId: selectedModel.providerKind === 'comfyui' ? 'ComfyUI' : (selectedInterface?.name ?? ''),
         requestModel: requestResolution.requestModel,
         requestSize: selectedResolution.value,
         requestAspectRatio: resolvedRequestAspectRatio,
@@ -549,7 +525,7 @@ export const ImageEditNode = memo(({ id, data, selected, width, height }: ImageE
       updateNodeData(newNodeId, {
         generationJobId: jobId,
         generationSourceType: 'imageEdit',
-        generationProviderId: selectedInterface.id,
+        generationProviderId: selectedModel.providerKind === 'comfyui' ? 'comfyui' : (selectedInterface?.id ?? ''),
         generationClientSessionId: CURRENT_RUNTIME_SESSION_ID,
         generationDebugContext,
       });
@@ -557,7 +533,7 @@ export const ImageEditNode = memo(({ id, data, selected, width, height }: ImageE
       const resolvedError = resolveErrorContent(generationError, t('ai.error'));
       const generationDebugContext: GenerationDebugContext = {
         sourceType: 'imageEdit',
-        providerId: selectedInterface?.name,
+        providerId: selectedModel.providerKind === 'comfyui' ? 'ComfyUI' : selectedInterface?.name,
         requestModel: requestResolution.requestModel,
         requestSize: selectedResolution.value,
         requestAspectRatio: selectedAspectRatio.value,
@@ -597,8 +573,10 @@ export const ImageEditNode = memo(({ id, data, selected, width, height }: ImageE
   }, [
     addNode,
     addEdge,
-    providerApiKey,
+    comfyUi.baseUrl,
+    providerReady,
     selectedInterface,
+    selectedComfyWorkflow,
     findNodePosition,
     promptDraft,
     effectiveExtraParams,
@@ -607,6 +585,7 @@ export const ImageEditNode = memo(({ id, data, selected, width, height }: ImageE
     requestResolution.requestModel,
     selectedAspectRatio.value,
     selectedModel.apiModel,
+    selectedModel.providerKind,
     selectedModel.expectedDurationMs,
     selectedResolution.value,
     supportedAspectRatioValues,
@@ -731,14 +710,6 @@ export const ImageEditNode = memo(({ id, data, selected, width, height }: ImageE
         className={NODE_HEADER_FLOATING_POSITION_CLASS}
         icon={<Sparkles className="h-4 w-4" />}
         titleText={resolvedTitle}
-        rightSlot={
-          resolvedPriceDisplay ? (
-            <NodePriceBadge
-              label={resolvedPriceDisplay.label}
-              title={resolvedPriceTooltip}
-            />
-          ) : undefined
-        }
         editable
         onTitleChange={(nextTitle) => updateNodeData(id, { displayName: nextTitle })}
       />

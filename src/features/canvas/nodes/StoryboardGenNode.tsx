@@ -60,14 +60,12 @@ import {
   resolveImageModelResolution,
   resolveImageModelResolutions,
 } from '@/features/canvas/models';
-import { resolveModelPriceDisplay } from '@/features/canvas/pricing';
 import { ModelParamsControls } from '@/features/canvas/ui/ModelParamsControls';
 import { CanvasNodeImage } from '@/features/canvas/ui/CanvasNodeImage';
 import {
   UiButton,
 } from '@/components/ui';
 import { NodeHeader, NODE_HEADER_FLOATING_POSITION_CLASS } from '@/features/canvas/ui/NodeHeader';
-import { NodePriceBadge } from '@/features/canvas/ui/NodePriceBadge';
 import { NodeResizeHandle } from '@/features/canvas/ui/NodeResizeHandle';
 import {
   NODE_CONTROL_CHIP_CLASS,
@@ -536,7 +534,7 @@ function generateGridImageDataUrl(
 }
 
 export const StoryboardGenNode = memo(({ id, data, selected, width, height }: StoryboardGenNodeProps) => {
-  const { t, i18n } = useTranslation();
+  const { t } = useTranslation();
   const { zoom } = useViewport();
   const updateNodeInternals = useUpdateNodeInternals();
   const setSelectedNode = useCanvasStore((state) => state.setSelectedNode);
@@ -547,6 +545,7 @@ export const StoryboardGenNode = memo(({ id, data, selected, width, height }: St
   const addEdge = useCanvasStore((state) => state.addEdge);
   const findNodePosition = useCanvasStore((state) => state.findNodePosition);
   const customApiInterfaces = useSettingsStore((state) => state.customApiInterfaces);
+  const comfyUi = useSettingsStore((state) => state.comfyUi);
   const storyboardGenKeepStyleConsistent = useSettingsStore(
     (state) => state.storyboardGenKeepStyleConsistent
   );
@@ -565,11 +564,6 @@ export const StoryboardGenNode = memo(({ id, data, selected, width, height }: St
   const showStoryboardGenAdvancedRatioControls = useSettingsStore(
     (state) => state.showStoryboardGenAdvancedRatioControls
   );
-  const showNodePrice = useSettingsStore((state) => state.showNodePrice);
-  const priceDisplayCurrencyMode = useSettingsStore((state) => state.priceDisplayCurrencyMode);
-  const usdToCnyRate = useSettingsStore((state) => state.usdToCnyRate);
-  const preferDiscountedPrice = useSettingsStore((state) => state.preferDiscountedPrice);
-  const grsaiCreditTierId = useSettingsStore((state) => state.grsaiCreditTierId);
 
   const [error, setError] = useState<string | null>(null);
   const rootRef = useRef<HTMLDivElement>(null);
@@ -611,7 +605,7 @@ export const StoryboardGenNode = memo(({ id, data, selected, width, height }: St
     [incomingImageItems]
   );
 
-  const imageModels = useMemo(() => listImageModels(), [customApiInterfaces]);
+  const imageModels = useMemo(() => listImageModels(), [comfyUi, customApiInterfaces]);
 
   const selectedModel = useMemo(() => {
     const modelId = nodeData.model ?? DEFAULT_IMAGE_MODEL_ID;
@@ -619,10 +613,27 @@ export const StoryboardGenNode = memo(({ id, data, selected, width, height }: St
   }, [nodeData.model]);
   const selectedInterface = useMemo(
     () =>
-      customApiInterfaces.find((item) => item.id === selectedModel.interfaceId),
-    [customApiInterfaces, selectedModel.interfaceId]
+      selectedModel.providerKind === 'custom-api'
+        ? customApiInterfaces.find((item) => item.id === selectedModel.interfaceId)
+        : undefined,
+    [customApiInterfaces, selectedModel.interfaceId, selectedModel.providerKind]
+  );
+  const selectedComfyWorkflow = useMemo(
+    () =>
+      selectedModel.providerKind === 'comfyui'
+        ? comfyUi.workflows.find((item) => item.id === selectedModel.workflowId)
+        : undefined,
+    [comfyUi.workflows, selectedModel.providerKind, selectedModel.workflowId]
   );
   const providerApiKey = selectedInterface?.apiKey ?? '';
+  const providerReady = selectedModel.providerKind === 'comfyui'
+    ? Boolean(
+      comfyUi.enabled &&
+      comfyUi.baseUrl.trim() &&
+      selectedComfyWorkflow?.promptApiJson.trim() &&
+      selectedComfyWorkflow?.outputNodeId.trim()
+    )
+    : Boolean(providerApiKey);
   const effectiveExtraParams = useMemo(() => nodeData.extraParams ?? {}, [nodeData.extraParams]);
   const resolutionOptions = useMemo(
     () => resolveImageModelResolutions(selectedModel, { extraParams: effectiveExtraParams }),
@@ -716,60 +727,6 @@ export const StoryboardGenNode = memo(({ id, data, selected, width, height }: St
   });
   const showWebSearchToggle = false;
   const webSearchEnabled = Boolean(nodeData.extraParams?.enable_web_search);
-  const resolvedPriceDisplay = useMemo(
-    () =>
-      showNodePrice
-        ? resolveModelPriceDisplay(selectedModel, {
-          resolution: selectedResolution.value,
-          extraParams: effectiveExtraParams,
-          language: i18n.language,
-          settings: {
-            displayCurrencyMode: priceDisplayCurrencyMode,
-            usdToCnyRate,
-            preferDiscountedPrice,
-            grsaiCreditTierId,
-          },
-        })
-        : null,
-    [
-      grsaiCreditTierId,
-      i18n.language,
-      preferDiscountedPrice,
-      priceDisplayCurrencyMode,
-      effectiveExtraParams,
-      selectedModel,
-      selectedResolution.value,
-      showNodePrice,
-      usdToCnyRate,
-    ]
-  );
-  const resolvedPriceTooltip = useMemo(() => {
-    if (!resolvedPriceDisplay) {
-      return undefined;
-    }
-
-    const lines = [resolvedPriceDisplay.label];
-    if (resolvedPriceDisplay.nativeLabel) {
-      lines.push(t('pricing.nativePrice', { value: resolvedPriceDisplay.nativeLabel }));
-    }
-    if (resolvedPriceDisplay.originalLabel) {
-      lines.push(t('pricing.originalPrice', { value: resolvedPriceDisplay.originalLabel }));
-    }
-    if (resolvedPriceDisplay.pointsCost) {
-      lines.push(t('pricing.pointsCost', { count: resolvedPriceDisplay.pointsCost }));
-    }
-    if (resolvedPriceDisplay.grsaiCreditTier) {
-      lines.push(
-        t('pricing.grsaiTier', {
-          price: resolvedPriceDisplay.grsaiCreditTier.priceCny.toFixed(2),
-          credits: resolvedPriceDisplay.grsaiCreditTier.credits.toLocaleString(
-            i18n.language.startsWith('zh') ? 'zh-CN' : 'en-US'
-          ),
-        })
-      );
-    }
-    return lines.join('\n');
-  }, [i18n.language, resolvedPriceDisplay, t]);
 
   const supportedAspectRatioValues = useMemo(
     () => selectedModel.aspectRatios.map((item) => item.value),
@@ -1049,17 +1006,22 @@ export const StoryboardGenNode = memo(({ id, data, selected, width, height }: St
       return;
     }
 
-    if (!providerApiKey) {
-      const errorMessage = '请在设置中填写 API Key';
+    if (!providerReady) {
+      const errorMessage = selectedModel.providerKind === 'comfyui'
+        ? t('settings.comfyMissingWorkflowConfig')
+        : t('node.imageEdit.apiKeyRequired');
       setError(errorMessage);
-      void showErrorDialog(errorMessage, '错误');
+      void showErrorDialog(errorMessage, t('common.error'));
       return;
     }
 
-    if (!selectedInterface || !selectedModel.apiModel) {
+    if (
+      (selectedModel.providerKind === 'custom-api' && (!selectedInterface || !selectedModel.apiModel)) ||
+      (selectedModel.providerKind === 'comfyui' && !selectedComfyWorkflow)
+    ) {
       const errorMessage = t('node.storyboardGen.modelRequired');
       setError(errorMessage);
-      void showErrorDialog(errorMessage, '閿欒');
+      void showErrorDialog(errorMessage, t('common.error'));
       return;
     }
 
@@ -1122,19 +1084,33 @@ export const StoryboardGenNode = memo(({ id, data, selected, width, height }: St
         aspectRatio: resolvedRequestAspectRatio,
         referenceImages: allReferenceImages,
         extraParams: effectiveExtraParams,
-        runtimeConfig: {
-          interfaceId: selectedInterface.id,
-          interfaceName: selectedInterface.name,
-          apiKey: selectedInterface.apiKey,
-          baseUrl: selectedInterface.baseUrl,
-          apiModel: selectedModel.apiModel,
-          omitSizeParams: selectedInterface.omitSizeParams,
-          requestMode: selectedInterface.requestMode,
-        },
+        runtimeConfig: selectedModel.providerKind === 'comfyui'
+          ? {
+            providerType: 'comfyui',
+            baseUrl: comfyUi.baseUrl,
+            workflowId: selectedComfyWorkflow?.id,
+            workflowName: selectedComfyWorkflow?.name,
+            workflowPromptApiJson: selectedComfyWorkflow?.promptApiJson,
+            imageInputNodeId: selectedComfyWorkflow?.imageInputNodeId,
+            imageInputField: selectedComfyWorkflow?.imageInputField,
+            outputNodeId: selectedComfyWorkflow?.outputNodeId,
+            positivePromptNodeIds: selectedComfyWorkflow?.positivePromptNodeIds,
+            negativePromptNodeIds: selectedComfyWorkflow?.negativePromptNodeIds,
+          }
+          : {
+            providerType: 'custom-api',
+            interfaceId: selectedInterface?.id,
+            interfaceName: selectedInterface?.name,
+            apiKey: selectedInterface?.apiKey,
+            baseUrl: selectedInterface?.baseUrl ?? '',
+            apiModel: selectedModel.apiModel,
+            omitSizeParams: selectedInterface?.omitSizeParams,
+            requestMode: selectedInterface?.requestMode,
+          },
       });
       const generationDebugContext: GenerationDebugContext = {
         sourceType: 'storyboardGen',
-        providerId: selectedInterface.name,
+        providerId: selectedModel.providerKind === 'comfyui' ? 'ComfyUI' : (selectedInterface?.name ?? ''),
         requestModel: requestResolution.requestModel,
         requestSize: selectedResolution.value,
         requestAspectRatio: resolvedRequestAspectRatio,
@@ -1151,7 +1127,7 @@ export const StoryboardGenNode = memo(({ id, data, selected, width, height }: St
       updateNodeData(newNodeId, {
         generationJobId: jobId,
         generationSourceType: 'storyboardGen',
-        generationProviderId: selectedInterface.id,
+        generationProviderId: selectedModel.providerKind === 'comfyui' ? 'comfyui' : (selectedInterface?.id ?? ''),
         generationClientSessionId: CURRENT_RUNTIME_SESSION_ID,
         generationDebugContext,
         generationStoryboardMetadata: {
@@ -1164,7 +1140,7 @@ export const StoryboardGenNode = memo(({ id, data, selected, width, height }: St
       const resolvedError = resolveErrorContent(generationError, '生成失败');
       const generationDebugContext: GenerationDebugContext = {
         sourceType: 'storyboardGen',
-        providerId: selectedInterface?.name,
+        providerId: selectedModel.providerKind === 'comfyui' ? 'ComfyUI' : selectedInterface?.name,
         requestModel: requestResolution.requestModel,
         requestSize: selectedResolution.value,
         requestAspectRatio: resolvedRequestAspectRatio,
@@ -1199,7 +1175,8 @@ export const StoryboardGenNode = memo(({ id, data, selected, width, height }: St
       });
     }
   }, [
-    providerApiKey,
+    comfyUi.baseUrl,
+    providerReady,
     nodeData,
     incomingImages,
     requestResolution.requestModel,
@@ -1207,7 +1184,9 @@ export const StoryboardGenNode = memo(({ id, data, selected, width, height }: St
     selectedModel.expectedDurationMs,
     selectedModel.id,
     selectedModel.apiModel,
+    selectedModel.providerKind,
     selectedInterface,
+    selectedComfyWorkflow,
     supportedAspectRatioValues,
     setSelectedNode,
     selectedAspectRatio.value,
@@ -1438,14 +1417,6 @@ export const StoryboardGenNode = memo(({ id, data, selected, width, height }: St
         headerAdjust={STORYBOARD_GEN_HEADER_ADJUST}
         iconAdjust={STORYBOARD_GEN_ICON_ADJUST}
         titleAdjust={STORYBOARD_GEN_TITLE_ADJUST}
-        rightSlot={
-          resolvedPriceDisplay ? (
-            <NodePriceBadge
-              label={resolvedPriceDisplay.label}
-              title={resolvedPriceTooltip}
-            />
-          ) : undefined
-        }
         editable
         onTitleChange={(nextTitle) => updateNodeData(id, { displayName: nextTitle })}
       />

@@ -1,5 +1,4 @@
 import type { ImageModelDefinition } from '../../types';
-import { createFixedResolutionPricing } from '@/features/canvas/pricing';
 
 export const PPIO_GEMINI_FLASH_MODEL_ID = 'ppio/gemini-3.1-flash';
 
@@ -8,6 +7,7 @@ export const imageModel: ImageModelDefinition = {
   mediaType: 'image',
   displayName: 'Nano Banana 2',
   providerId: 'ppio',
+  providerKind: 'custom-api',
   description: '高性价比图像生成与编辑模型',
   eta: '1min',
   expectedDurationMs: 60000,
@@ -35,15 +35,6 @@ export const imageModel: ImageModelDefinition = {
     { value: '2K', label: '2K' },
     { value: '4K', label: '4K' },
   ],
-  pricing: createFixedResolutionPricing({
-    currency: 'CNY',
-    standardRates: {
-      '0.5K': 0.315,
-      '1K': 0.469,
-      '2K': 0.707,
-      '4K': 1.057,
-    },
-  }),
   resolveRequest: ({ referenceImageCount }) => ({
     requestModel: PPIO_GEMINI_FLASH_MODEL_ID,
     modeLabel: referenceImageCount > 0 ? '编辑模式' : '生成模式',

@@ -12,10 +12,11 @@ async function normalizeReferenceImages(payload: GenerateImagePayload): Promise<
   const isKieModel = payload.model.startsWith('kie/');
   const isFalModel = payload.model.startsWith('fal/');
   const isCustomOpenAiModel = payload.model.startsWith('openai-compatible/');
+  const isComfyUiModel = payload.model.startsWith('comfyui/');
   return payload.referenceImages
     ? await Promise.all(
       payload.referenceImages.map(async (imageUrl) =>
-        isKieModel || isFalModel || isCustomOpenAiModel
+        isKieModel || isFalModel || isCustomOpenAiModel || isComfyUiModel
           ? await imageUrlToDataUrl(imageUrl)
           : await persistImageLocally(imageUrl)
       )

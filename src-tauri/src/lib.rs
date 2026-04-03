@@ -5,6 +5,7 @@ use std::path::PathBuf;
 use std::time::Duration;
 
 use commands::ai as ai_commands;
+use commands::app as app_commands;
 use commands::image;
 use commands::project_state;
 use commands::system;
@@ -160,6 +161,11 @@ pub fn run() {
         .plugin(tauri_plugin_dialog::init())
         .invoke_handler(tauri::generate_handler![
             frontend_ready,
+            app_commands::bootstrap_app,
+            app_commands::load_app_settings,
+            app_commands::save_app_settings,
+            app_commands::check_provider_health,
+            app_commands::check_app_version,
             image::split_image,
             image::split_image_source,
             image::prepare_node_image_source,

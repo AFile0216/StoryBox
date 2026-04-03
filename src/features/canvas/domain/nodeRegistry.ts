@@ -2,21 +2,24 @@ import {
   AUTO_REQUEST_ASPECT_RATIO,
   CANVAS_NODE_TYPES,
   DEFAULT_ASPECT_RATIO,
-  type ImageSize,
+  type AudioNodeData,
   type CanvasNodeData,
   type CanvasNodeType,
   type ExportImageNodeData,
   type GroupNodeData,
   type ImageEditNodeData,
-  type StoryboardSplitNodeData,
+  type ImageSize,
   type StoryboardGenNodeData,
+  type StoryboardSplitNodeData,
   type TextAnnotationNodeData,
   type UploadImageNodeData,
+  type VideoNodeData,
+  type VideoStoryboardNodeData,
 } from './canvasNodes';
 import { DEFAULT_NODE_DISPLAY_NAME } from './nodeDisplay';
 import { DEFAULT_IMAGE_MODEL_ID } from '../models';
 
-export type MenuIconKey = 'upload' | 'sparkles' | 'layout' | 'text';
+export type MenuIconKey = 'upload' | 'sparkles' | 'layout' | 'text' | 'video' | 'audio';
 
 export interface CanvasNodeCapabilities {
   toolbar: boolean;
@@ -63,7 +66,7 @@ const uploadNodeDefinition: CanvasNodeDefinition<UploadImageNodeData> = {
     displayName: DEFAULT_NODE_DISPLAY_NAME[CANVAS_NODE_TYPES.upload],
     imageUrl: null,
     previewImageUrl: null,
-    aspectRatio: '1:1',
+    aspectRatio: DEFAULT_ASPECT_RATIO,
     isSizeManuallyAdjusted: false,
     sourceFileName: null,
   }),
@@ -130,9 +133,131 @@ const exportImageNodeDefinition: CanvasNodeDefinition<ExportImageNodeData> = {
   }),
 };
 
+const textAnnotationNodeDefinition: CanvasNodeDefinition<TextAnnotationNodeData> = {
+  type: CANVAS_NODE_TYPES.textAnnotation,
+  menuLabelKey: 'node.menu.textAnnotation',
+  menuIcon: 'text',
+  visibleInMenu: true,
+  capabilities: {
+    toolbar: true,
+    promptInput: false,
+  },
+  connectivity: {
+    sourceHandle: true,
+    targetHandle: false,
+    connectMenu: {
+      fromSource: true,
+      fromTarget: false,
+    },
+  },
+  createDefaultData: () => ({
+    displayName: DEFAULT_NODE_DISPLAY_NAME[CANVAS_NODE_TYPES.textAnnotation],
+    content: '',
+    mode: 'plain-text',
+    lastAppliedTaskType: null,
+  }),
+};
+
+const videoNodeDefinition: CanvasNodeDefinition<VideoNodeData> = {
+  type: CANVAS_NODE_TYPES.video,
+  menuLabelKey: 'node.menu.video',
+  menuIcon: 'video',
+  visibleInMenu: true,
+  capabilities: {
+    toolbar: true,
+    promptInput: false,
+  },
+  connectivity: {
+    sourceHandle: true,
+    targetHandle: false,
+    connectMenu: {
+      fromSource: true,
+      fromTarget: false,
+    },
+  },
+  createDefaultData: () => ({
+    displayName: DEFAULT_NODE_DISPLAY_NAME[CANVAS_NODE_TYPES.video],
+    filePath: null,
+    sourceFileName: null,
+    mimeType: null,
+    durationSec: null,
+    prompt: '',
+    taskMode: 'reference',
+    taskStatus: 'idle',
+    taskMessage: null,
+    taskOutputSummary: null,
+    lastExecutedAt: null,
+  }),
+};
+
+const audioNodeDefinition: CanvasNodeDefinition<AudioNodeData> = {
+  type: CANVAS_NODE_TYPES.audio,
+  menuLabelKey: 'node.menu.audio',
+  menuIcon: 'audio',
+  visibleInMenu: true,
+  capabilities: {
+    toolbar: true,
+    promptInput: false,
+  },
+  connectivity: {
+    sourceHandle: true,
+    targetHandle: false,
+    connectMenu: {
+      fromSource: true,
+      fromTarget: false,
+    },
+  },
+  createDefaultData: () => ({
+    displayName: DEFAULT_NODE_DISPLAY_NAME[CANVAS_NODE_TYPES.audio],
+    filePath: null,
+    sourceFileName: null,
+    mimeType: null,
+    durationSec: null,
+    prompt: '',
+    taskMode: 'audio-to-video',
+    taskStatus: 'idle',
+    taskMessage: null,
+    taskOutputSummary: null,
+    lastExecutedAt: null,
+  }),
+};
+
+const videoStoryboardNodeDefinition: CanvasNodeDefinition<VideoStoryboardNodeData> = {
+  type: CANVAS_NODE_TYPES.videoStoryboard,
+  menuLabelKey: 'node.menu.videoStoryboard',
+  menuIcon: 'layout',
+  visibleInMenu: true,
+  capabilities: {
+    toolbar: true,
+    promptInput: false,
+  },
+  connectivity: {
+    sourceHandle: true,
+    targetHandle: true,
+    connectMenu: {
+      fromSource: true,
+      fromTarget: false,
+    },
+  },
+  createDefaultData: () => ({
+    displayName: DEFAULT_NODE_DISPLAY_NAME[CANVAS_NODE_TYPES.videoStoryboard],
+    filePath: null,
+    sourceFileName: null,
+    mimeType: null,
+    durationSec: null,
+    currentTimeSec: 0,
+    selectionStartSec: 0,
+    selectionEndSec: 3,
+    draftText: '',
+    activeSegmentId: null,
+    segments: [],
+    lastCaptureDataUrl: null,
+  }),
+};
+
 const groupNodeDefinition: CanvasNodeDefinition<GroupNodeData> = {
   type: CANVAS_NODE_TYPES.group,
-  menuLabelKey: 'node.menu.storyboard',
+  menuLabelKey: 'node.menu.group',
   menuIcon: 'layout',
   visibleInMenu: false,
   capabilities: {
@@ -149,30 +274,7 @@ const groupNodeDefinition: CanvasNodeDefinition<GroupNodeData> = {
   },
   createDefaultData: () => ({
     displayName: DEFAULT_NODE_DISPLAY_NAME[CANVAS_NODE_TYPES.group],
-    label: '组',
-  }),
-};
-
-const textAnnotationNodeDefinition: CanvasNodeDefinition<TextAnnotationNodeData> = {
-  type: CANVAS_NODE_TYPES.textAnnotation,
-  menuLabelKey: 'node.menu.textAnnotation',
-  menuIcon: 'text',
-  visibleInMenu: true,
-  capabilities: {
-    toolbar: true,
-    promptInput: false,
-  },
-  connectivity: {
-    sourceHandle: false,
-    targetHandle: false,
-    connectMenu: {
-      fromSource: false,
-      fromTarget: false,
-    },
-  },
-  createDefaultData: () => ({
-    displayName: DEFAULT_NODE_DISPLAY_NAME[CANVAS_NODE_TYPES.textAnnotation],
-    content: '',
+    label: '分组',
   }),
 };
 
@@ -256,6 +358,9 @@ export const canvasNodeDefinitions: Record<CanvasNodeType, CanvasNodeDefinition>
   [CANVAS_NODE_TYPES.imageEdit]: imageEditNodeDefinition,
   [CANVAS_NODE_TYPES.exportImage]: exportImageNodeDefinition,
   [CANVAS_NODE_TYPES.textAnnotation]: textAnnotationNodeDefinition,
+  [CANVAS_NODE_TYPES.video]: videoNodeDefinition,
+  [CANVAS_NODE_TYPES.audio]: audioNodeDefinition,
+  [CANVAS_NODE_TYPES.videoStoryboard]: videoStoryboardNodeDefinition,
   [CANVAS_NODE_TYPES.group]: groupNodeDefinition,
   [CANVAS_NODE_TYPES.storyboardSplit]: storyboardSplitDefinition,
   [CANVAS_NODE_TYPES.storyboardGen]: storyboardGenNodeDefinition,
@@ -280,11 +385,15 @@ export function nodeHasTargetHandle(type: CanvasNodeType): boolean {
 export function getConnectMenuNodeTypes(handleType: 'source' | 'target'): CanvasNodeType[] {
   const fromSource = handleType === 'source';
   return Object.values(canvasNodeDefinitions)
-    .filter((definition) => (fromSource
-      ? definition.connectivity.connectMenu.fromSource
-      : definition.connectivity.connectMenu.fromTarget))
-    .filter((definition) => (fromSource
-      ? definition.connectivity.targetHandle
-      : definition.connectivity.sourceHandle))
+    .filter((definition) =>
+      fromSource
+        ? definition.connectivity.connectMenu.fromSource
+        : definition.connectivity.connectMenu.fromTarget
+    )
+    .filter((definition) =>
+      fromSource
+        ? definition.connectivity.targetHandle
+        : definition.connectivity.sourceHandle
+    )
     .map((definition) => definition.type);
 }

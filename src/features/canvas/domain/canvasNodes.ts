@@ -5,6 +5,9 @@ export const CANVAS_NODE_TYPES = {
   imageEdit: 'imageNode',
   exportImage: 'exportImageNode',
   textAnnotation: 'textAnnotationNode',
+  video: 'videoNode',
+  audio: 'audioNode',
+  videoStoryboard: 'videoStoryboardNode',
   group: 'groupNode',
   storyboardSplit: 'storyboardNode',
   storyboardGen: 'storyboardGenNode',
@@ -64,9 +67,47 @@ export interface GroupNodeData extends NodeDisplayData {
   [key: string]: unknown;
 }
 
+export type TextAnnotationMode =
+  | 'plain-text'
+  | 'text-to-image-prompt'
+  | 'text-to-music-prompt'
+  | 'text-to-video-prompt'
+  | 'reverse-prompt';
+
 export interface TextAnnotationNodeData extends NodeDisplayData {
   content: string;
+  mode: TextAnnotationMode;
+  lastAppliedTaskType?: string | null;
   [key: string]: unknown;
+}
+
+export type MediaTaskStatus = 'idle' | 'running' | 'success' | 'error';
+
+export interface MediaFileNodeData extends NodeDisplayData {
+  filePath: string | null;
+  sourceFileName?: string | null;
+  mimeType?: string | null;
+  durationSec?: number | null;
+}
+
+export type VideoNodeTaskMode = 'reference' | 'image-to-video' | 'first-last-frame';
+
+export interface VideoNodeData extends MediaFileNodeData {
+  prompt: string;
+  taskMode: VideoNodeTaskMode;
+  taskStatus: MediaTaskStatus;
+  taskMessage?: string | null;
+  taskOutputSummary?: string | null;
+  lastExecutedAt?: number | null;
+}
+
+export interface AudioNodeData extends MediaFileNodeData {
+  prompt: string;
+  taskMode: 'audio-to-video';
+  taskStatus: MediaTaskStatus;
+  taskMessage?: string | null;
+  taskOutputSummary?: string | null;
+  lastExecutedAt?: number | null;
 }
 
 export interface ImageEditNodeData extends NodeImageData {
@@ -140,10 +181,35 @@ export interface StoryboardGenNodeData {
   [key: string]: unknown;
 }
 
+export type VideoStoryboardSegmentStatus = 'draft' | 'saved';
+
+export interface VideoStoryboardSegment {
+  id: string;
+  startSec: number;
+  endSec: number;
+  text: string;
+  order: number;
+  keyframeDataUrl?: string | null;
+  status: VideoStoryboardSegmentStatus;
+}
+
+export interface VideoStoryboardNodeData extends MediaFileNodeData {
+  currentTimeSec: number;
+  selectionStartSec: number;
+  selectionEndSec: number;
+  draftText: string;
+  activeSegmentId: string | null;
+  segments: VideoStoryboardSegment[];
+  lastCaptureDataUrl?: string | null;
+}
+
 export type CanvasNodeData =
   | UploadImageNodeData
   | ExportImageNodeData
   | TextAnnotationNodeData
+  | VideoNodeData
+  | AudioNodeData
+  | VideoStoryboardNodeData
   | GroupNodeData
   | ImageEditNodeData
   | StoryboardSplitNodeData
@@ -206,6 +272,24 @@ export function isTextAnnotationNode(
   node: CanvasNode | null | undefined
 ): node is Node<TextAnnotationNodeData, typeof CANVAS_NODE_TYPES.textAnnotation> {
   return node?.type === CANVAS_NODE_TYPES.textAnnotation;
+}
+
+export function isVideoNode(
+  node: CanvasNode | null | undefined
+): node is Node<VideoNodeData, typeof CANVAS_NODE_TYPES.video> {
+  return node?.type === CANVAS_NODE_TYPES.video;
+}
+
+export function isAudioNode(
+  node: CanvasNode | null | undefined
+): node is Node<AudioNodeData, typeof CANVAS_NODE_TYPES.audio> {
+  return node?.type === CANVAS_NODE_TYPES.audio;
+}
+
+export function isVideoStoryboardNode(
+  node: CanvasNode | null | undefined
+): node is Node<VideoStoryboardNodeData, typeof CANVAS_NODE_TYPES.videoStoryboard> {
+  return node?.type === CANVAS_NODE_TYPES.videoStoryboard;
 }
 
 export function isStoryboardSplitNode(

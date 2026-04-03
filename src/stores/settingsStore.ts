@@ -1,12 +1,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import {
-  DEFAULT_GRSAI_CREDIT_TIER_ID,
-  PRICE_DISPLAY_CURRENCY_MODES,
-  type GrsaiCreditTierId,
-  type PriceDisplayCurrencyMode,
-} from '@/features/canvas/pricing/types';
-import {
   buildApiKeysFromCustomInterfaces,
   buildCustomInterfacesFromLegacyProviders,
   createDefaultCustomApiInterface,
@@ -15,6 +9,19 @@ import {
   type CustomApiInterfaceConfig,
   type LegacyProviderInterfaceConfig,
 } from '@/features/canvas/models/customInterfaces';
+import {
+  createDefaultComfyUiConfig,
+  createDefaultComfyWorkflow,
+  normalizeComfyWorkflow,
+} from '@/features/providers/comfyUi';
+import type {
+  BootstrapAppResult,
+  ComfyUiProviderConfig,
+  ComfyWorkflowTemplateConfig,
+  PersistedAppSettings,
+  ProviderRouteConfig,
+  VersionFeedSettings,
+} from '@/types/app';
 
 export type UiRadiusPreset = 'compact' | 'default' | 'large';
 export type ThemeTonePreset = 'neutral' | 'warm' | 'cool';
@@ -23,8 +30,11 @@ export type ProviderApiKeys = Record<string, string>;
 
 interface SettingsState {
   isHydrated: boolean;
+  bootstrap: BootstrapAppResult | null;
   apiKeys: ProviderApiKeys;
   customApiInterfaces: CustomApiInterfaceConfig[];
+  comfyUi: ComfyUiProviderConfig;
+  providerRoutes: ProviderRouteConfig[];
   hideProviderGuidePopover: boolean;
   downloadPresetPaths: string[];
   useUploadFilenameAsNodeTitle: boolean;
@@ -34,18 +44,20 @@ interface SettingsState {
   ignoreAtTagWhenCopyingAndGenerating: boolean;
   enableStoryboardGenGridPreviewShortcut: boolean;
   showStoryboardGenAdvancedRatioControls: boolean;
-  showNodePrice: boolean;
-  priceDisplayCurrencyMode: PriceDisplayCurrencyMode;
-  usdToCnyRate: number;
-  preferDiscountedPrice: boolean;
-  grsaiCreditTierId: GrsaiCreditTierId;
   uiRadiusPreset: UiRadiusPreset;
   themeTonePreset: ThemeTonePreset;
   accentColor: string;
   canvasEdgeRoutingMode: CanvasEdgeRoutingMode;
   autoCheckAppUpdateOnLaunch: boolean;
   enableUpdateDialog: boolean;
+  versionFeed: VersionFeedSettings;
+  setBootstrap: (bootstrap: BootstrapAppResult | null) => void;
   setCustomApiInterfaces: (interfaces: CustomApiInterfaceConfig[]) => void;
+  setComfyUi: (config: ComfyUiProviderConfig) => void;
+  upsertComfyWorkflow: (workflow: Partial<ComfyWorkflowTemplateConfig>) => void;
+  removeComfyWorkflow: (workflowId: string) => void;
+  setProviderRoutes: (routes: ProviderRouteConfig[]) => void;
+  setVersionFeed: (versionFeed: VersionFeedSettings) => void;
   setHideProviderGuidePopover: (hide: boolean) => void;
   setDownloadPresetPaths: (paths: string[]) => void;
   setUseUploadFilenameAsNodeTitle: (enabled: boolean) => void;
@@ -55,18 +67,30 @@ interface SettingsState {
   setIgnoreAtTagWhenCopyingAndGenerating: (enabled: boolean) => void;
   setEnableStoryboardGenGridPreviewShortcut: (enabled: boolean) => void;
   setShowStoryboardGenAdvancedRatioControls: (enabled: boolean) => void;
-  setShowNodePrice: (enabled: boolean) => void;
-  setPriceDisplayCurrencyMode: (mode: PriceDisplayCurrencyMode) => void;
-  setUsdToCnyRate: (rate: number) => void;
-  setPreferDiscountedPrice: (enabled: boolean) => void;
-  setGrsaiCreditTierId: (tierId: GrsaiCreditTierId) => void;
   setUiRadiusPreset: (preset: UiRadiusPreset) => void;
   setThemeTonePreset: (preset: ThemeTonePreset) => void;
   setAccentColor: (color: string) => void;
   setCanvasEdgeRoutingMode: (mode: CanvasEdgeRoutingMode) => void;
   setAutoCheckAppUpdateOnLaunch: (enabled: boolean) => void;
   setEnableUpdateDialog: (enabled: boolean) => void;
+  applyPersistedAppSettings: (settings: PersistedAppSettings | null | undefined) => void;
+  exportPersistedAppSettings: () => PersistedAppSettings;
 }
+
+const DEFAULT_GITHUB_REPO = 'AFile0216/StoryBox';
+const DEFAULT_VERSION_FEED: VersionFeedSettings = {
+  source: 'github',
+  githubRepo: DEFAULT_GITHUB_REPO,
+  customFeedUrl: '',
+};
+
+const DEFAULT_PROVIDER_ROUTES: ProviderRouteConfig[] = [
+  { taskType: 'text-to-image', providerKind: 'custom-api', targetId: null },
+  { taskType: 'image-to-image', providerKind: 'custom-api', targetId: null },
+  { taskType: 'image-to-video', providerKind: 'comfyui', targetId: null },
+  { taskType: 'audio-to-video', providerKind: 'comfyui', targetId: null },
+  { taskType: 'reverse-prompt', providerKind: 'custom-api', targetId: null },
+];
 
 const HEX_COLOR_PATTERN = /^#?[0-9a-fA-F]{6}$/;
 
@@ -76,31 +100,6 @@ function normalizeHexColor(input: string): string {
     return '#3B82F6';
   }
   return trimmed.startsWith('#') ? trimmed.toUpperCase() : `#${trimmed.toUpperCase()}`;
-}
-
-function normalizeUsdToCnyRate(input: number | string | null | undefined): number {
-  const numeric = typeof input === 'number' ? input : Number(input);
-  if (!Number.isFinite(numeric) || numeric <= 0) {
-    return 7.2;
-  }
-
-  return Math.min(100, Math.max(0.01, Math.round(numeric * 100) / 100));
-}
-
-function normalizeGrsaiCreditTierId(
-  input: GrsaiCreditTierId | string | null | undefined
-): GrsaiCreditTierId {
-  switch (input) {
-    case 'tier-10':
-    case 'tier-20':
-    case 'tier-49':
-    case 'tier-99':
-    case 'tier-499':
-    case 'tier-999':
-      return input;
-    default:
-      return DEFAULT_GRSAI_CREDIT_TIER_ID;
-  }
 }
 
 function normalizeCanvasEdgeRoutingMode(
@@ -127,8 +126,50 @@ function normalizeApiKeys(input: ProviderApiKeys | null | undefined): ProviderAp
   }, {});
 }
 
+function normalizeVersionFeed(input: Partial<VersionFeedSettings> | null | undefined): VersionFeedSettings {
+  return {
+    source: input?.source === 'custom' ? 'custom' : 'github',
+    githubRepo: (input?.githubRepo ?? DEFAULT_GITHUB_REPO).trim() || DEFAULT_GITHUB_REPO,
+    customFeedUrl: (input?.customFeedUrl ?? '').trim(),
+  };
+}
+
+function normalizeProviderRoutes(
+  input: ProviderRouteConfig[] | null | undefined
+): ProviderRouteConfig[] {
+  if (!Array.isArray(input) || input.length === 0) {
+    return DEFAULT_PROVIDER_ROUTES;
+  }
+
+  const seen = new Set<string>();
+  const normalized = input.reduce<ProviderRouteConfig[]>((acc, route) => {
+    if (!route?.taskType || seen.has(route.taskType)) {
+      return acc;
+    }
+    seen.add(route.taskType);
+    acc.push({
+      taskType: route.taskType,
+      providerKind: route.providerKind === 'comfyui' ? 'comfyui' : 'custom-api',
+      targetId: route.targetId?.trim() || null,
+    });
+    return acc;
+  }, []);
+
+  for (const fallback of DEFAULT_PROVIDER_ROUTES) {
+    if (!seen.has(fallback.taskType)) {
+      normalized.push(fallback);
+    }
+  }
+
+  return normalized;
+}
+
+function normalizeDownloadPaths(paths: string[]): string[] {
+  return Array.from(new Set(paths.map((path) => path.trim()).filter((path) => path.length > 0))).slice(0, 8);
+}
+
 export function hasConfiguredApiKey(apiKeys: ProviderApiKeys): boolean {
-  return getConfiguredApiKeyCount(apiKeys) > 0;
+  return Object.values(apiKeys).some((key) => key.trim().length > 0);
 }
 
 export function getConfiguredApiKeyCount(
@@ -142,6 +183,26 @@ export function getConfiguredApiKeyCount(
   return keysToCount.reduce((count, key) => (key.trim().length > 0 ? count + 1 : count), 0);
 }
 
+export function getConfiguredProviderCount(
+  state: Pick<SettingsState, 'customApiInterfaces' | 'comfyUi'>
+): number {
+  const customApiCount = state.customApiInterfaces.filter(
+    (item) => item.apiKey.trim().length > 0 && item.modelIds.length > 0
+  ).length;
+  const comfyCount =
+    state.comfyUi.enabled &&
+    state.comfyUi.baseUrl.trim().length > 0 &&
+    state.comfyUi.workflows.some(
+      (workflow) =>
+        workflow.promptApiJson.trim().length > 0 &&
+        workflow.outputNodeId.trim().length > 0
+    )
+      ? 1
+      : 0;
+
+  return customApiCount + comfyCount;
+}
+
 export function getCustomApiInterface(
   state: Pick<SettingsState, 'customApiInterfaces'>,
   interfaceId: string | null | undefined
@@ -149,14 +210,50 @@ export function getCustomApiInterface(
   return getCustomInterfaceById(state.customApiInterfaces, interfaceId);
 }
 
+function applySettingsState(
+  set: (partial: Partial<SettingsState>) => void,
+  settings: PersistedAppSettings
+): void {
+  const customApiInterfaces = normalizeCustomApiInterfaces(settings.customApiInterfaces);
+  const comfyUi = createDefaultComfyUiConfig(settings.comfyUi);
+  set({
+    apiKeys: buildApiKeysFromCustomInterfaces(customApiInterfaces),
+    customApiInterfaces,
+    comfyUi,
+    providerRoutes: normalizeProviderRoutes(settings.providerRoutes),
+    autoCheckAppUpdateOnLaunch: settings.autoCheckAppUpdateOnLaunch ?? true,
+    enableUpdateDialog: settings.enableUpdateDialog ?? true,
+    versionFeed: normalizeVersionFeed(settings.versionFeed),
+    downloadPresetPaths: normalizeDownloadPaths(settings.downloadPresetPaths),
+    useUploadFilenameAsNodeTitle: settings.useUploadFilenameAsNodeTitle ?? true,
+    storyboardGenKeepStyleConsistent: settings.storyboardGenKeepStyleConsistent ?? true,
+    storyboardGenDisableTextInImage: settings.storyboardGenDisableTextInImage ?? true,
+    storyboardGenAutoInferEmptyFrame: settings.storyboardGenAutoInferEmptyFrame ?? true,
+    ignoreAtTagWhenCopyingAndGenerating:
+      settings.ignoreAtTagWhenCopyingAndGenerating ?? true,
+    enableStoryboardGenGridPreviewShortcut:
+      settings.enableStoryboardGenGridPreviewShortcut ?? false,
+    showStoryboardGenAdvancedRatioControls:
+      settings.showStoryboardGenAdvancedRatioControls ?? false,
+    uiRadiusPreset: settings.uiRadiusPreset ?? 'default',
+    themeTonePreset: settings.themeTonePreset ?? 'neutral',
+    accentColor: normalizeHexColor(settings.accentColor ?? '#3B82F6'),
+    canvasEdgeRoutingMode: normalizeCanvasEdgeRoutingMode(settings.canvasEdgeRoutingMode),
+  });
+}
+
 export { createDefaultCustomApiInterface, type CustomApiInterfaceConfig };
+export { createDefaultComfyWorkflow, type ComfyUiProviderConfig, type ComfyWorkflowTemplateConfig };
 
 export const useSettingsStore = create<SettingsState>()(
   persist(
-    (set) => ({
+    (set, get) => ({
       isHydrated: false,
+      bootstrap: null,
       apiKeys: {},
       customApiInterfaces: [createDefaultCustomApiInterface()],
+      comfyUi: createDefaultComfyUiConfig(),
+      providerRoutes: DEFAULT_PROVIDER_ROUTES,
       hideProviderGuidePopover: false,
       downloadPresetPaths: [],
       useUploadFilenameAsNodeTitle: true,
@@ -166,17 +263,14 @@ export const useSettingsStore = create<SettingsState>()(
       ignoreAtTagWhenCopyingAndGenerating: true,
       enableStoryboardGenGridPreviewShortcut: false,
       showStoryboardGenAdvancedRatioControls: false,
-      showNodePrice: true,
-      priceDisplayCurrencyMode: 'auto',
-      usdToCnyRate: 7.2,
-      preferDiscountedPrice: false,
-      grsaiCreditTierId: DEFAULT_GRSAI_CREDIT_TIER_ID,
       uiRadiusPreset: 'default',
       themeTonePreset: 'neutral',
       accentColor: '#3B82F6',
       canvasEdgeRoutingMode: 'spline',
       autoCheckAppUpdateOnLaunch: true,
       enableUpdateDialog: true,
+      versionFeed: DEFAULT_VERSION_FEED,
+      setBootstrap: (bootstrap) => set({ bootstrap }),
       setCustomApiInterfaces: (interfaces) => {
         const normalized = normalizeCustomApiInterfaces(interfaces);
         const resolved = normalized.length > 0 ? normalized : [createDefaultCustomApiInterface()];
@@ -185,13 +279,45 @@ export const useSettingsStore = create<SettingsState>()(
           apiKeys: buildApiKeysFromCustomInterfaces(resolved),
         });
       },
-      setHideProviderGuidePopover: (hide) => set({ hideProviderGuidePopover: hide }),
-      setDownloadPresetPaths: (paths) => {
-        const uniquePaths = Array.from(
-          new Set(paths.map((path) => path.trim()).filter((path) => path.length > 0))
-        ).slice(0, 8);
-        set({ downloadPresetPaths: uniquePaths });
+      setComfyUi: (config) => {
+        set({ comfyUi: createDefaultComfyUiConfig(config) });
       },
+      upsertComfyWorkflow: (workflow) => {
+        const current = get().comfyUi;
+        const nextWorkflow = normalizeComfyWorkflow(workflow, current.workflows.length);
+        const existingIndex = current.workflows.findIndex((item) => item.id === nextWorkflow.id);
+        const nextWorkflows = [...current.workflows];
+        if (existingIndex >= 0) {
+          nextWorkflows[existingIndex] = nextWorkflow;
+        } else {
+          nextWorkflows.push(nextWorkflow);
+        }
+        set({
+          comfyUi: createDefaultComfyUiConfig({
+            ...current,
+            workflows: nextWorkflows,
+            defaultWorkflowId: current.defaultWorkflowId || nextWorkflow.id,
+          }),
+        });
+      },
+      removeComfyWorkflow: (workflowId) => {
+        const current = get().comfyUi;
+        const nextWorkflows = current.workflows.filter((item) => item.id !== workflowId);
+        set({
+          comfyUi: createDefaultComfyUiConfig({
+            ...current,
+            workflows: nextWorkflows,
+            defaultWorkflowId:
+              current.defaultWorkflowId === workflowId
+                ? nextWorkflows[0]?.id ?? null
+                : current.defaultWorkflowId,
+          }),
+        });
+      },
+      setProviderRoutes: (routes) => set({ providerRoutes: normalizeProviderRoutes(routes) }),
+      setVersionFeed: (versionFeed) => set({ versionFeed: normalizeVersionFeed(versionFeed) }),
+      setHideProviderGuidePopover: (hide) => set({ hideProviderGuidePopover: hide }),
+      setDownloadPresetPaths: (paths) => set({ downloadPresetPaths: normalizeDownloadPaths(paths) }),
       setUseUploadFilenameAsNodeTitle: (enabled) => set({ useUploadFilenameAsNodeTitle: enabled }),
       setStoryboardGenKeepStyleConsistent: (enabled) =>
         set({ storyboardGenKeepStyleConsistent: enabled }),
@@ -205,20 +331,6 @@ export const useSettingsStore = create<SettingsState>()(
         set({ enableStoryboardGenGridPreviewShortcut: enabled }),
       setShowStoryboardGenAdvancedRatioControls: (enabled) =>
         set({ showStoryboardGenAdvancedRatioControls: enabled }),
-      setShowNodePrice: (enabled) => set({ showNodePrice: enabled }),
-      setPriceDisplayCurrencyMode: (priceDisplayCurrencyMode) =>
-        set({
-          priceDisplayCurrencyMode: PRICE_DISPLAY_CURRENCY_MODES.includes(
-            priceDisplayCurrencyMode
-          )
-            ? priceDisplayCurrencyMode
-            : 'auto',
-        }),
-      setUsdToCnyRate: (usdToCnyRate) =>
-        set({ usdToCnyRate: normalizeUsdToCnyRate(usdToCnyRate) }),
-      setPreferDiscountedPrice: (enabled) => set({ preferDiscountedPrice: enabled }),
-      setGrsaiCreditTierId: (grsaiCreditTierId) =>
-        set({ grsaiCreditTierId: normalizeGrsaiCreditTierId(grsaiCreditTierId) }),
       setUiRadiusPreset: (uiRadiusPreset) => set({ uiRadiusPreset }),
       setThemeTonePreset: (themeTonePreset) => set({ themeTonePreset }),
       setAccentColor: (color) => set({ accentColor: normalizeHexColor(color) }),
@@ -226,10 +338,41 @@ export const useSettingsStore = create<SettingsState>()(
         set({ canvasEdgeRoutingMode: normalizeCanvasEdgeRoutingMode(canvasEdgeRoutingMode) }),
       setAutoCheckAppUpdateOnLaunch: (enabled) => set({ autoCheckAppUpdateOnLaunch: enabled }),
       setEnableUpdateDialog: (enabled) => set({ enableUpdateDialog: enabled }),
+      applyPersistedAppSettings: (settings) => {
+        if (!settings) {
+          return;
+        }
+        applySettingsState(set, settings);
+      },
+      exportPersistedAppSettings: () => {
+        const state = get();
+        return {
+          customApiInterfaces: state.customApiInterfaces,
+          comfyUi: state.comfyUi,
+          providerRoutes: state.providerRoutes,
+          autoCheckAppUpdateOnLaunch: state.autoCheckAppUpdateOnLaunch,
+          enableUpdateDialog: state.enableUpdateDialog,
+          versionFeed: state.versionFeed,
+          downloadPresetPaths: state.downloadPresetPaths,
+          useUploadFilenameAsNodeTitle: state.useUploadFilenameAsNodeTitle,
+          storyboardGenKeepStyleConsistent: state.storyboardGenKeepStyleConsistent,
+          storyboardGenDisableTextInImage: state.storyboardGenDisableTextInImage,
+          storyboardGenAutoInferEmptyFrame: state.storyboardGenAutoInferEmptyFrame,
+          ignoreAtTagWhenCopyingAndGenerating: state.ignoreAtTagWhenCopyingAndGenerating,
+          enableStoryboardGenGridPreviewShortcut:
+            state.enableStoryboardGenGridPreviewShortcut,
+          showStoryboardGenAdvancedRatioControls:
+            state.showStoryboardGenAdvancedRatioControls,
+          uiRadiusPreset: state.uiRadiusPreset,
+          themeTonePreset: state.themeTonePreset,
+          accentColor: state.accentColor,
+          canvasEdgeRoutingMode: state.canvasEdgeRoutingMode,
+        };
+      },
     }),
     {
       name: 'settings-storage',
-      version: 14,
+      version: 15,
       onRehydrateStorage: () => {
         return (_state, error) => {
           if (error) {
@@ -243,6 +386,9 @@ export const useSettingsStore = create<SettingsState>()(
           apiKeys?: ProviderApiKeys;
           providerInterfaces?: LegacyProviderInterfaceConfig[];
           customApiInterfaces?: CustomApiInterfaceConfig[];
+          comfyUi?: ComfyUiProviderConfig;
+          providerRoutes?: ProviderRouteConfig[];
+          versionFeed?: VersionFeedSettings;
           apiKey?: string;
           ignoreAtTagWhenCopyingAndGenerating?: boolean;
           hideProviderGuidePopover?: boolean;
@@ -252,11 +398,13 @@ export const useSettingsStore = create<SettingsState>()(
           enableStoryboardGenGridPreviewShortcut?: boolean;
           showStoryboardGenAdvancedRatioControls?: boolean;
           storyboardGenAutoInferEmptyFrame?: boolean;
-          showNodePrice?: boolean;
-          priceDisplayCurrencyMode?: PriceDisplayCurrencyMode | string;
-          usdToCnyRate?: number | string;
-          preferDiscountedPrice?: boolean;
-          grsaiCreditTierId?: GrsaiCreditTierId | string;
+          downloadPresetPaths?: string[];
+          useUploadFilenameAsNodeTitle?: boolean;
+          storyboardGenKeepStyleConsistent?: boolean;
+          storyboardGenDisableTextInImage?: boolean;
+          uiRadiusPreset?: UiRadiusPreset;
+          themeTonePreset?: ThemeTonePreset;
+          accentColor?: string;
         };
 
         const normalizedApiKeys = normalizeApiKeys(state.apiKeys);
@@ -281,11 +429,17 @@ export const useSettingsStore = create<SettingsState>()(
           customApiInterfaces = [createDefaultCustomApiInterface()];
         }
 
+        const comfyUi = createDefaultComfyUiConfig(state.comfyUi);
+
         return {
           ...(persistedState as object),
           isHydrated: true,
+          bootstrap: null,
           apiKeys: buildApiKeysFromCustomInterfaces(customApiInterfaces),
           customApiInterfaces,
+          comfyUi,
+          providerRoutes: normalizeProviderRoutes(state.providerRoutes),
+          versionFeed: normalizeVersionFeed(state.versionFeed),
           ignoreAtTagWhenCopyingAndGenerating:
             state.ignoreAtTagWhenCopyingAndGenerating ?? true,
           hideProviderGuidePopover: state.hideProviderGuidePopover ?? false,
@@ -297,15 +451,13 @@ export const useSettingsStore = create<SettingsState>()(
           showStoryboardGenAdvancedRatioControls:
             state.showStoryboardGenAdvancedRatioControls ?? false,
           storyboardGenAutoInferEmptyFrame: state.storyboardGenAutoInferEmptyFrame ?? true,
-          showNodePrice: state.showNodePrice ?? true,
-          priceDisplayCurrencyMode: PRICE_DISPLAY_CURRENCY_MODES.includes(
-            state.priceDisplayCurrencyMode as PriceDisplayCurrencyMode
-          )
-            ? (state.priceDisplayCurrencyMode as PriceDisplayCurrencyMode)
-            : 'auto',
-          usdToCnyRate: normalizeUsdToCnyRate(state.usdToCnyRate),
-          preferDiscountedPrice: state.preferDiscountedPrice ?? false,
-          grsaiCreditTierId: normalizeGrsaiCreditTierId(state.grsaiCreditTierId),
+          downloadPresetPaths: normalizeDownloadPaths(state.downloadPresetPaths ?? []),
+          useUploadFilenameAsNodeTitle: state.useUploadFilenameAsNodeTitle ?? true,
+          storyboardGenKeepStyleConsistent: state.storyboardGenKeepStyleConsistent ?? true,
+          storyboardGenDisableTextInImage: state.storyboardGenDisableTextInImage ?? true,
+          uiRadiusPreset: state.uiRadiusPreset ?? 'default',
+          themeTonePreset: state.themeTonePreset ?? 'neutral',
+          accentColor: normalizeHexColor(state.accentColor ?? '#3B82F6'),
         };
       },
     }

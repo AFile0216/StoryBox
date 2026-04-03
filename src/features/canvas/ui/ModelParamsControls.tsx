@@ -18,6 +18,7 @@ import {
   UiCheckbox,
   UiSelect,
 } from '@/components/ui';
+import { COMFYUI_PROVIDER_ID } from '@/features/providers/comfyUi';
 import { useSettingsStore } from '@/stores/settingsStore';
 import { openSettingsDialog } from '@/features/settings/settingsEvents';
 
@@ -183,6 +184,7 @@ export const ModelParamsControls = memo(({
   const [panelInterfaceId, setPanelInterfaceId] = useState(selectedModel.interfaceId ?? '');
   const [missingKeyInterfaceName, setMissingKeyInterfaceName] = useState<string | null>(null);
   const apiKeys = useSettingsStore((state) => state.apiKeys);
+  const comfyUi = useSettingsStore((state) => state.comfyUi);
 
   const selectedModelName = useMemo(
     () => selectedModel.displayName.replace(/\s*\([^)]*\)\s*$/u, '').trim() || selectedModel.displayName,
@@ -485,8 +487,16 @@ export const ModelParamsControls = memo(({
                           }`}
                         onClick={(event) => {
                           event.stopPropagation();
+                          const isComfyProvider = apiInterface.id === COMFYUI_PROVIDER_ID;
                           const interfaceApiKey = (apiKeys[apiInterface.id] ?? '').trim();
-                          if (!interfaceApiKey) {
+                          const comfyReady =
+                            comfyUi.enabled &&
+                            comfyUi.workflows.some(
+                              (workflow) =>
+                                workflow.promptApiJson.trim().length > 0 &&
+                                workflow.outputNodeId.trim().length > 0
+                            );
+                          if ((!isComfyProvider && !interfaceApiKey) || (isComfyProvider && !comfyReady)) {
                             setOpenPanel(null);
                             setMissingKeyInterfaceName(apiInterface.label);
                             return;

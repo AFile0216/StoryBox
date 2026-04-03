@@ -1,16 +1,21 @@
 import { memo, useCallback } from 'react';
-import { type NodeProps } from '@xyflow/react';
+import { Handle, Position, type NodeProps } from '@xyflow/react';
 import { FileText } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
-import remarkGfm from 'remark-gfm';
 import remarkBreaks from 'remark-breaks';
+import remarkGfm from 'remark-gfm';
 import { useTranslation } from 'react-i18next';
 import { openUrl } from '@tauri-apps/plugin-opener';
 
-import { CANVAS_NODE_TYPES, type TextAnnotationNodeData } from '@/features/canvas/domain/canvasNodes';
+import {
+  CANVAS_NODE_TYPES,
+  type TextAnnotationMode,
+  type TextAnnotationNodeData,
+} from '@/features/canvas/domain/canvasNodes';
 import { resolveNodeDisplayName } from '@/features/canvas/domain/nodeDisplay';
 import { NodeHeader, NODE_HEADER_FLOATING_POSITION_CLASS } from '@/features/canvas/ui/NodeHeader';
 import { NodeResizeHandle } from '@/features/canvas/ui/NodeResizeHandle';
+import { UiSelect } from '@/components/ui';
 import { useCanvasStore } from '@/stores/canvasStore';
 
 type TextAnnotationNodeProps = NodeProps & {
@@ -19,12 +24,20 @@ type TextAnnotationNodeProps = NodeProps & {
   selected?: boolean;
 };
 
-const DEFAULT_WIDTH = 300;
-const DEFAULT_HEIGHT = 180;
-const MIN_WIDTH = 180;
-const MIN_HEIGHT = 100;
-const MAX_WIDTH = 900;
-const MAX_HEIGHT = 900;
+const DEFAULT_WIDTH = 340;
+const DEFAULT_HEIGHT = 220;
+const MIN_WIDTH = 220;
+const MIN_HEIGHT = 140;
+const MAX_WIDTH = 960;
+const MAX_HEIGHT = 960;
+
+const TEXT_MODES: TextAnnotationMode[] = [
+  'plain-text',
+  'text-to-image-prompt',
+  'text-to-music-prompt',
+  'text-to-video-prompt',
+  'reverse-prompt',
+];
 
 export const TextAnnotationNode = memo(({
   id,
@@ -37,6 +50,7 @@ export const TextAnnotationNode = memo(({
   const setSelectedNode = useCanvasStore((state) => state.setSelectedNode);
   const updateNodeData = useCanvasStore((state) => state.updateNodeData);
   const content = typeof data.content === 'string' ? data.content : '';
+  const mode = (data.mode ?? 'plain-text') as TextAnnotationMode;
   const resolvedTitle = resolveNodeDisplayName(CANVAS_NODE_TYPES.textAnnotation, data);
   const resolvedWidth = Math.max(MIN_WIDTH, Math.round(width ?? DEFAULT_WIDTH));
   const resolvedHeight = Math.max(MIN_HEIGHT, Math.round(height ?? DEFAULT_HEIGHT));
@@ -50,7 +64,7 @@ export const TextAnnotationNode = memo(({
   return (
     <div
       className={`
-        group relative h-full w-full overflow-visible rounded-[var(--node-radius)] border bg-surface-dark/85 p-1.5 transition-colors duration-150
+        group relative h-full w-full overflow-visible rounded-[var(--node-radius)] border bg-surface-dark/85 p-2 transition-colors duration-150
         ${selected
           ? 'border-accent shadow-[0_0_0_1px_rgba(59,130,246,0.32)]'
           : 'border-[rgba(15,23,42,0.22)] hover:border-[rgba(15,23,42,0.34)] dark:border-[rgba(255,255,255,0.22)] dark:hover:border-[rgba(255,255,255,0.34)]'}
@@ -66,26 +80,44 @@ export const TextAnnotationNode = memo(({
         onTitleChange={(nextTitle) => updateNodeData(id, { displayName: nextTitle })}
       />
 
-      <NodeResizeHandle
-        minWidth={MIN_WIDTH}
-        minHeight={MIN_HEIGHT}
-        maxWidth={MAX_WIDTH}
-        maxHeight={MAX_HEIGHT}
-      />
+      <div className="mb-2 mt-6 flex items-center gap-2">
+        <span className="text-[11px] uppercase tracking-[0.12em] text-text-muted">
+          {t('node.textAnnotation.modeLabel')}
+        </span>
+        <UiSelect
+          value={mode}
+          onChange={(event) =>
+            updateNodeData(id, {
+              mode: event.target.value as TextAnnotationMode,
+            })
+          }
+          className="h-8 text-xs"
+        >
+          {TEXT_MODES.map((item) => (
+            <option key={item} value={item}>
+              {t(`node.textAnnotation.mode.${item}`)}
+            </option>
+          ))}
+        </UiSelect>
+      </div>
 
       {selected ? (
         <textarea
           autoFocus
           value={content}
           onChange={(event) => {
-            const nextValue = event.target.value;
-            updateNodeData(id, { content: nextValue });
+            updateNodeData(id, { content: event.target.value });
           }}
-          placeholder={t('node.textAnnotation.placeholder')}
-          className="nodrag nowheel h-full w-full resize-none border-none bg-transparent px-1 py-0.5 text-sm leading-6 text-text-dark outline-none placeholder:text-text-muted/70"
+          placeholder={t('node.textAnnotation.placeholder', {
+            mode: t(`node.textAnnotation.mode.${mode}`),
+          })}
+          className="nodrag nowheel h-[calc(100%-72px)] w-full resize-none rounded-lg border border-[rgba(255,255,255,0.08)] bg-bg-dark/45 px-3 py-2 text-sm leading-6 text-text-dark outline-none placeholder:text-text-muted/70"
         />
       ) : (
-        <div className="nodrag nowheel h-full w-full overflow-auto px-1 py-0.5 text-sm leading-6 text-text-dark">
+        <div className="nodrag nowheel h-[calc(100%-72px)] overflow-auto rounded-lg border border-[rgba(255,255,255,0.08)] bg-bg-dark/35 px-3 py-2 text-sm leading-6 text-text-dark">
+          <div className="mb-2 inline-flex rounded-full border border-[rgba(255,255,255,0.12)] bg-white/5 px-2 py-0.5 text-[10px] uppercase tracking-[0.12em] text-text-muted">
+            {t(`node.textAnnotation.mode.${mode}`)}
+          </div>
           {content.trim().length > 0 ? (
             <div className="markdown-body break-words [&_a]:text-accent [&_blockquote]:border-l-2 [&_blockquote]:border-white/20 [&_blockquote]:pl-3 [&_code]:rounded [&_code]:bg-white/10 [&_code]:px-1 [&_code]:py-0.5 [&_h1]:text-base [&_h1]:font-semibold [&_h2]:text-[15px] [&_h2]:font-semibold [&_h3]:text-sm [&_h3]:font-semibold [&_hr]:border-white/10 [&_li]:my-0.5 [&_ol]:list-decimal [&_ol]:pl-5 [&_p]:my-0 [&_p+_p]:mt-4 [&_pre]:overflow-auto [&_pre]:rounded-md [&_pre]:bg-black/30 [&_pre]:p-2 [&_table]:w-full [&_table]:border-collapse [&_table]:text-xs [&_td]:border [&_td]:border-white/10 [&_td]:px-2 [&_td]:py-1 [&_th]:border [&_th]:border-white/10 [&_th]:px-2 [&_th]:py-1 [&_ul]:list-disc [&_ul]:pl-5">
               <ReactMarkdown
@@ -115,6 +147,20 @@ export const TextAnnotationNode = memo(({
           )}
         </div>
       )}
+
+      <Handle
+        type="source"
+        id="source"
+        position={Position.Right}
+        className="!h-2 !w-2 !border-surface-dark !bg-accent"
+      />
+
+      <NodeResizeHandle
+        minWidth={MIN_WIDTH}
+        minHeight={MIN_HEIGHT}
+        maxWidth={MAX_WIDTH}
+        maxHeight={MAX_HEIGHT}
+      />
     </div>
   );
 });

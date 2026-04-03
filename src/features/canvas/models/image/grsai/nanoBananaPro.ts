@@ -1,5 +1,4 @@
 import type { ImageModelDefinition, ResolutionOption } from '../../types';
-import { createGrsaiPointsPricing } from '@/features/canvas/pricing';
 
 export const GRSAI_NANO_BANANA_PRO_MODEL_ID = 'grsai/nano-banana-pro';
 const DEFAULT_GRSAI_PRO_VARIANT = 'nano-banana-pro';
@@ -63,6 +62,7 @@ export const imageModel: ImageModelDefinition = {
   mediaType: 'image',
   displayName: 'Nano Banana Pro',
   providerId: 'grsai',
+  providerKind: 'custom-api',
   description: 'Nano Banana Pro 图像生成与编辑',
   eta: '1min',
   expectedDurationMs: 60000,
@@ -71,10 +71,6 @@ export const imageModel: ImageModelDefinition = {
   aspectRatios: NANO_BANANA_ASPECT_RATIOS.map((value) => ({ value, label: value })),
   resolutions: ALL_RESOLUTION_OPTIONS,
   resolveResolutions: ({ extraParams }) => resolveGrsaiNanoBananaProResolutions(extraParams),
-  pricing: createGrsaiPointsPricing(({ extraParams }) => {
-    const variant = resolveGrsaiNanoBananaProVariant(extraParams);
-    return GRSAI_PRO_POINTS_BY_MODEL[variant] ?? GRSAI_PRO_POINTS_BY_MODEL[DEFAULT_GRSAI_PRO_VARIANT];
-  }),
   resolveRequest: ({ referenceImageCount }) => ({
     requestModel: GRSAI_NANO_BANANA_PRO_MODEL_ID,
     modeLabel: referenceImageCount > 0 ? '编辑模式' : '生成模式',

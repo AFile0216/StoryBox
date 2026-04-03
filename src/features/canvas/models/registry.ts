@@ -3,6 +3,7 @@ import {
   CUSTOM_OPENAI_PROVIDER_ID,
   type CustomApiInterfaceConfig,
 } from './customInterfaces';
+import { COMFYUI_PROVIDER_ID } from '@/features/providers/comfyUi';
 import type {
   ImageModelDefinition,
   ImageModelRuntimeContext,
@@ -33,6 +34,14 @@ const DEFAULT_PROVIDER: ModelProviderDefinition = {
   id: CUSTOM_OPENAI_PROVIDER_ID,
   name: 'Custom API',
   label: 'Custom API',
+  defaultBaseUrl: '',
+  supportsCustomBaseUrl: true,
+};
+
+const COMFYUI_PROVIDER: ModelProviderDefinition = {
+  id: COMFYUI_PROVIDER_ID,
+  name: 'ComfyUI',
+  label: 'ComfyUI',
   defaultBaseUrl: '',
   supportsCustomBaseUrl: true,
 };
@@ -88,6 +97,7 @@ function buildCustomImageModel(
     mediaType: 'image',
     displayName: apiModel,
     providerId: CUSTOM_OPENAI_PROVIDER_ID,
+    providerKind: 'custom-api',
     interfaceId: apiInterface.id,
     interfaceName: apiInterface.name,
     apiModel,
@@ -105,12 +115,41 @@ function buildCustomImageModel(
   };
 }
 
+function buildComfyWorkflowModel(
+  workflow: ReturnType<typeof useSettingsStore.getState>['comfyUi']['workflows'][number]
+): ImageModelDefinition {
+  const taskType = workflow.taskType === 'image-to-image' ? 'image-to-image' : 'text-to-image';
+  return {
+    id: `${COMFYUI_PROVIDER_ID}/${workflow.id}`,
+    mediaType: 'image',
+    displayName: workflow.name,
+    providerId: COMFYUI_PROVIDER_ID,
+    providerKind: 'comfyui',
+    interfaceId: COMFYUI_PROVIDER_ID,
+    interfaceName: 'ComfyUI',
+    workflowId: workflow.id,
+    taskType,
+    description: 'Generate images through a local ComfyUI workflow.',
+    eta: '30s',
+    expectedDurationMs: 30000,
+    defaultAspectRatio: '1:1',
+    defaultResolution: '1K',
+    aspectRatios: DEFAULT_ASPECT_RATIOS.map((value) => ({ value, label: value })),
+    resolutions: DEFAULT_RESOLUTIONS,
+    resolveRequest: ({ referenceImageCount }) => ({
+      requestModel: `${COMFYUI_PROVIDER_ID}/${workflow.id}`,
+      modeLabel: referenceImageCount > 0 ? 'edit' : 'generate',
+    }),
+  };
+}
+
 function buildPlaceholderModel(): ImageModelDefinition {
   return {
     id: PLACEHOLDER_MODEL_ID,
     mediaType: 'image',
     displayName: 'Configure a model in Settings',
     providerId: CUSTOM_OPENAI_PROVIDER_ID,
+    providerKind: 'custom-api',
     description: 'Add a custom API interface and model name in Settings before generating.',
     eta: '30s',
     expectedDurationMs: 30000,
@@ -125,15 +164,18 @@ function buildPlaceholderModel(): ImageModelDefinition {
   };
 }
 
-function getConfiguredInterfaces(): CustomApiInterfaceConfig[] {
-  return useSettingsStore.getState().customApiInterfaces;
-}
-
 function buildConfiguredImageModels(): ImageModelDefinition[] {
-  const customApiInterfaces = getConfiguredInterfaces();
-  const models = customApiInterfaces.flatMap((apiInterface) =>
+  const { customApiInterfaces, comfyUi } = useSettingsStore.getState();
+  const customModels = customApiInterfaces.flatMap((apiInterface) =>
     apiInterface.modelIds.map((apiModel) => buildCustomImageModel(apiInterface, apiModel))
   );
+  const comfyModels =
+    comfyUi.enabled
+      ? comfyUi.workflows
+          .filter((workflow) => workflow.promptApiJson.trim() && workflow.outputNodeId.trim())
+          .map((workflow) => buildComfyWorkflowModel(workflow))
+      : [];
+  const models = [...customModels, ...comfyModels];
 
   if (models.length === 0) {
     return [buildPlaceholderModel()];
@@ -153,7 +195,7 @@ export function listImageModels(): ImageModelDefinition[] {
 }
 
 export function listModelProviders(): ModelProviderDefinition[] {
-  return [DEFAULT_PROVIDER];
+  return [DEFAULT_PROVIDER, COMFYUI_PROVIDER];
 }
 
 export function getImageModel(modelId: string): ImageModelDefinition {
@@ -187,5 +229,5 @@ export function resolveImageModelResolution(
 }
 
 export function getModelProvider(_providerId: string): ModelProviderDefinition {
-  return DEFAULT_PROVIDER;
+  return _providerId === COMFYUI_PROVIDER_ID ? COMFYUI_PROVIDER : DEFAULT_PROVIDER;
 }

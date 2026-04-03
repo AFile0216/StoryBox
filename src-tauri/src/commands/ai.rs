@@ -49,6 +49,7 @@ pub struct GenerateRequestDto {
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct GenerateRuntimeConfigDto {
+    pub provider_type: String,
     pub interface_id: String,
     pub interface_name: String,
     pub api_key: String,
@@ -56,6 +57,14 @@ pub struct GenerateRuntimeConfigDto {
     pub api_model: String,
     pub omit_size_params: bool,
     pub request_mode: String,
+    pub workflow_id: Option<String>,
+    pub workflow_name: Option<String>,
+    pub workflow_prompt_api_json: Option<String>,
+    pub image_input_node_id: Option<String>,
+    pub image_input_field: Option<String>,
+    pub output_node_id: Option<String>,
+    pub positive_prompt_node_ids: Option<Vec<String>>,
+    pub negative_prompt_node_ids: Option<Vec<String>>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -331,6 +340,7 @@ pub async fn submit_generate_image_job(
         reference_images: request.reference_images,
         extra_params: request.extra_params,
         runtime_config: request.runtime_config.map(|config| GenerateRuntimeConfig {
+            provider_type: config.provider_type,
             interface_id: config.interface_id,
             interface_name: config.interface_name,
             api_key: config.api_key,
@@ -338,6 +348,14 @@ pub async fn submit_generate_image_job(
             api_model: config.api_model,
             omit_size_params: config.omit_size_params,
             request_mode: config.request_mode,
+            workflow_id: config.workflow_id.unwrap_or_default(),
+            workflow_name: config.workflow_name.unwrap_or_default(),
+            workflow_prompt_api_json: config.workflow_prompt_api_json.unwrap_or_default(),
+            image_input_node_id: config.image_input_node_id.unwrap_or_default(),
+            image_input_field: config.image_input_field.unwrap_or_else(|| "image".to_string()),
+            output_node_id: config.output_node_id.unwrap_or_default(),
+            positive_prompt_node_ids: config.positive_prompt_node_ids.unwrap_or_default(),
+            negative_prompt_node_ids: config.negative_prompt_node_ids.unwrap_or_default(),
         }),
     };
 
@@ -579,6 +597,7 @@ pub async fn generate_image(request: GenerateRequestDto) -> Result<String, Strin
         reference_images: request.reference_images,
         extra_params: request.extra_params,
         runtime_config: request.runtime_config.map(|config| GenerateRuntimeConfig {
+            provider_type: config.provider_type,
             interface_id: config.interface_id,
             interface_name: config.interface_name,
             api_key: config.api_key,
@@ -586,6 +605,14 @@ pub async fn generate_image(request: GenerateRequestDto) -> Result<String, Strin
             api_model: config.api_model,
             omit_size_params: config.omit_size_params,
             request_mode: config.request_mode,
+            workflow_id: config.workflow_id.unwrap_or_default(),
+            workflow_name: config.workflow_name.unwrap_or_default(),
+            workflow_prompt_api_json: config.workflow_prompt_api_json.unwrap_or_default(),
+            image_input_node_id: config.image_input_node_id.unwrap_or_default(),
+            image_input_field: config.image_input_field.unwrap_or_else(|| "image".to_string()),
+            output_node_id: config.output_node_id.unwrap_or_default(),
+            positive_prompt_node_ids: config.positive_prompt_node_ids.unwrap_or_default(),
+            negative_prompt_node_ids: config.negative_prompt_node_ids.unwrap_or_default(),
         }),
     };
 

@@ -138,6 +138,10 @@ export function resolveImageDisplayUrl(imageUrl: string): string {
   return convertFileSrc(imageUrl);
 }
 
+export function resolveLocalAssetUrl(assetPath: string): string {
+  return resolveImageDisplayUrl(assetPath);
+}
+
 export async function persistImageLocally(source: string): Promise<string> {
   if (isLikelyLocalImagePath(source)) {
     return source;

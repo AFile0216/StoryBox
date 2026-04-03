@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { ReactFlowProvider } from '@xyflow/react';
 import { invoke } from '@tauri-apps/api/core';
+import { bootstrapApp } from './commands/app';
 import { Canvas } from './features/canvas/Canvas';
 import { TitleBar } from './components/TitleBar';
 import { SettingsDialog } from './components/SettingsDialog';
@@ -43,6 +44,8 @@ function App() {
   const autoCheckAppUpdateOnLaunch = useSettingsStore((state) => state.autoCheckAppUpdateOnLaunch);
   const enableUpdateDialog = useSettingsStore((state) => state.enableUpdateDialog);
   const setEnableUpdateDialog = useSettingsStore((state) => state.setEnableUpdateDialog);
+  const setBootstrap = useSettingsStore((state) => state.setBootstrap);
+  const applyPersistedAppSettings = useSettingsStore((state) => state.applyPersistedAppSettings);
   const [showSettings, setShowSettings] = useState(false);
   const [settingsInitialCategory, setSettingsInitialCategory] = useState<SettingsCategory>('general');
   const [showUpdateDialog, setShowUpdateDialog] = useState(false);
@@ -85,8 +88,18 @@ function App() {
   }, [accentColor]);
 
   useEffect(() => {
-    void hydrate();
-  }, [hydrate]);
+    void (async () => {
+      try {
+        const bootstrap = await bootstrapApp();
+        setBootstrap(bootstrap);
+        applyPersistedAppSettings(bootstrap.settings);
+      } catch (error) {
+        console.warn('failed to bootstrap app', error);
+      } finally {
+        await hydrate();
+      }
+    })();
+  }, [applyPersistedAppSettings, hydrate, setBootstrap]);
 
   useEffect(() => {
     const unsubscribe = subscribeOpenGlobalErrorDialog((detail) => {

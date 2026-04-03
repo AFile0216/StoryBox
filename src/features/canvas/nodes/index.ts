@@ -1,3 +1,4 @@
+import { AudioNode } from './AudioNode';
 import type { NodeTypes } from '@xyflow/react';
 
 import { GroupNode } from './GroupNode';
@@ -7,8 +8,11 @@ import { StoryboardGenNode } from './StoryboardGenNode';
 import { StoryboardNode } from './StoryboardNode';
 import { TextAnnotationNode } from './TextAnnotationNode';
 import { UploadNode } from './UploadNode';
+import { VideoNode } from './VideoNode';
+import { VideoStoryboardNode } from './VideoStoryboardNode';
 
 export const nodeTypes: NodeTypes = {
+  audioNode: AudioNode,
   exportImageNode: ImageNode,
   groupNode: GroupNode,
   imageNode: ImageEditNode,
@@ -16,6 +20,19 @@ export const nodeTypes: NodeTypes = {
   storyboardNode: StoryboardNode,
   textAnnotationNode: TextAnnotationNode,
   uploadNode: UploadNode,
+  videoNode: VideoNode,
+  videoStoryboardNode: VideoStoryboardNode,
 };
 
-export { GroupNode, ImageEditNode, ImageNode, StoryboardGenNode, StoryboardNode, TextAnnotationNode, UploadNode };
+export {
+  AudioNode,
+  GroupNode,
+  ImageEditNode,
+  ImageNode,
+  StoryboardGenNode,
+  StoryboardNode,
+  TextAnnotationNode,
+  UploadNode,
+  VideoNode,
+  VideoStoryboardNode,
+};

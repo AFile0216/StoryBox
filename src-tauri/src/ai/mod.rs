@@ -20,6 +20,7 @@ pub struct GenerateRequest {
 
 #[derive(Debug, Clone)]
 pub struct GenerateRuntimeConfig {
+    pub provider_type: String,
     pub interface_id: String,
     pub interface_name: String,
     pub api_key: String,
@@ -27,6 +28,14 @@ pub struct GenerateRuntimeConfig {
     pub api_model: String,
     pub omit_size_params: bool,
     pub request_mode: String,
+    pub workflow_id: String,
+    pub workflow_name: String,
+    pub workflow_prompt_api_json: String,
+    pub image_input_node_id: String,
+    pub image_input_field: String,
+    pub output_node_id: String,
+    pub positive_prompt_node_ids: Vec<String>,
+    pub negative_prompt_node_ids: Vec<String>,
 }
 
 #[derive(Debug, Clone)]

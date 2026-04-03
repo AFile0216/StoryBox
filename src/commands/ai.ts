@@ -8,13 +8,22 @@ export interface GenerateRequest {
   reference_images?: string[];
   extra_params?: Record<string, unknown>;
   runtime_config?: {
-    interfaceId: string;
-    interfaceName: string;
-    apiKey: string;
+    providerType: 'custom-api' | 'comfyui';
+    interfaceId?: string;
+    interfaceName?: string;
+    apiKey?: string;
     baseUrl: string;
-    apiModel: string;
-    omitSizeParams: boolean;
-    requestMode: 'images' | 'chat-completions';
+    apiModel?: string;
+    omitSizeParams?: boolean;
+    requestMode?: 'images' | 'chat-completions';
+    workflowId?: string;
+    workflowName?: string;
+    workflowPromptApiJson?: string;
+    imageInputNodeId?: string;
+    imageInputField?: string;
+    outputNodeId?: string;
+    positivePromptNodeIds?: string[];
+    negativePromptNodeIds?: string[];
   };
 }
 
@@ -72,7 +81,8 @@ function sanitizeGenerateRequestForLog(request: GenerateRequest): Record<string,
     ),
     extra_params: request.extra_params ?? {},
     runtime_config: request.runtime_config
-      ? {
+        ? {
+          providerType: request.runtime_config.providerType,
           interfaceId: request.runtime_config.interfaceId,
           interfaceName: request.runtime_config.interfaceName,
           apiKeyMasked: request.runtime_config.apiKey
@@ -82,6 +92,8 @@ function sanitizeGenerateRequestForLog(request: GenerateRequest): Record<string,
           apiModel: request.runtime_config.apiModel,
           omitSizeParams: request.runtime_config.omitSizeParams,
           requestMode: request.runtime_config.requestMode,
+          workflowId: request.runtime_config.workflowId,
+          workflowName: request.runtime_config.workflowName,
         }
       : undefined,
   };
@@ -96,7 +108,8 @@ function toInvokeRequest(request: GenerateRequest): Record<string, unknown> {
     reference_images: request.reference_images,
     extra_params: request.extra_params,
     runtime_config: request.runtime_config
-      ? {
+        ? {
+          provider_type: request.runtime_config.providerType,
           interface_id: request.runtime_config.interfaceId,
           interface_name: request.runtime_config.interfaceName,
           api_key: request.runtime_config.apiKey,
@@ -104,6 +117,14 @@ function toInvokeRequest(request: GenerateRequest): Record<string, unknown> {
           api_model: request.runtime_config.apiModel,
           omit_size_params: request.runtime_config.omitSizeParams,
           request_mode: request.runtime_config.requestMode,
+          workflow_id: request.runtime_config.workflowId,
+          workflow_name: request.runtime_config.workflowName,
+          workflow_prompt_api_json: request.runtime_config.workflowPromptApiJson,
+          image_input_node_id: request.runtime_config.imageInputNodeId,
+          image_input_field: request.runtime_config.imageInputField,
+          output_node_id: request.runtime_config.outputNodeId,
+          positive_prompt_node_ids: request.runtime_config.positivePromptNodeIds,
+          negative_prompt_node_ids: request.runtime_config.negativePromptNodeIds,
         }
       : undefined,
   };
