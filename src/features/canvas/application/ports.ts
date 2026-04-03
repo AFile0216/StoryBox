@@ -45,6 +45,7 @@ export interface GenerateImagePayload {
     baseUrl: string;
     apiModel: string;
     omitSizeParams: boolean;
+    requestMode: 'images' | 'chat-completions';
   };
 }
 

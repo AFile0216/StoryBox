@@ -527,6 +527,7 @@ export const ImageEditNode = memo(({ id, data, selected, width, height }: ImageE
           baseUrl: selectedInterface.baseUrl,
           apiModel: selectedModel.apiModel,
           omitSizeParams: selectedInterface.omitSizeParams,
+          requestMode: selectedInterface.requestMode,
         },
       });
       const generationDebugContext: GenerationDebugContext = {

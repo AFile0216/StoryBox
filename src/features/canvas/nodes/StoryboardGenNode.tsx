@@ -1129,6 +1129,7 @@ export const StoryboardGenNode = memo(({ id, data, selected, width, height }: St
           baseUrl: selectedInterface.baseUrl,
           apiModel: selectedModel.apiModel,
           omitSizeParams: selectedInterface.omitSizeParams,
+          requestMode: selectedInterface.requestMode,
         },
       });
       const generationDebugContext: GenerationDebugContext = {

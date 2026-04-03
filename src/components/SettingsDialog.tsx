@@ -327,7 +327,10 @@ export function SettingsDialog({
   const handleUpdateCustomApiInterface = useCallback(
     (
       interfaceId: string,
-      field: keyof Pick<CustomApiInterfaceConfig, 'name' | 'apiKey' | 'baseUrl' | 'omitSizeParams'>,
+      field: keyof Pick<
+        CustomApiInterfaceConfig,
+        'name' | 'apiKey' | 'baseUrl' | 'omitSizeParams' | 'requestMode'
+      >,
       value: string | boolean
     ) => {
       setLocalCustomApiInterfaces((previous) =>
@@ -622,6 +625,31 @@ export function SettingsDialog({
                               className="w-full rounded border border-border-dark bg-bg-dark px-3 py-2 text-sm text-text-dark placeholder:text-text-muted"
                             />
                           </div>
+                        </div>
+
+                        <div className="mt-3">
+                          <div className="mb-1 text-xs font-medium text-text-dark">
+                            {t('settings.customApiRequestMode')}
+                          </div>
+                          <p className="mb-2 text-xs text-text-muted">
+                            {t('settings.customApiRequestModeHint')}
+                          </p>
+                          <UiSelect
+                            value={apiInterface.requestMode}
+                            onChange={(event) =>
+                              handleUpdateCustomApiInterface(
+                                apiInterface.id,
+                                'requestMode',
+                                event.target.value
+                              )
+                            }
+                            className="h-9 text-sm"
+                          >
+                            <option value="images">{t('settings.customApiRequestModeImages')}</option>
+                            <option value="chat-completions">
+                              {t('settings.customApiRequestModeChatCompletions')}
+                            </option>
+                          </UiSelect>
                         </div>
 
                         <div className="mt-3 relative">

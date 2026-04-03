@@ -1,5 +1,6 @@
 export const CUSTOM_OPENAI_PROVIDER_ID = 'openai-compatible';
 export const DEFAULT_CUSTOM_API_BASE_URL = 'https://api.siliconflow.cn/v1';
+export type CustomApiRequestMode = 'images' | 'chat-completions';
 
 export interface CustomApiInterfaceConfig {
   id: string;
@@ -8,6 +9,7 @@ export interface CustomApiInterfaceConfig {
   baseUrl: string;
   modelIds: string[];
   omitSizeParams: boolean;
+  requestMode: CustomApiRequestMode;
 }
 
 export interface LegacyProviderInterfaceConfig {
@@ -78,6 +80,7 @@ export function createDefaultCustomApiInterface(
     baseUrl: normalizeBaseUrl(overrides.baseUrl) || DEFAULT_CUSTOM_API_BASE_URL,
     modelIds: normalizeModelIds(overrides.modelIds),
     omitSizeParams: overrides.omitSizeParams === true,
+    requestMode: overrides.requestMode === 'chat-completions' ? 'chat-completions' : 'images',
   };
 }
 
@@ -117,6 +120,7 @@ export function normalizeCustomApiInterfaces(
       baseUrl: normalizeBaseUrl(item?.baseUrl) || DEFAULT_CUSTOM_API_BASE_URL,
       modelIds: normalizeModelIds(item?.modelIds),
       omitSizeParams: item?.omitSizeParams === true,
+      requestMode: item?.requestMode === 'chat-completions' ? 'chat-completions' : 'images',
     });
     return acc;
   }, []);
@@ -151,6 +155,7 @@ export function buildCustomInterfacesFromLegacyProviders(
       baseUrl: normalizeBaseUrl(item.baseUrl) || DEFAULT_CUSTOM_API_BASE_URL,
       modelIds: legacyModels,
       omitSizeParams: false,
+      requestMode: 'images',
     });
   });
 }

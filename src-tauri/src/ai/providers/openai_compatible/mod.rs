@@ -123,44 +123,101 @@ impl OpenAiCompatibleProvider {
             normalize_dimension(raw_height)
         )
     }
-}
 
-impl Default for OpenAiCompatibleProvider {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
-#[async_trait::async_trait]
-impl AIProvider for OpenAiCompatibleProvider {
-    fn name(&self) -> &str {
-        PROVIDER_ID
-    }
-
-    fn supports_model(&self, model: &str) -> bool {
-        model.starts_with("openai-compatible/")
+    fn extract_markdown_image_url(content: &str) -> Option<String> {
+        let markdown_marker = "](";
+        let start = content.find(markdown_marker)?;
+        let url_start = start + markdown_marker.len();
+        let rest = content.get(url_start..)?;
+        let end = rest.find(')')?;
+        let candidate = rest[..end].trim();
+        if candidate.is_empty() {
+            return None;
+        }
+        Some(candidate.to_string())
     }
 
-    async fn generate(&self, request: GenerateRequest) -> Result<String, AIError> {
-        let runtime = request.runtime_config.ok_or_else(|| {
-            AIError::InvalidRequest("Missing custom API runtime config".to_string())
-        })?;
+    fn extract_url_like(content: &str) -> Option<String> {
+        let trimmed = content.trim();
+        if trimmed.starts_with("data:image/") || trimmed.starts_with("http://") || trimmed.starts_with("https://") {
+            return Some(trimmed.to_string());
+        }
+        Self::extract_markdown_image_url(trimmed)
+    }
 
-        let api_key = runtime.api_key.trim();
-        if api_key.is_empty() {
-            return Err(AIError::InvalidRequest("API key is required".to_string()));
+    fn extract_image_from_chat_response(response: &Value) -> Option<String> {
+        let choices = response.get("choices")?.as_array()?;
+        let first = choices.first()?;
+        let message = first.get("message")?;
+
+        if let Some(images) = message.get("images").and_then(Value::as_array) {
+            for image in images {
+                if let Some(url) = image
+                    .get("image_url")
+                    .and_then(|value| value.get("url"))
+                    .and_then(Value::as_str)
+                    .or_else(|| image.get("url").and_then(Value::as_str))
+                {
+                    if !url.trim().is_empty() {
+                        return Some(url.trim().to_string());
+                    }
+                }
+                if let Some(base64_payload) = image
+                    .get("b64_json")
+                    .and_then(Value::as_str)
+                    .filter(|value| !value.trim().is_empty())
+                {
+                    return Some(format!("data:image/png;base64,{}", base64_payload.trim()));
+                }
+            }
         }
 
-        let base_url = runtime.base_url.trim().trim_end_matches('/');
-        if base_url.is_empty() {
-            return Err(AIError::InvalidRequest("Base URL is required".to_string()));
+        let content = message.get("content")?;
+        if let Some(text) = content.as_str() {
+            return Self::extract_url_like(text);
         }
 
-        let api_model = runtime.api_model.trim();
-        if api_model.is_empty() {
-            return Err(AIError::InvalidRequest("Model name is required".to_string()));
+        let content_items = content.as_array()?;
+        for item in content_items {
+            if let Some(text) = item
+                .get("text")
+                .and_then(Value::as_str)
+                .and_then(Self::extract_url_like)
+            {
+                return Some(text);
+            }
+
+            if let Some(url) = item
+                .get("image_url")
+                .and_then(|value| value.get("url"))
+                .and_then(Value::as_str)
+                .or_else(|| item.get("url").and_then(Value::as_str))
+            {
+                if !url.trim().is_empty() {
+                    return Some(url.trim().to_string());
+                }
+            }
+
+            if let Some(base64_payload) = item
+                .get("b64_json")
+                .and_then(Value::as_str)
+                .filter(|value| !value.trim().is_empty())
+            {
+                return Some(format!("data:image/png;base64,{}", base64_payload.trim()));
+            }
         }
 
+        None
+    }
+
+    async fn generate_via_images_api(
+        &self,
+        request: &GenerateRequest,
+        runtime: &crate::ai::GenerateRuntimeConfig,
+        base_url: &str,
+        api_key: &str,
+        api_model: &str,
+    ) -> Result<String, AIError> {
         let endpoint = format!("{}/images/generations", base_url);
 
         let mut body = Map::new();
@@ -190,7 +247,7 @@ impl AIProvider for OpenAiCompatibleProvider {
             }
         }
 
-        if let Some(extra_params) = request.extra_params {
+        if let Some(extra_params) = request.extra_params.clone() {
             for (key, value) in extra_params {
                 body.insert(key, value);
             }
@@ -236,5 +293,139 @@ impl AIProvider for OpenAiCompatibleProvider {
         Err(AIError::Provider(
             "OpenAI-compatible response has no url or b64_json".to_string(),
         ))
+    }
+
+    async fn generate_via_chat_completions(
+        &self,
+        request: &GenerateRequest,
+        runtime: &crate::ai::GenerateRuntimeConfig,
+        base_url: &str,
+        api_key: &str,
+        api_model: &str,
+    ) -> Result<String, AIError> {
+        let endpoint = format!("{}/chat/completions", base_url);
+
+        let mut content = vec![json!({
+            "type": "text",
+            "text": request.prompt,
+        })];
+
+        if let Some(reference_images) = request.reference_images.as_ref().filter(|items| !items.is_empty()) {
+            let normalized_images = reference_images
+                .iter()
+                .take(14)
+                .map(|image| Self::normalize_reference_image(image))
+                .collect::<Result<Vec<_>, _>>()?;
+            for image in normalized_images {
+                let image_url = if image.starts_with("http://") || image.starts_with("https://") || image.starts_with("data:image/") {
+                    image
+                } else {
+                    format!("data:image/png;base64,{}", image)
+                };
+                content.push(json!({
+                    "type": "image_url",
+                    "image_url": {
+                        "url": image_url,
+                    }
+                }));
+            }
+        }
+
+        let mut body = Map::new();
+        body.insert("model".to_string(), json!(api_model));
+        body.insert("stream".to_string(), json!(false));
+        body.insert(
+            "messages".to_string(),
+            json!([
+                {
+                    "role": "user",
+                    "content": content,
+                }
+            ]),
+        );
+        body.insert("aspect_ratio".to_string(), json!(request.aspect_ratio));
+        if !runtime.omit_size_params {
+            body.insert("image_size".to_string(), json!(request.size));
+        }
+
+        if let Some(extra_params) = request.extra_params.clone() {
+            for (key, value) in extra_params {
+                body.insert(key, value);
+            }
+        }
+
+        let response = self
+            .client
+            .post(endpoint)
+            .header("Authorization", format!("Bearer {}", api_key))
+            .header("Content-Type", "application/json")
+            .json(&Value::Object(body))
+            .send()
+            .await?;
+
+        if !response.status().is_success() {
+            let status = response.status();
+            let error_text = response.text().await.unwrap_or_default();
+            return Err(AIError::Provider(format!(
+                "OpenAI-compatible chat image generation failed {}: {}",
+                status, error_text
+            )));
+        }
+
+        let result = response.json::<Value>().await?;
+        if let Some(image_source) = Self::extract_image_from_chat_response(&result) {
+            return Ok(image_source);
+        }
+
+        Err(AIError::Provider(
+            "OpenAI-compatible chat response has no recognizable image output".to_string(),
+        ))
+    }
+}
+
+impl Default for OpenAiCompatibleProvider {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+#[async_trait::async_trait]
+impl AIProvider for OpenAiCompatibleProvider {
+    fn name(&self) -> &str {
+        PROVIDER_ID
+    }
+
+    fn supports_model(&self, model: &str) -> bool {
+        model.starts_with("openai-compatible/")
+    }
+
+    async fn generate(&self, request: GenerateRequest) -> Result<String, AIError> {
+        let runtime = request.runtime_config.ok_or_else(|| {
+            AIError::InvalidRequest("Missing custom API runtime config".to_string())
+        })?;
+
+        let api_key = runtime.api_key.trim();
+        if api_key.is_empty() {
+            return Err(AIError::InvalidRequest("API key is required".to_string()));
+        }
+
+        let base_url = runtime.base_url.trim().trim_end_matches('/');
+        if base_url.is_empty() {
+            return Err(AIError::InvalidRequest("Base URL is required".to_string()));
+        }
+
+        let api_model = runtime.api_model.trim();
+        if api_model.is_empty() {
+            return Err(AIError::InvalidRequest("Model name is required".to_string()));
+        }
+
+        if runtime.request_mode == "chat-completions" {
+            return self
+                .generate_via_chat_completions(&request, &runtime, base_url, api_key, api_model)
+                .await;
+        }
+
+        self.generate_via_images_api(&request, &runtime, base_url, api_key, api_model)
+            .await
     }
 }

@@ -229,7 +229,7 @@ export const useSettingsStore = create<SettingsState>()(
     }),
     {
       name: 'settings-storage',
-      version: 13,
+      version: 14,
       onRehydrateStorage: () => {
         return (_state, error) => {
           if (error) {

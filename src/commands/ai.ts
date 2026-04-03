@@ -14,6 +14,7 @@ export interface GenerateRequest {
     baseUrl: string;
     apiModel: string;
     omitSizeParams: boolean;
+    requestMode: 'images' | 'chat-completions';
   };
 }
 
@@ -80,6 +81,7 @@ function sanitizeGenerateRequestForLog(request: GenerateRequest): Record<string,
           baseUrl: request.runtime_config.baseUrl,
           apiModel: request.runtime_config.apiModel,
           omitSizeParams: request.runtime_config.omitSizeParams,
+          requestMode: request.runtime_config.requestMode,
         }
       : undefined,
   };
@@ -101,6 +103,7 @@ function toInvokeRequest(request: GenerateRequest): Record<string, unknown> {
           base_url: request.runtime_config.baseUrl,
           api_model: request.runtime_config.apiModel,
           omit_size_params: request.runtime_config.omitSizeParams,
+          request_mode: request.runtime_config.requestMode,
         }
       : undefined,
   };
