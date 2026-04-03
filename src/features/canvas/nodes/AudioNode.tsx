@@ -7,6 +7,7 @@ import { useTranslation } from 'react-i18next';
 import { CANVAS_NODE_TYPES, type AudioNodeData } from '@/features/canvas/domain/canvasNodes';
 import { resolveNodeDisplayName } from '@/features/canvas/domain/nodeDisplay';
 import { NodeHeader, NODE_HEADER_FLOATING_POSITION_CLASS } from '@/features/canvas/ui/NodeHeader';
+import { resolveAdaptiveHandleStyle } from '@/features/canvas/ui/nodeMetrics';
 import { NodeResizeHandle } from '@/features/canvas/ui/NodeResizeHandle';
 import { resolveLocalAssetUrl } from '@/features/canvas/application/imageData';
 import { useCanvasStore } from '@/stores/canvasStore';
@@ -42,6 +43,7 @@ export const AudioNode = memo(({ id, data, selected, width, height }: AudioNodeP
   const resolvedTitle = resolveNodeDisplayName(CANVAS_NODE_TYPES.audio, data);
   const resolvedWidth = Math.max(MIN_WIDTH, Math.round(width ?? DEFAULT_WIDTH));
   const resolvedHeight = Math.max(MIN_HEIGHT, Math.round(height ?? DEFAULT_HEIGHT));
+  const handleStyle = resolveAdaptiveHandleStyle(resolvedWidth, resolvedHeight);
   const audioSrc = useMemo(
     () => (data.filePath ? resolveLocalAssetUrl(data.filePath) : null),
     [data.filePath]
@@ -223,7 +225,8 @@ export const AudioNode = memo(({ id, data, selected, width, height }: AudioNodeP
         type="source"
         id="source"
         position={Position.Right}
-        className="!h-2 !w-2 !border-surface-dark !bg-accent"
+        className="!border-surface-dark !bg-accent"
+        style={handleStyle}
       />
 
       <NodeResizeHandle

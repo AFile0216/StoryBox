@@ -14,6 +14,7 @@ import {
 } from '@/features/canvas/domain/canvasNodes';
 import { resolveNodeDisplayName } from '@/features/canvas/domain/nodeDisplay';
 import { NodeHeader, NODE_HEADER_FLOATING_POSITION_CLASS } from '@/features/canvas/ui/NodeHeader';
+import { resolveAdaptiveHandleStyle } from '@/features/canvas/ui/nodeMetrics';
 import { NodeResizeHandle } from '@/features/canvas/ui/NodeResizeHandle';
 import { UiSelect } from '@/components/ui';
 import { useCanvasStore } from '@/stores/canvasStore';
@@ -54,6 +55,7 @@ export const TextAnnotationNode = memo(({
   const resolvedTitle = resolveNodeDisplayName(CANVAS_NODE_TYPES.textAnnotation, data);
   const resolvedWidth = Math.max(MIN_WIDTH, Math.round(width ?? DEFAULT_WIDTH));
   const resolvedHeight = Math.max(MIN_HEIGHT, Math.round(height ?? DEFAULT_HEIGHT));
+  const handleStyle = resolveAdaptiveHandleStyle(resolvedWidth, resolvedHeight);
   const handleMarkdownLinkClick = useCallback((href?: string) => {
     if (!href) {
       return;
@@ -152,7 +154,8 @@ export const TextAnnotationNode = memo(({
         type="source"
         id="source"
         position={Position.Right}
-        className="!h-2 !w-2 !border-surface-dark !bg-accent"
+        className="!border-surface-dark !bg-accent"
+        style={handleStyle}
       />
 
       <NodeResizeHandle

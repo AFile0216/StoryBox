@@ -18,10 +18,13 @@ import {
   EXPORT_RESULT_NODE_DEFAULT_WIDTH,
   EXPORT_RESULT_NODE_LAYOUT_HEIGHT,
   type ImageEditNodeData,
+  type ImageEditTaskMode,
   type ImageSize,
+  type SuperResolutionLevel,
 } from '@/features/canvas/domain/canvasNodes';
 import { resolveNodeDisplayName } from '@/features/canvas/domain/nodeDisplay';
 import { NodeHeader, NODE_HEADER_FLOATING_POSITION_CLASS } from '@/features/canvas/ui/NodeHeader';
+import { resolveAdaptiveHandleStyle } from '@/features/canvas/ui/nodeMetrics';
 import { NodeResizeHandle } from '@/features/canvas/ui/NodeResizeHandle';
 import {
   canvasAiGateway,
@@ -90,6 +93,19 @@ const IMAGE_EDIT_NODE_MAX_WIDTH = 1400;
 const IMAGE_EDIT_NODE_MAX_HEIGHT = 1000;
 const IMAGE_EDIT_NODE_DEFAULT_WIDTH = 520;
 const IMAGE_EDIT_NODE_DEFAULT_HEIGHT = 320;
+const IMAGE_TASK_MODES: ImageEditTaskMode[] = [
+  'text-to-image',
+  'image-to-image',
+  'image-to-video',
+  'super-resolution',
+];
+const SUPER_RES_LEVELS: SuperResolutionLevel[] = ['2x', '4x', '8x'];
+const IMAGE_TASK_MODE_LABELS: Record<ImageEditTaskMode, string> = {
+  'text-to-image': '文生图',
+  'image-to-image': '图生图',
+  'image-to-video': '图生视频',
+  'super-resolution': '超级分辨率',
+};
 
 function getTextareaCaretOffset(
   textarea: HTMLTextAreaElement,
@@ -323,6 +339,7 @@ export const ImageEditNode = memo(({ id, data, selected, width, height }: ImageE
   });
   const showWebSearchToggle = false;
   const webSearchEnabled = Boolean(data.extraParams?.enable_web_search);
+  const taskMode = data.taskMode ?? 'text-to-image';
 
   const supportedAspectRatioValues = useMemo(
     () => selectedModel.aspectRatios.map((item) => item.value),
@@ -336,6 +353,7 @@ export const ImageEditNode = memo(({ id, data, selected, width, height }: ImageE
 
   const resolvedWidth = Math.max(IMAGE_EDIT_NODE_MIN_WIDTH, Math.round(width ?? IMAGE_EDIT_NODE_DEFAULT_WIDTH));
   const resolvedHeight = Math.max(IMAGE_EDIT_NODE_MIN_HEIGHT, Math.round(height ?? IMAGE_EDIT_NODE_DEFAULT_HEIGHT));
+  const handleStyle = resolveAdaptiveHandleStyle(resolvedWidth, resolvedHeight);
 
   useEffect(() => {
     updateNodeInternals(id);
@@ -786,6 +804,53 @@ export const ImageEditNode = memo(({ id, data, selected, width, height }: ImageE
       </div>
 
       <div className="mt-2 flex shrink-0 items-center gap-1">
+        <div className="flex flex-wrap items-center gap-1">
+          {IMAGE_TASK_MODES.map((mode) => {
+            const active = taskMode === mode;
+            return (
+              <button
+                key={mode}
+                type="button"
+                className={`rounded-full border px-2 py-1 text-[11px] transition-colors ${
+                  active
+                    ? 'border-accent/50 bg-accent/15 text-text-dark'
+                    : 'border-[rgba(255,255,255,0.1)] bg-bg-dark/35 text-text-muted hover:border-[rgba(255,255,255,0.18)]'
+                }`}
+                onClick={(event) => {
+                  event.stopPropagation();
+                  updateNodeData(id, { taskMode: mode });
+                }}
+              >
+                {t(`node.imageEdit.mode.${mode}`, { defaultValue: IMAGE_TASK_MODE_LABELS[mode] })}
+              </button>
+            );
+          })}
+          {taskMode === 'super-resolution' ? (
+            <div className="ml-1 flex items-center gap-1 rounded-full border border-[rgba(255,255,255,0.1)] bg-bg-dark/35 px-1 py-1">
+              {SUPER_RES_LEVELS.map((level) => {
+                const active = (data.superResolutionLevel ?? '2x') === level;
+                return (
+                  <button
+                    key={level}
+                    type="button"
+                    className={`rounded-full px-2 py-1 text-[11px] transition-colors ${
+                      active ? 'bg-accent/20 text-text-dark' : 'text-text-muted hover:bg-white/5'
+                    }`}
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      updateNodeData(id, { superResolutionLevel: level });
+                    }}
+                  >
+                    {level}
+                  </button>
+                );
+              })}
+            </div>
+          ) : null}
+        </div>
+      </div>
+
+      <div className="mt-2 flex shrink-0 items-center gap-1">
         <ModelParamsControls
           imageModels={imageModels}
           selectedModel={selectedModel}
@@ -850,13 +915,15 @@ export const ImageEditNode = memo(({ id, data, selected, width, height }: ImageE
         type="target"
         id="target"
         position={Position.Left}
-        className="!h-2 !w-2 !border-surface-dark !bg-accent"
+        className="!border-surface-dark !bg-accent"
+        style={handleStyle}
       />
       <Handle
         type="source"
         id="source"
         position={Position.Right}
-        className="!h-2 !w-2 !border-surface-dark !bg-accent"
+        className="!border-surface-dark !bg-accent"
+        style={handleStyle}
       />
       <NodeResizeHandle
         minWidth={IMAGE_EDIT_NODE_MIN_WIDTH}

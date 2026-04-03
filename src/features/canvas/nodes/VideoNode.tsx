@@ -12,6 +12,7 @@ import {
 } from '@/features/canvas/domain/canvasNodes';
 import { resolveNodeDisplayName } from '@/features/canvas/domain/nodeDisplay';
 import { NodeHeader, NODE_HEADER_FLOATING_POSITION_CLASS } from '@/features/canvas/ui/NodeHeader';
+import { resolveAdaptiveHandleStyle } from '@/features/canvas/ui/nodeMetrics';
 import { NodeResizeHandle } from '@/features/canvas/ui/NodeResizeHandle';
 import { resolveLocalAssetUrl } from '@/features/canvas/application/imageData';
 import { useCanvasStore } from '@/stores/canvasStore';
@@ -29,7 +30,18 @@ const MIN_HEIGHT = 260;
 const MAX_WIDTH = 1280;
 const MAX_HEIGHT = 960;
 
-const VIDEO_MODES: VideoNodeTaskMode[] = ['reference', 'image-to-video', 'first-last-frame'];
+const VIDEO_MODES: VideoNodeTaskMode[] = [
+  'reference',
+  'image-to-video',
+  'first-last-frame',
+  'video-storyboard-generation',
+];
+const VIDEO_MODE_LABELS: Record<VideoNodeTaskMode, string> = {
+  reference: '参考视频',
+  'image-to-video': '图生视频',
+  'first-last-frame': '首尾帧视频',
+  'video-storyboard-generation': '视频分镜生成',
+};
 
 function formatSeconds(value: number | null | undefined): string {
   if (!Number.isFinite(value) || value === null || value === undefined) {
@@ -54,6 +66,7 @@ export const VideoNode = memo(({ id, data, selected, width, height }: VideoNodeP
   const resolvedTitle = resolveNodeDisplayName(CANVAS_NODE_TYPES.video, data);
   const resolvedWidth = Math.max(MIN_WIDTH, Math.round(width ?? DEFAULT_WIDTH));
   const resolvedHeight = Math.max(MIN_HEIGHT, Math.round(height ?? DEFAULT_HEIGHT));
+  const handleStyle = resolveAdaptiveHandleStyle(resolvedWidth, resolvedHeight);
   const videoSrc = useMemo(
     () => (data.filePath ? resolveLocalAssetUrl(data.filePath) : null),
     [data.filePath]
@@ -200,7 +213,7 @@ export const VideoNode = memo(({ id, data, selected, width, height }: VideoNodeP
           )}
         </div>
 
-        <div className="grid gap-2 md:grid-cols-3">
+        <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-4">
           <div className="rounded-lg border border-[rgba(255,255,255,0.08)] bg-bg-dark/40 px-3 py-2">
             <div className="text-[10px] uppercase tracking-[0.12em] text-text-muted">
               {t('node.video.currentTime')}
@@ -240,7 +253,7 @@ export const VideoNode = memo(({ id, data, selected, width, height }: VideoNodeP
                   updateNodeData(id, { taskMode: mode });
                 }}
               >
-                {t(`node.video.mode.${mode}`)}
+                {t(`node.video.mode.${mode}`, { defaultValue: VIDEO_MODE_LABELS[mode] })}
               </button>
             );
           })}
@@ -295,7 +308,8 @@ export const VideoNode = memo(({ id, data, selected, width, height }: VideoNodeP
         type="source"
         id="source"
         position={Position.Right}
-        className="!h-2 !w-2 !border-surface-dark !bg-accent"
+        className="!border-surface-dark !bg-accent"
+        style={handleStyle}
       />
 
       <NodeResizeHandle

@@ -120,7 +120,19 @@
       "apiKeyRequired": "Please complete the interface settings first",
       "modelRequired": "Please choose a configured model first",
       "resultTitle": "Result Image",
-      "promptPlaceholder": "Describe anything you want to generate or edit"
+      "promptPlaceholder": "Describe anything you want to generate or edit",
+      "mode": {
+        "text-to-image": "Text to Image",
+        "image-to-image": "Image to Image",
+        "image-to-video": "Image to Video",
+        "super-resolution": "Super Resolution"
+      }
+    },
+    "group": {
+      "collapse": "Collapse Group",
+      "expand": "Expand Group",
+      "collapsedHint": "Group is collapsed. Expand to inspect child nodes.",
+      "memberCount": "{{count}} nodes"
     },
     "upload": {
       "uploadedAlt": "Uploaded image",
@@ -186,7 +198,8 @@
       "mode": {
         "reference": "Reference Video",
         "image-to-video": "Image to Video",
-        "first-last-frame": "First/Last Frame"
+        "first-last-frame": "First/Last Frame",
+        "video-storyboard-generation": "Video Storyboard Generation"
       }
     },
     "audio": {
@@ -198,7 +211,8 @@
       "missingAudio": "Please select an audio file first",
       "mockResult": "Audio-to-video task is ready. Source duration: {{duration}}.",
       "mode": {
-        "audio-to-video": "Audio to Video"
+        "audio-to-video": "Audio to Video",
+        "text-to-music": "Text to Music"
       }
     },
     "videoStoryboard": {
