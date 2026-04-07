@@ -75,9 +75,12 @@ function buildStoryboardFrames(segments: VideoStoryboardSegment[], total: number
   const ordered = sortSegments(segments);
   return Array.from({ length: total }, (_, index) => {
     const segment = ordered[index];
+    const timePrefix = segment
+      ? `[${formatSeconds(segment.startSec)} - ${formatSeconds(segment.endSec)}]\n`
+      : '';
     return {
       id: `storyboard-frame-${index + 1}`,
-      description: segment?.text ?? '',
+      description: segment ? `${timePrefix}${segment.text || ''}` : '',
       referenceIndex: null,
     };
   });

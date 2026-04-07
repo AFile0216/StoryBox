@@ -29,6 +29,17 @@ function createId() {
   return `seg-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 }
 
+const SEGMENT_COLORS = [
+  '#3b82f6',
+  '#10b981',
+  '#8b5cf6',
+  '#f59e0b',
+  '#d946ef',
+  '#f43f5e',
+  '#06b6d4',
+  '#14b8a6',
+];
+
 export const StoryboardEditorModal = memo(({
   filePath,
   durationSec,
@@ -38,6 +49,15 @@ export const StoryboardEditorModal = memo(({
 }: StoryboardEditorModalProps) => {
   const { t } = useTranslation();
   const videoRef = useRef<HTMLVideoElement | null>(null);
+  const lastSeekRef = useRef(0);
+  const seekVideo = useCallback((time: number) => {
+    if (!videoRef.current) return;
+    const now = Date.now();
+    if (now - lastSeekRef.current > 80) {
+      videoRef.current.currentTime = time;
+      lastSeekRef.current = now;
+    }
+  }, []);
   const [segments, setSegments] = useState<VideoStoryboardSegment[]>(() =>
     [...initialSegments].sort((a, b) => a.order - b.order)
   );
@@ -179,11 +199,12 @@ export const StoryboardEditorModal = memo(({
   };
 
   // Timeline segment markers
-  const timelineMarkers = segments.map((s) => ({
+  const timelineMarkers = segments.map((s, index) => ({
     id: s.id,
     left: `${(s.startSec / safeMax) * 100}%`,
     width: `${Math.max(0.5, ((s.endSec - s.startSec) / safeMax) * 100)}%`,
     active: s.id === activeId,
+    color: SEGMENT_COLORS[index % SEGMENT_COLORS.length],
   }));
 
   return (
@@ -258,14 +279,28 @@ export const StoryboardEditorModal = memo(({
               {timelineMarkers.map((m) => (
                 <div
                   key={m.id}
-                  className={`absolute top-0 h-full rounded-sm transition-colors pointer-events-none ${m.active ? 'bg-accent/70' : 'bg-accent/30'}`}
-                  style={{ left: m.left, width: m.width }}
+                  className="absolute top-0 h-full rounded-sm transition-colors pointer-events-none"
+                  style={{ left: m.left, width: m.width, backgroundColor: m.color, opacity: m.active ? 1 : 0.4 }}
                 />
               ))}
               {/* Playhead */}
               <div
                 className="absolute top-0 h-full w-0.5 bg-white/80 pointer-events-none"
                 style={{ left: `${(playhead / safeMax) * 100}%` }}
+              />
+              <input
+                type="range"
+                min={0}
+                max={safeMax}
+                step={0.01}
+                value={playhead}
+                onChange={(e) => {
+                  const val = Number(e.target.value);
+                  setPlayhead(val);
+                  seekVideo(val);
+                }}
+                onMouseDown={() => videoRef.current?.pause()}
+                className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
               />
             </div>
 
@@ -277,8 +312,9 @@ export const StoryboardEditorModal = memo(({
                   type="range" min={0} max={safeMax} step={0.1}
                   value={clamp(inPoint, 0, safeMax)}
                   onChange={(e) => {
-                    setInPoint(Number(e.target.value));
-                    if (videoRef.current) videoRef.current.currentTime = Number(e.target.value);
+                    const val = Number(e.target.value);
+                    setInPoint(val);
+                    seekVideo(val);
                   }}
                   onMouseDown={() => videoRef.current?.pause()}
                   className="flex-1"
@@ -303,8 +339,9 @@ export const StoryboardEditorModal = memo(({
                   type="range" min={0} max={safeMax} step={0.1}
                   value={clamp(outPoint, 0, safeMax)}
                   onChange={(e) => {
-                    setOutPoint(Number(e.target.value));
-                    if (videoRef.current) videoRef.current.currentTime = Number(e.target.value);
+                    const val = Number(e.target.value);
+                    setOutPoint(val);
+                    seekVideo(val);
                   }}
                   onMouseDown={() => videoRef.current?.pause()}
                   className="flex-1"
@@ -382,13 +419,17 @@ export const StoryboardEditorModal = memo(({
                     <button
                       key={seg.id}
                       type="button"
-                      className={`mb-2 w-full rounded-lg border p-2 text-left transition-colors ${
+                      className={`relative mb-2 w-full overflow-hidden rounded-lg border p-2 text-left transition-colors ${
                         isActive
                           ? 'border-accent/50 bg-accent/12'
                           : 'border-[rgba(255,255,255,0.08)] bg-bg-dark/35 hover:border-[rgba(255,255,255,0.18)]'
                       }`}
                       onClick={() => handleSelectSegment(seg)}
                     >
+                      <div
+                        className="absolute left-0 top-0 bottom-0 w-1"
+                        style={{ backgroundColor: SEGMENT_COLORS[idx % SEGMENT_COLORS.length] }}
+                      />
                       {seg.keyframeDataUrl ? (
                         <img
                           src={seg.keyframeDataUrl}
