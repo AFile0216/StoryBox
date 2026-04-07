@@ -49,14 +49,14 @@ export const StoryboardEditorModal = memo(({
 }: StoryboardEditorModalProps) => {
   const { t } = useTranslation();
   const videoRef = useRef<HTMLVideoElement | null>(null);
-  const lastSeekRef = useRef(0);
+  const seekVideoRef = useRef<number | null>(null);
   const seekVideo = useCallback((time: number) => {
     if (!videoRef.current) return;
-    const now = Date.now();
-    if (now - lastSeekRef.current > 80) {
-      videoRef.current.currentTime = time;
-      lastSeekRef.current = now;
-    }
+    if (seekVideoRef.current !== null) cancelAnimationFrame(seekVideoRef.current);
+    seekVideoRef.current = requestAnimationFrame(() => {
+      if (videoRef.current) videoRef.current.currentTime = time;
+      seekVideoRef.current = null;
+    });
   }, []);
   const [segments, setSegments] = useState<VideoStoryboardSegment[]>(() =>
     [...initialSegments].sort((a, b) => a.order - b.order)
@@ -66,7 +66,16 @@ export const StoryboardEditorModal = memo(({
   );
   const [inPoint, setInPoint] = useState(0);
   const [outPoint, setOutPoint] = useState(Math.min(5, durationSec || 5));
-  const [playhead, setPlayhead] = useState(0);
+  const playheadTextRef = useRef<HTMLSpanElement>(null);
+  const playheadLineRef = useRef<HTMLDivElement>(null);
+  const timelineInputRef = useRef<HTMLInputElement>(null);
+  
+  const updatePlayheadUI = useCallback((time: number) => {
+    if (playheadTextRef.current) playheadTextRef.current.textContent = `${formatSec(time)} / ${formatSec(durationSec)}`;
+    const maxVal = Math.max(durationSec || 0, outPoint, 1);
+    if (playheadLineRef.current) playheadLineRef.current.style.left = `${(time / maxVal) * 100}%`;
+    if (timelineInputRef.current && timelineInputRef.current.value !== String(time)) timelineInputRef.current.value = String(time);
+  }, [durationSec, outPoint]);
   const [capturing, setCapturing] = useState(false);
   const [tagInput, setTagInput] = useState('');
   const [isPlaying, setIsPlaying] = useState(false);
@@ -120,7 +129,7 @@ export const StoryboardEditorModal = memo(({
     setInPoint(seg.startSec);
     setOutPoint(seg.endSec);
     if (videoRef.current) videoRef.current.currentTime = seg.startSec;
-    setPlayhead(seg.startSec);
+    updatePlayheadUI(seg.startSec);
   };
 
   const handleAddSegment = () => {
@@ -247,7 +256,7 @@ export const StoryboardEditorModal = memo(({
                 src={videoSrc}
                 className="h-full w-full object-contain cursor-pointer"
                 onClick={togglePlay}
-                onTimeUpdate={(e) => setPlayhead(e.currentTarget.currentTime)}
+                onTimeUpdate={(e) => updatePlayheadUI(e.currentTarget.currentTime)}
                 onPlay={() => setIsPlaying(true)}
                 onPause={() => setIsPlaying(false)}
               />
@@ -271,7 +280,7 @@ export const StoryboardEditorModal = memo(({
                 </button>
                 <span>{t('node.videoStoryboard.timeline')}</span>
               </div>
-              <span>{formatSec(playhead)} / {formatSec(durationSec)}</span>
+              <span ref={playheadTextRef}>{formatSec(0)} / {formatSec(durationSec)}</span>
             </div>
 
             {/* Segment markers bar */}
@@ -285,18 +294,20 @@ export const StoryboardEditorModal = memo(({
               ))}
               {/* Playhead */}
               <div
+                ref={playheadLineRef}
                 className="absolute top-0 h-full w-0.5 bg-white/80 pointer-events-none"
-                style={{ left: `${(playhead / safeMax) * 100}%` }}
+                style={{ left: `0%` }}
               />
               <input
+                ref={timelineInputRef}
                 type="range"
                 min={0}
                 max={safeMax}
                 step={0.01}
-                value={playhead}
+                defaultValue={0}
                 onChange={(e) => {
                   const val = Number(e.target.value);
-                  setPlayhead(val);
+                  updatePlayheadUI(val);
                   seekVideo(val);
                 }}
                 onMouseDown={() => videoRef.current?.pause()}
@@ -328,7 +339,7 @@ export const StoryboardEditorModal = memo(({
                 <button
                   type="button"
                   className="rounded border border-[rgba(255,255,255,0.12)] px-2 py-1 text-xs text-text-muted hover:text-text-dark"
-                  onClick={() => setInPoint(playhead)}
+                  onClick={() => setInPoint(videoRef.current?.currentTime ?? 0)}
                 >
                   {t('node.videoStoryboard.useCurrentForStart', { defaultValue: '用当前' })}
                 </button>
@@ -355,7 +366,7 @@ export const StoryboardEditorModal = memo(({
                 <button
                   type="button"
                   className="rounded border border-[rgba(255,255,255,0.12)] px-2 py-1 text-xs text-text-muted hover:text-text-dark"
-                  onClick={() => setOutPoint(playhead)}
+                  onClick={() => setOutPoint(videoRef.current?.currentTime ?? 0)}
                 >
                   {t('node.videoStoryboard.useCurrentForEnd', { defaultValue: '用当前' })}
                 </button>
