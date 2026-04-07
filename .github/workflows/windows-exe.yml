@@ -1,0 +1,63 @@
+name: Build Windows EXE
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+jobs:
+  build-windows-exe:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "npm"
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Setup Rust cache
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+
+      - name: Setup MSVC environment
+        uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: amd64
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build Windows NSIS installer
+        run: npm run tauri -- build --bundles nsis
+
+      - name: Rename installer artifact
+        shell: pwsh
+        run: |
+          $version = (Get-Content package.json | ConvertFrom-Json).version
+          $installer = Get-ChildItem -Path "src-tauri/target/release/bundle/nsis/*.exe" | Select-Object -First 1
+          if (-not $installer) {
+            throw "No NSIS installer found under src-tauri/target/release/bundle/nsis"
+          }
+          $newName = "Storyboard-Copilot_${version}_x64-setup.exe"
+          $newPath = Join-Path (Split-Path $installer.FullName) $newName
+          Move-Item -Path $installer.FullName -Destination $newPath -Force
+          Write-Host "Renamed installer to $newName"
+
+      - name: Upload Windows EXE
+        uses: actions/upload-artifact@v4
+        with:
+          name: storyboard-copilot-windows-exe
+          path: src-tauri/target/release/bundle/nsis/*.exe
+          if-no-files-found: error

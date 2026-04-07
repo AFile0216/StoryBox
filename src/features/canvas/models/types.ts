@@ -1,0 +1,70 @@
+import type { ProviderKind } from '@/types/app';
+
+export type MediaModelType = 'image' | 'video' | 'audio';
+
+export interface ModelProviderDefinition {
+  id: string;
+  name: string;
+  label: string;
+  defaultBaseUrl?: string;
+  defaultUploadBaseUrl?: string;
+  supportsCustomBaseUrl?: boolean;
+  supportsCustomUploadBaseUrl?: boolean;
+}
+
+export interface AspectRatioOption {
+  value: string;
+  label: string;
+}
+
+export interface ResolutionOption {
+  value: string;
+  label: string;
+}
+
+export interface ImageModelRuntimeContext {
+  extraParams?: Record<string, unknown>;
+}
+
+export type ExtraParamType = 'boolean' | 'enum' | 'number' | 'string';
+
+export interface ExtraParamDefinition {
+  key: string;
+  label: string;
+  labelKey?: string;
+  type: ExtraParamType;
+  description?: string;
+  descriptionKey?: string;
+  defaultValue?: boolean | number | string;
+  options?: Array<{ value: string; label: string; labelKey?: string }>;
+  min?: number;
+  max?: number;
+  step?: number;
+}
+
+export interface ImageModelDefinition {
+  id: string;
+  mediaType: 'image';
+  displayName: string;
+  providerId: string;
+  providerKind: ProviderKind;
+  interfaceId?: string;
+  interfaceName?: string;
+  apiModel?: string;
+  workflowId?: string;
+  taskType?: 'text-to-image' | 'image-to-image';
+  description: string;
+  eta: string;
+  expectedDurationMs?: number;
+  defaultAspectRatio: string;
+  defaultResolution: string;
+  aspectRatios: AspectRatioOption[];
+  resolutions: ResolutionOption[];
+  resolveResolutions?: (context: ImageModelRuntimeContext) => ResolutionOption[];
+  extraParamsSchema?: ExtraParamDefinition[];
+  defaultExtraParams?: Record<string, unknown>;
+  resolveRequest: (context: { referenceImageCount: number }) => {
+    requestModel: string;
+    modeLabel: string;
+  };
+}

@@ -1,0 +1,145 @@
+--- src/features/canvas/ui/StoryboardEditorModal.tsx
++++ src/features/canvas/ui/StoryboardEditorModal.tsx
+@@ -1,6 +1,6 @@
+ import { memo, useRef, useState, useCallback, useEffect } from 'react';
+-import { X, Scissors, ImagePlus, Trash2, Plus, LoaderCircle } from 'lucide-react';
++import { X, Scissors, ImagePlus, Trash2, Plus, LoaderCircle, Play, Pause } from 'lucide-react';
+ import { useTranslation } from 'react-i18next';
+ 
+ import type { VideoStoryboardSegment } from '@/features/canvas/domain/canvasNodes';
+@@ -48,6 +48,7 @@
+   const [playhead, setPlayhead] = useState(0);
+   const [capturing, setCapturing] = useState(false);
+   const [tagInput, setTagInput] = useState('');
++  const [isPlaying, setIsPlaying] = useState(false);
+ 
+   useEffect(() => {
+     const FRAME = 1 / 30;
+@@ -74,10 +75,21 @@
+   const safeMax = Math.max(durationSec || 0, outPoint, 1);
+   const activeSegment = segments.find((s) => s.id === activeId) ?? null;
+ 
++  // Auto-sync changes to parent so it flows to the storyboard gen node immediately
++  useEffect(() => {
++    onSave(segments.map((s, i) => ({ ...s, order: i, status: 'saved' as const })));
++  }, [segments, onSave]);
++
+   const patchActive = useCallback((patch: Partial<VideoStoryboardSegment>) => {
+     if (!activeId) return;
+-    setSegments((prev) => prev.map((s) => s.id === activeId ? { ...s, ...patch } : s));
++    setSegments((prev) => prev.map((s) => {
++      if (s.id !== activeId) return s;
++      const next = { ...s, ...patch };
++      const parts = [];
++      if (next.visualDesc) parts.push(`画面: ${next.visualDesc}`);
++      if (next.dialogue) parts.push(`对白: ${next.dialogue}`);
++      if (next.notes) parts.push(`备注: ${next.notes}`);
++      next.text = parts.join('\n');
++      return next;
++    }));
+   }, [activeId]);
+ 
+   const handleSelectSegment = (seg: VideoStoryboardSegment) => {
+@@ -155,6 +167,14 @@
+     onClose();
+   };
+ 
++  const togglePlay = () => {
++    if (videoRef.current) {
++      if (videoRef.current.paused) videoRef.current.play();
++      else videoRef.current.pause();
++    }
++  };
++
+   // Timeline segment markers
+   const timelineMarkers = segments.map((s) => ({
+     id: s.id,
+@@ -202,9 +222,11 @@
+               <video
+                 ref={videoRef}
+                 src={videoSrc}
+-                controls
+-                className="h-full w-full object-contain"
++                className="h-full w-full object-contain cursor-pointer"
++                onClick={togglePlay}
+                 onTimeUpdate={(e) => setPlayhead(e.currentTarget.currentTime)}
++                onPlay={() => setIsPlaying(true)}
++                onPause={() => setIsPlaying(false)}
+               />
+             ) : (
+               <div className="flex h-full items-center justify-center text-text-muted text-sm">
+@@ -216,7 +238,15 @@
+           {/* Timeline */}
+           <div className="shrink-0 rounded-xl border border-[rgba(255,255,255,0.08)] bg-bg-dark/50 p-3">
+             <div className="mb-2 flex items-center justify-between text-xs text-text-muted">
+-              <span>{t('node.videoStoryboard.timeline')}</span>
++              <div className="flex items-center gap-2">
++                <button 
++                  type="button" 
++                  className="text-text-muted hover:text-white"
++                  onClick={togglePlay}
++                >
++                  {isPlaying ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
++                </button>
++                <span>{t('node.videoStoryboard.timeline')}</span>
++              </div>
+               <span>{formatSec(playhead)} / {formatSec(durationSec)}</span>
+             </div>
+ 
+@@ -225,14 +255,28 @@
+               {timelineMarkers.map((m) => (
+                 <div
+                   key={m.id}
+-                  className={`absolute top-0 h-full rounded-sm transition-colors ${m.active ? 'bg-accent/70' : 'bg-accent/30'}`}
++                  className={`absolute top-0 h-full rounded-sm transition-colors pointer-events-none ${m.active ? 'bg-accent/70' : 'bg-accent/30'}`}
+                   style={{ left: m.left, width: m.width }}
+                 />
+               ))}
+               {/* Playhead */}
+               <div
+-                className="absolute top-0 h-full w-0.5 bg-white/80"
++                className="absolute top-0 h-full w-0.5 bg-white/80 pointer-events-none"
+                 style={{ left: `${(playhead / safeMax) * 100}%` }}
++              />
++              <input
++                type="range"
++                min={0}
++                max={safeMax}
++                step={0.01}
++                value={playhead}
++                onChange={(e) => {
++                  const val = Number(e.target.value);
++                  setPlayhead(val);
++                  if (videoRef.current) videoRef.current.currentTime = val;
++                }}
++                onMouseDown={() => videoRef.current?.pause()}
++                className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+               />
+             </div>
+ 
+@@ -243,7 +287,11 @@
+                 <input
+                   type="range" min={0} max={safeMax} step={0.1}
+                   value={clamp(inPoint, 0, safeMax)}
+-                  onChange={(e) => setInPoint(Number(e.target.value))}
++                  onChange={(e) => {
++                    setInPoint(Number(e.target.value));
++                    if (videoRef.current) videoRef.current.currentTime = Number(e.target.value);
++                  }}
++                  onMouseDown={() => videoRef.current?.pause()}
+                   className="flex-1"
+                 />
+                 <input
+@@ -265,7 +313,11 @@
+                 <input
+                   type="range" min={0} max={safeMax} step={0.1}
+                   value={clamp(outPoint, 0, safeMax)}
+-                  onChange={(e) => setOutPoint(Number(e.target.value))}
++                  onChange={(e) => {
++                    setOutPoint(Number(e.target.value));
++                    if (videoRef.current) videoRef.current.currentTime = Number(e.target.value);
++                  }}
++                  onMouseDown={() => videoRef.current?.pause()}
+                   className="flex-1"
+                 />
+                 <input
