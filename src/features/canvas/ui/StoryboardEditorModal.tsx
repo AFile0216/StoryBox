@@ -90,8 +90,7 @@ export const StoryboardEditorModal = memo(({
       if (next.visualDesc) parts.push('画面: ' + next.visualDesc);
       if (next.dialogue) parts.push('对白: ' + next.dialogue);
       if (next.notes) parts.push('备注: ' + next.notes);
-      next.text = parts.join('
-');
+      next.text = parts.join('\n');
       return next;
     }));
   }, [activeId]);
@@ -242,8 +241,8 @@ export const StoryboardEditorModal = memo(({
           <div className="shrink-0 rounded-xl border border-[rgba(255,255,255,0.08)] bg-bg-dark/50 p-3">
             <div className="mb-2 flex items-center justify-between text-xs text-text-muted">
               <div className="flex items-center gap-2">
-                <button 
-                  type="button" 
+                <button
+                  type="button"
                   className="text-text-muted hover:text-white"
                   onClick={togglePlay}
                 >
@@ -259,7 +258,7 @@ export const StoryboardEditorModal = memo(({
               {timelineMarkers.map((m) => (
                 <div
                   key={m.id}
-                  className={`absolute top-0 h-full rounded-sm transition-colors ${m.active ? 'bg-accent/70' : 'bg-accent/30'}`}
+                  className={`absolute top-0 h-full rounded-sm transition-colors pointer-events-none ${m.active ? 'bg-accent/70' : 'bg-accent/30'}`}
                   style={{ left: m.left, width: m.width }}
                 />
               ))}

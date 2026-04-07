@@ -1,4 +1,4 @@
-import { memo, useEffect, useMemo, useRef, useState } from 'react';
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Handle, Position, type NodeProps } from '@xyflow/react';
 import { Clapperboard, PenLine, Video } from 'lucide-react';
 import { open } from '@tauri-apps/plugin-dialog';
@@ -236,9 +236,9 @@ export const VideoStoryboardNode = memo(({
     setPlayheadSec(0);
   };
 
-  const handleSaveSegments = (nextSegments: VideoStoryboardSegment[]) => {
+  const handleSaveSegments = useCallback((nextSegments: VideoStoryboardSegment[]) => {
     updateNodeData(id, { segments: nextSegments });
-  };
+  }, [id, updateNodeData]);
 
   return (
     <>
