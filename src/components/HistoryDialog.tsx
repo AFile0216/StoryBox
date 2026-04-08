@@ -1,13 +1,64 @@
-import { memo } from 'react';
-import { X, ExternalLink, Trash2 } from 'lucide-react';
+import { memo, useMemo } from 'react';
+import { ExternalLink, FileText, Film, Image as ImageIcon, Trash2, X } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { revealItemInDir } from '@tauri-apps/plugin-opener';
-import { useHistoryStore } from '@/stores/historyStore';
-function format(timestamp: number, _fmt: string) { return new Date(timestamp).toLocaleString(); }
+
+import { useHistoryStore, type HistoryRecord } from '@/stores/historyStore';
 
 interface HistoryDialogProps {
   isOpen: boolean;
   onClose: () => void;
+}
+
+function format(timestamp: number): string {
+  return new Date(timestamp).toLocaleString();
+}
+
+function resolvePreviewUrl(record: HistoryRecord): string | null {
+  const candidate = record.mediaUrl || record.imageUrl;
+  return typeof candidate === 'string' && candidate.trim() ? candidate.trim() : null;
+}
+
+function resolveRevealPath(record: HistoryRecord): string | null {
+  if (record.filePath && record.filePath.trim()) {
+    return record.filePath.trim();
+  }
+  const previewUrl = resolvePreviewUrl(record);
+  if (!previewUrl) {
+    return null;
+  }
+  if (previewUrl.startsWith('file://')) {
+    try {
+      const parsed = new URL(previewUrl);
+      const decodedPathname = decodeURIComponent(parsed.pathname);
+      return decodedPathname.replace(/^\/([A-Za-z]:[\\/])/, '$1');
+    } catch {
+      return previewUrl.replace('file://', '');
+    }
+  }
+  if (/^(?:[A-Za-z]:[\\/]|\\\\|\/)/u.test(previewUrl)) {
+    return previewUrl;
+  }
+  return null;
+}
+
+function resolveRecordType(record: HistoryRecord): 'image' | 'video' | 'text' {
+  if (record.type === 'video' || record.type === 'text' || record.type === 'image') {
+    return record.type;
+  }
+  const previewUrl = resolvePreviewUrl(record);
+  if (previewUrl && /\.(mp4|mov|m4v|webm|mkv|avi)$/iu.test(previewUrl)) {
+    return 'video';
+  }
+  if (previewUrl) {
+    return 'image';
+  }
+  return 'text';
+}
+
+function resolveContent(record: HistoryRecord): string {
+  const text = record.outputText || record.prompt;
+  return typeof text === 'string' ? text : '';
 }
 
 export const HistoryDialog = memo(({ isOpen, onClose }: HistoryDialogProps) => {
@@ -16,7 +67,14 @@ export const HistoryDialog = memo(({ isOpen, onClose }: HistoryDialogProps) => {
   const removeRecord = useHistoryStore((state) => state.removeRecord);
   const clearHistory = useHistoryStore((state) => state.clearHistory);
 
-  if (!isOpen) return null;
+  const sortedRecords = useMemo(
+    () => [...records].sort((left, right) => right.createdAt - left.createdAt),
+    [records]
+  );
+
+  if (!isOpen) {
+    return null;
+  }
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
@@ -26,7 +84,7 @@ export const HistoryDialog = memo(({ isOpen, onClose }: HistoryDialogProps) => {
             {t('app.history', { defaultValue: '历史记录' })}
           </h2>
           <div className="flex items-center gap-3">
-            {records.length > 0 && (
+            {sortedRecords.length > 0 && (
               <button
                 type="button"
                 onClick={() => {
@@ -50,8 +108,8 @@ export const HistoryDialog = memo(({ isOpen, onClose }: HistoryDialogProps) => {
           </div>
         </div>
 
-        <div className="flex-1 overflow-y-auto p-6 ui-scrollbar">
-          {records.length === 0 ? (
+        <div className="ui-scrollbar flex-1 overflow-y-auto p-6">
+          {sortedRecords.length === 0 ? (
             <div className="flex h-full flex-col items-center justify-center text-text-muted">
               <div className="mb-4 rounded-full bg-[var(--ui-surface-field)] p-4">
                 <ExternalLink className="h-8 w-8 opacity-50" />
@@ -59,63 +117,82 @@ export const HistoryDialog = memo(({ isOpen, onClose }: HistoryDialogProps) => {
               <p>{t('app.historyEmpty', { defaultValue: '暂无历史记录' })}</p>
             </div>
           ) : (
-            <div className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
-              {records.map((record) => (
-                <div
-                  key={record.id}
-                  className="group relative flex flex-col overflow-hidden rounded-xl border border-[var(--ui-border-soft)] bg-[var(--ui-surface-field)] transition-all hover:border-accent/40"
-                  onContextMenu={async (e) => {
-                    e.preventDefault();
-                    if (record.filePath) {
-                      try {
-                        await revealItemInDir(record.filePath);
-                      } catch (err) {
-                        console.error('Failed to reveal file', err);
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+              {sortedRecords.map((record) => {
+                const recordType = resolveRecordType(record);
+                const previewUrl = resolvePreviewUrl(record);
+                const content = resolveContent(record);
+                const revealPath = resolveRevealPath(record);
+                const typeLabel =
+                  recordType === 'video'
+                    ? t('node.menu.video', { defaultValue: '视频' })
+                    : recordType === 'text'
+                      ? t('node.menu.textAnnotation', { defaultValue: '文本' })
+                      : t('node.menu.uploadImage', { defaultValue: '图片' });
+
+                return (
+                  <div
+                    key={record.id}
+                    className="group relative flex flex-col overflow-hidden rounded-xl border border-[var(--ui-border-soft)] bg-[var(--ui-surface-field)] transition-all hover:border-accent/40"
+                    onContextMenu={async (event) => {
+                      event.preventDefault();
+                      if (!revealPath) {
+                        return;
                       }
-                    } else if (record.imageUrl.startsWith('file://')) {
                       try {
-                        await revealItemInDir(record.imageUrl.replace('file://', ''));
-                      } catch (err) {
-                        console.error('Failed to reveal file', err);
+                        await revealItemInDir(revealPath);
+                      } catch (error) {
+                        console.error('Failed to reveal path', error);
                       }
-                    }
-                  }}
-                >
-                  <div className="relative aspect-square w-full overflow-hidden bg-black/20">
-                    <img
-                      src={record.imageUrl}
-                      alt={record.prompt}
-                      className="h-full w-full object-contain"
-                      loading="lazy"
-                    />
-                    <div className="absolute inset-0 bg-black/0 transition-colors group-hover:bg-black/10" />
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        removeRecord(record.id);
-                      }}
-                      className="absolute right-2 top-2 rounded-lg bg-black/60 p-1.5 text-white opacity-0 backdrop-blur-md transition-opacity hover:bg-red-500/80 group-hover:opacity-100"
-                      title={t('common.delete', { defaultValue: '删除' })}
-                    >
-                      <Trash2 className="h-3.5 w-3.5" />
-                    </button>
-                  </div>
-                  <div className="flex flex-1 flex-col justify-between p-3">
-                    <p className="line-clamp-2 text-xs leading-relaxed text-text-dark" title={record.prompt}>
-                      {record.prompt || t('app.noPrompt', { defaultValue: '无提示词' })}
-                    </p>
-                    <div className="mt-3 flex items-center justify-between border-t border-[var(--ui-border-soft)] pt-2 text-[10px] text-text-muted">
-                      <span className="truncate pr-2 uppercase tracking-wide opacity-70">
-                        {record.model}
-                      </span>
-                      <span className="shrink-0 font-medium">
-                        {format(record.createdAt, 'MM-dd HH:mm')}
-                      </span>
+                    }}
+                  >
+                    <div className="relative aspect-video w-full overflow-hidden bg-black/20">
+                      {recordType === 'image' && previewUrl ? (
+                        <img
+                          src={previewUrl}
+                          alt={record.prompt || 'history-record'}
+                          className="h-full w-full object-contain"
+                          loading="lazy"
+                        />
+                      ) : (
+                        <div className="flex h-full w-full items-center justify-center gap-2 text-text-muted">
+                          {recordType === 'video' ? <Film className="h-7 w-7 opacity-70" /> : null}
+                          {recordType === 'text' ? <FileText className="h-7 w-7 opacity-70" /> : null}
+                          {recordType === 'image' ? <ImageIcon className="h-7 w-7 opacity-70" /> : null}
+                          <span className="text-xs">{typeLabel}</span>
+                        </div>
+                      )}
+                      <div className="absolute inset-0 bg-black/0 transition-colors group-hover:bg-black/10" />
+                      <button
+                        type="button"
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          removeRecord(record.id);
+                        }}
+                        className="absolute right-2 top-2 rounded-lg bg-black/60 p-1.5 text-white opacity-0 backdrop-blur-md transition-opacity hover:bg-red-500/80 group-hover:opacity-100"
+                        title={t('common.delete', { defaultValue: '删除' })}
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
+
+                    <div className="flex flex-1 flex-col justify-between p-3">
+                      <p className="line-clamp-3 text-xs leading-relaxed text-text-dark" title={content}>
+                        {content || t('app.noPrompt', { defaultValue: '无内容' })}
+                      </p>
+                      <div className="mt-3 border-t border-[var(--ui-border-soft)] pt-2 text-[10px] text-text-muted">
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="truncate uppercase tracking-wide opacity-80">{record.model || 'unknown'}</span>
+                          <span className="shrink-0 font-medium">{format(record.createdAt)}</span>
+                        </div>
+                        {revealPath ? (
+                          <div className="mt-1 truncate opacity-70">{revealPath}</div>
+                        ) : null}
+                      </div>
                     </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </div>

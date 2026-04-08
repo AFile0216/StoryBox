@@ -179,6 +179,28 @@ function resolveClipboardImageFile(event: ClipboardEvent): File | null {
   return null;
 }
 
+function isVideoMimeType(mimeType: string | undefined | null): boolean {
+  if (!mimeType) {
+    return false;
+  }
+  return mimeType.toLowerCase().startsWith('video/');
+}
+
+function isVideoFilename(fileName: string | undefined | null): boolean {
+  if (!fileName) {
+    return false;
+  }
+  return /\.(mp4|mov|m4v|webm|mkv|avi)$/iu.test(fileName);
+}
+
+function resolveDroppedVideoFiles(dataTransfer: DataTransfer | null): File[] {
+  if (!dataTransfer) {
+    return [];
+  }
+  const files = Array.from(dataTransfer.files ?? []);
+  return files.filter((file) => isVideoMimeType(file.type) || isVideoFilename(file.name));
+}
+
 function resolveAllowedNodeTypes(handleType: HandleType): CanvasNodeType[] {
   return getConnectMenuNodeTypes(handleType);
 }
@@ -846,6 +868,77 @@ export function Canvas() {
       document.removeEventListener('paste', handlePaste);
     };
   }, [selectedUploadNodeId]);
+
+  useEffect(() => {
+    const element = wrapperRef.current;
+    if (!element) {
+      return;
+    }
+
+    const handleDragOver = (event: DragEvent) => {
+      const videoFiles = resolveDroppedVideoFiles(event.dataTransfer);
+      if (videoFiles.length === 0) {
+        return;
+      }
+      event.preventDefault();
+      if (event.dataTransfer) {
+        event.dataTransfer.dropEffect = 'copy';
+      }
+    };
+
+    const handleDrop = (event: DragEvent) => {
+      const videoFiles = resolveDroppedVideoFiles(event.dataTransfer);
+      if (videoFiles.length === 0) {
+        return;
+      }
+
+      event.preventDefault();
+      event.stopPropagation();
+
+      const screenPoint = {
+        x: event.clientX,
+        y: event.clientY,
+      };
+      const flowPoint = reactFlowInstance.screenToFlowPosition(screenPoint);
+      let created = 0;
+
+      for (let index = 0; index < videoFiles.length; index += 1) {
+        const file = videoFiles[index];
+        const droppedPath = ((file as File & { path?: string }).path ?? '').trim();
+        const resolvedPath = droppedPath || URL.createObjectURL(file);
+        if (!resolvedPath) {
+          continue;
+        }
+        const sourceFileName = file.name || resolvedPath.split(/[/\\]/u).pop() || `video-${Date.now()}`;
+        addNode(
+          CANVAS_NODE_TYPES.videoPreview as CanvasNodeType,
+          {
+            x: flowPoint.x + index * 32,
+            y: flowPoint.y + index * 20,
+          },
+          {
+            filePath: resolvedPath,
+            sourceFileName,
+            mimeType: file.type || null,
+            displayName: sourceFileName,
+          }
+        );
+        created += 1;
+      }
+
+      if (created > 0) {
+        scheduleCanvasPersist(0);
+      }
+    };
+
+    element.addEventListener('dragover', handleDragOver);
+    element.addEventListener('drop', handleDrop);
+
+    return () => {
+      element.removeEventListener('dragover', handleDragOver);
+      element.removeEventListener('drop', handleDrop);
+    };
+  }, [addNode, reactFlowInstance, scheduleCanvasPersist]);
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {

@@ -229,6 +229,7 @@ function App() {
             setSettingsInitialCategory('general');
             setShowSettings(true);
           }}
+          onHistoryClick={() => setIsHistoryOpen(true)}
           showBackButton={!!currentProjectId}
           onBackClick={closeProject}
         />
@@ -238,7 +239,7 @@ function App() {
         </main>
 
         <HistoryDialog isOpen={isHistoryOpen} onClose={() => setIsHistoryOpen(false)} />
-      <SettingsDialog
+        <SettingsDialog
           isOpen={showSettings}
           onClose={() => setShowSettings(false)}
           initialCategory={settingsInitialCategory}

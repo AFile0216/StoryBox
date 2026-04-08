@@ -10,6 +10,7 @@ import { StoryboardNode } from './StoryboardNode';
 import { TextAnnotationNode } from './TextAnnotationNode';
 import { UploadNode } from './UploadNode';
 import { VideoNode } from './VideoNode';
+import { VideoPreviewNode } from './VideoPreviewNode';
 import { VideoStoryboardNode } from './VideoStoryboardNode';
 
 export const nodeTypes: NodeTypes = {
@@ -23,6 +24,7 @@ export const nodeTypes: NodeTypes = {
   textAnnotationNode: TextAnnotationNode,
   uploadNode: UploadNode,
   videoNode: VideoNode,
+  videoPreviewNode: VideoPreviewNode,
   videoStoryboardNode: VideoStoryboardNode,
 };
 
@@ -37,5 +39,6 @@ export {
   TextAnnotationNode,
   UploadNode,
   VideoNode,
+  VideoPreviewNode,
   VideoStoryboardNode,
 };

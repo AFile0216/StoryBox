@@ -29,6 +29,7 @@ export interface NodeFactory {
 
 export interface GraphImageResolver {
   collectInputImages: (nodeId: string, nodes: CanvasNode[], edges: CanvasEdge[]) => string[];
+  collectInputVideos: (nodeId: string, nodes: CanvasNode[], edges: CanvasEdge[]) => string[];
 }
 
 export interface GenerateImagePayload {

@@ -78,9 +78,20 @@ function buildStoryboardFrames(segments: VideoStoryboardSegment[], total: number
     const timePrefix = segment
       ? `[${formatSeconds(segment.startSec)} - ${formatSeconds(segment.endSec)}]\n`
       : '';
+    const detailLines = segment
+      ? [
+          segment.visualDesc ? `画面: ${segment.visualDesc}` : '',
+          segment.dialogue ? `对白: ${segment.dialogue}` : '',
+          segment.notes ? `备注: ${segment.notes}` : '',
+          segment.keyframeReference ? `关键帧提取: ${segment.keyframeReference}` : '',
+        ].filter(Boolean)
+      : [];
+    const description = segment
+      ? `${timePrefix}${detailLines.join('\n') || segment.text || ''}`.trim()
+      : '';
     return {
       id: `storyboard-frame-${index + 1}`,
-      description: segment ? `${timePrefix}${segment.text || ''}` : '',
+      description,
       referenceIndex: null,
     };
   });

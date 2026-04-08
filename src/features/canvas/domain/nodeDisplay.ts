@@ -11,6 +11,7 @@ export const DEFAULT_NODE_DISPLAY_NAME: Record<CanvasNodeType, string> = {
   [CANVAS_NODE_TYPES.exportImage]: '结果图片',
   [CANVAS_NODE_TYPES.textAnnotation]: '文本节点',
   [CANVAS_NODE_TYPES.video]: '视频节点',
+  [CANVAS_NODE_TYPES.videoPreview]: '视频预览',
   [CANVAS_NODE_TYPES.audio]: '音频节点',
   [CANVAS_NODE_TYPES.videoStoryboard]: '视频分镜',
   [CANVAS_NODE_TYPES.group]: '分组',

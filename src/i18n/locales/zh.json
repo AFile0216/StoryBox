@@ -1,7 +1,12 @@
 {
   "app": {
     "title": "StoryBox",
-    "subtitle": "StoryBox"
+    "subtitle": "StoryBox",
+    "history": "历史记录",
+    "historyEmpty": "暂无历史记录",
+    "clearHistory": "清空历史",
+    "clearHistoryConfirm": "确定清空全部历史记录吗？",
+    "noPrompt": "无内容"
   },
   "common": {
     "save": "保存",
@@ -191,7 +196,9 @@
       "mode": {
         "reference": "参考视频",
         "image-to-video": "图生视频",
-        "first-last-frame": "首尾帧模式"
+        "first-last-frame": "首尾帧模式",
+        "audio-to-video": "音频生视频",
+        "video-storyboard-generation": "视频分镜生成"
       }
     },
     "audio": {
@@ -227,7 +234,9 @@
       "noSegments": "还没有创建分镜段落",
       "emptySegmentText": "暂无描述",
       "useCurrentForStart": "当前位置设为开始",
-      "useCurrentForEnd": "当前位置设为结束"
+      "useCurrentForEnd": "当前位置设为结束",
+      "captureReference": "关键帧参考提取",
+      "captureReferencePlaceholder": "截图后会自动提取，可手动编辑。"
     }
   },
   "viewer": {

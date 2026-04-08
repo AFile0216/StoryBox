@@ -15,6 +15,7 @@ import {
   type TextAnnotationNodeData,
   type UploadImageNodeData,
   type VideoNodeData,
+  type VideoPreviewNodeData,
   type VideoStoryboardNodeData,
 } from './canvasNodes';
 import { DEFAULT_NODE_DISPLAY_NAME } from './nodeDisplay';
@@ -158,6 +159,11 @@ const textAnnotationNodeDefinition: CanvasNodeDefinition<TextAnnotationNodeData>
     content: '',
     mode: 'plain-text',
     lastAppliedTaskType: null,
+    interfaceId: '',
+    modelId: '',
+    isGenerating: false,
+    lastGeneratedAt: null,
+    generationError: null,
   }),
 };
 
@@ -182,14 +188,48 @@ const videoNodeDefinition: CanvasNodeDefinition<VideoNodeData> = {
     displayName: DEFAULT_NODE_DISPLAY_NAME[CANVAS_NODE_TYPES.video],
     filePath: null,
     sourceFileName: null,
+    audioFilePath: null,
+    audioSourceFileName: null,
     mimeType: null,
     durationSec: null,
     prompt: '',
-    taskMode: 'reference',
+    interfaceId: '',
+    modelId: '',
+    taskMode: 'image-to-video',
+    aspectRatio: '16:9',
+    generationSeconds: 5,
     taskStatus: 'idle',
     taskMessage: null,
     taskOutputSummary: null,
+    outputFilePath: null,
     lastExecutedAt: null,
+  }),
+};
+
+const videoPreviewNodeDefinition: CanvasNodeDefinition<VideoPreviewNodeData> = {
+  type: CANVAS_NODE_TYPES.videoPreview,
+  menuLabelKey: 'node.menu.video',
+  menuIcon: 'video',
+  visibleInMenu: false,
+  capabilities: {
+    toolbar: true,
+    promptInput: false,
+  },
+  connectivity: {
+    sourceHandle: true,
+    targetHandle: true,
+    connectMenu: {
+      fromSource: false,
+      fromTarget: false,
+    },
+  },
+  createDefaultData: () => ({
+    displayName: DEFAULT_NODE_DISPLAY_NAME[CANVAS_NODE_TYPES.videoPreview],
+    filePath: null,
+    sourceFileName: null,
+    mimeType: null,
+    durationSec: null,
+    posterImageUrl: null,
   }),
 };
 
@@ -386,6 +426,7 @@ export const canvasNodeDefinitions: Record<CanvasNodeType, CanvasNodeDefinition>
   [CANVAS_NODE_TYPES.exportImage]: exportImageNodeDefinition,
   [CANVAS_NODE_TYPES.textAnnotation]: textAnnotationNodeDefinition,
   [CANVAS_NODE_TYPES.video]: videoNodeDefinition,
+  [CANVAS_NODE_TYPES.videoPreview]: videoPreviewNodeDefinition,
   [CANVAS_NODE_TYPES.audio]: audioNodeDefinition,
   [CANVAS_NODE_TYPES.videoStoryboard]: videoStoryboardNodeDefinition,
   [CANVAS_NODE_TYPES.group]: groupNodeDefinition,

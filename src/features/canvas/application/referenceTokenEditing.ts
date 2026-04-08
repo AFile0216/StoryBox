@@ -1,4 +1,5 @@
 export type DeleteDirection = 'backward' | 'forward';
+export type ReferenceMediaType = 'image' | 'video';
 
 export interface TextRange {
   start: number;
@@ -15,32 +16,44 @@ interface TokenRange extends TextRange {
   blockEnd: number;
 }
 
+const IMAGE_PREFIX = '\u56FE';
+const VIDEO_PREFIX = '\u89C6\u9891';
+
 function clamp(value: number, min: number, max: number): number {
   return Math.max(min, Math.min(max, value));
 }
 
-function resolveMaxReferenceNumber(maxImageCount?: number): number {
-  if (typeof maxImageCount !== 'number' || !Number.isFinite(maxImageCount)) {
+function resolveMaxReferenceNumber(maxCount?: number): number {
+  if (typeof maxCount !== 'number' || !Number.isFinite(maxCount)) {
     return Number.POSITIVE_INFINITY;
   }
-
-  return Math.max(0, Math.floor(maxImageCount));
+  return Math.max(0, Math.floor(maxCount));
 }
 
 function isAsciiDigit(char: string): boolean {
   return char >= '0' && char <= '9';
 }
 
-export function findReferenceTokens(text: string, maxImageCount?: number): ReferenceTokenMatch[] {
+function resolveMediaPrefix(mediaType: ReferenceMediaType): string {
+  return mediaType === 'video' ? VIDEO_PREFIX : IMAGE_PREFIX;
+}
+
+function findReferenceTokensByPrefix(
+  text: string,
+  prefix: string,
+  maxCount?: number
+): ReferenceTokenMatch[] {
   const tokens: ReferenceTokenMatch[] = [];
-  const maxReferenceNumber = resolveMaxReferenceNumber(maxImageCount);
+  const maxReferenceNumber = resolveMaxReferenceNumber(maxCount);
+  const marker = `@${prefix}`;
+  const markerLength = marker.length;
 
   for (let index = 0; index < text.length; index += 1) {
-    if (text[index] !== '@' || text[index + 1] !== '图') {
+    if (text.slice(index, index + markerLength) !== marker) {
       continue;
     }
 
-    const digitsStart = index + 2;
+    const digitsStart = index + markerLength;
     if (!isAsciiDigit(text[digitsStart] ?? '')) {
       continue;
     }
@@ -67,6 +80,7 @@ export function findReferenceTokens(text: string, maxImageCount?: number): Refer
     let bestEnd = -1;
     let bestValue = 0;
     let rollingValue = 0;
+
     for (let cursor = digitsStart; cursor < digitsEnd; cursor += 1) {
       rollingValue = rollingValue * 10 + Number(text[cursor]);
 
@@ -94,24 +108,59 @@ export function findReferenceTokens(text: string, maxImageCount?: number): Refer
   return tokens;
 }
 
-function findTokenRanges(text: string, maxImageCount?: number): TokenRange[] {
-  const ranges: TokenRange[] = [];
-  const referenceTokens = findReferenceTokens(text, maxImageCount);
-  for (const token of referenceTokens) {
-    const start = token.start;
-    const end = token.end;
-    const blockStart = start > 0 && text[start - 1] === ' ' ? start - 1 : start;
-    const blockEnd = end < text.length && text[end] === ' ' ? end + 1 : end;
+export function findReferenceTokens(text: string, maxImageCount?: number): ReferenceTokenMatch[] {
+  return findReferenceTokensByPrefix(text, IMAGE_PREFIX, maxImageCount);
+}
 
-    ranges.push({
-      start,
-      end,
+export function findMediaReferenceTokens(
+  text: string,
+  mediaType: ReferenceMediaType,
+  maxCount?: number
+): ReferenceTokenMatch[] {
+  return findReferenceTokensByPrefix(text, resolveMediaPrefix(mediaType), maxCount);
+}
+
+function toTokenRanges(tokens: ReferenceTokenMatch[], text: string): TokenRange[] {
+  return tokens.map((token) => {
+    const blockStart = token.start > 0 && text[token.start - 1] === ' ' ? token.start - 1 : token.start;
+    const blockEnd = token.end < text.length && text[token.end] === ' ' ? token.end + 1 : token.end;
+    return {
+      start: token.start,
+      end: token.end,
       blockStart,
       blockEnd,
-    });
+    };
+  });
+}
+
+type DeleteResolverOptions =
+  | number
+  | {
+      imageCount?: number;
+      videoCount?: number;
+      mediaTypes?: ReferenceMediaType[];
+    };
+
+function resolveTokenRangesForDelete(text: string, options?: DeleteResolverOptions): TokenRange[] {
+  const mediaTypes =
+    typeof options === 'object' && Array.isArray(options.mediaTypes) && options.mediaTypes.length > 0
+      ? options.mediaTypes
+      : (['image'] as ReferenceMediaType[]);
+
+  const ranges: TokenRange[] = [];
+  for (const mediaType of mediaTypes) {
+    const maxCount =
+      typeof options === 'number'
+        ? mediaType === 'image'
+          ? options
+          : undefined
+        : mediaType === 'video'
+          ? options?.videoCount
+          : options?.imageCount;
+    ranges.push(...toTokenRanges(findMediaReferenceTokens(text, mediaType, maxCount), text));
   }
 
-  return ranges;
+  return ranges.sort((left, right) => left.start - right.start);
 }
 
 export function insertReferenceToken(
@@ -139,13 +188,13 @@ export function resolveReferenceAwareDeleteRange(
   selectionStart: number,
   selectionEnd: number,
   direction: DeleteDirection,
-  maxImageCount?: number
+  options?: DeleteResolverOptions
 ): TextRange | null {
   const safeStart = clamp(selectionStart, 0, text.length);
   const safeEnd = clamp(selectionEnd, 0, text.length);
   const selectionMin = Math.min(safeStart, safeEnd);
   const selectionMax = Math.max(safeStart, safeEnd);
-  const tokenRanges = findTokenRanges(text, maxImageCount);
+  const tokenRanges = resolveTokenRangesForDelete(text, options);
 
   if (selectionMin !== selectionMax) {
     let expandedStart = selectionMin;
@@ -172,10 +221,7 @@ export function resolveReferenceAwareDeleteRange(
     };
   }
 
-  const point = direction === 'backward'
-    ? Math.max(0, selectionMin - 1)
-    : selectionMin;
-
+  const point = direction === 'backward' ? Math.max(0, selectionMin - 1) : selectionMin;
   for (const tokenRange of tokenRanges) {
     if (point >= tokenRange.blockStart && point < tokenRange.blockEnd) {
       return {
@@ -210,46 +256,42 @@ export function removeTextRange(
   };
 }
 
-/**
- * 从提示词中提取被引用的图片索引
- * @param text 提示词文本
- * @param maxImageCount 最大图片数量
- * @returns 被引用的图片索引数组（从0开始），已排序去重
- * @example
- * extractReferencedImageIndices('一个女孩站在 @图1 的场景中', 3) // [0]
- * extractReferencedImageIndices('@图1 的场景，@图3 的服装', 5) // [0, 2]
- */
-export function extractReferencedImageIndices(
+function extractReferencedIndices(
   text: string,
-  maxImageCount?: number
+  mediaType: ReferenceMediaType,
+  maxCount?: number
 ): number[] {
-  const tokens = findReferenceTokens(text, maxImageCount);
-  const indices = tokens.map(t => t.value - 1); // @图1 -> index 0
-  return [...new Set(indices)].sort((a, b) => a - b);
+  const tokens = findMediaReferenceTokens(text, mediaType, maxCount);
+  const indices = tokens.map((token) => token.value - 1);
+  return [...new Set(indices)].sort((left, right) => left - right);
 }
 
-/**
- * 根据提示词中的引用标记过滤图片数组
- * @param allImages 所有可用的图片URL数组
- * @param prompt 提示词文本
- * @returns 被引用的图片URL数组，如果没有引用标记则返回所有图片（向后兼容）
- * @example
- * filterReferencedImages(['img1.jpg', 'img2.jpg', 'img3.jpg'], '@图1 @图3') // ['img1.jpg', 'img3.jpg']
- * filterReferencedImages(['img1.jpg', 'img2.jpg'], '一个美丽的场景') // ['img1.jpg', 'img2.jpg']
- */
-export function filterReferencedImages(
-  allImages: string[],
-  prompt: string
+export function extractReferencedImageIndices(text: string, maxImageCount?: number): number[] {
+  return extractReferencedIndices(text, 'image', maxImageCount);
+}
+
+export function extractReferencedVideoIndices(text: string, maxVideoCount?: number): number[] {
+  return extractReferencedIndices(text, 'video', maxVideoCount);
+}
+
+function filterReferencedMedia(
+  allMedia: string[],
+  prompt: string,
+  mediaType: ReferenceMediaType
 ): string[] {
-  const referencedIndices = extractReferencedImageIndices(prompt, allImages.length);
-
-  // 如果没有引用标记，返回所有图片（向后兼容）
+  const referencedIndices = extractReferencedIndices(prompt, mediaType, allMedia.length);
   if (referencedIndices.length === 0) {
-    return allImages;
+    return allMedia;
   }
-
-  // 只返回被引用的图片
   return referencedIndices
-    .filter(idx => idx >= 0 && idx < allImages.length)
-    .map(idx => allImages[idx]);
+    .filter((index) => index >= 0 && index < allMedia.length)
+    .map((index) => allMedia[index]);
+}
+
+export function filterReferencedImages(allImages: string[], prompt: string): string[] {
+  return filterReferencedMedia(allImages, prompt, 'image');
+}
+
+export function filterReferencedVideos(allVideos: string[], prompt: string): string[] {
+  return filterReferencedMedia(allVideos, prompt, 'video');
 }

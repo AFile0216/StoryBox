@@ -193,8 +193,10 @@ function inferEdgeRelation(sourceNode: CanvasNode, targetNode: CanvasNode): Canv
 
   if (
     sourceNode.type === CANVAS_NODE_TYPES.video ||
+    sourceNode.type === CANVAS_NODE_TYPES.videoPreview ||
     sourceNode.type === CANVAS_NODE_TYPES.videoStoryboard ||
     targetNode.type === CANVAS_NODE_TYPES.video ||
+    targetNode.type === CANVAS_NODE_TYPES.videoPreview ||
     targetNode.type === CANVAS_NODE_TYPES.videoStoryboard
   ) {
     return 'video-flow';
@@ -1189,9 +1191,12 @@ export const useCanvasStore = create<CanvasState>((set, get) => ({
           ) {
             useHistoryStore.getState().addRecord({
               nodeId: node.id,
+              type: 'image',
               imageUrl: data.imageUrl as string,
+              mediaUrl: data.imageUrl as string,
               prompt: (node.data as any).prompt ?? '',
               model: String((node.data as any).generationProviderId || 'unknown') as string,
+              filePath: typeof data.imageUrl === 'string' ? data.imageUrl : undefined,
             });
           }
         }

@@ -6,6 +6,7 @@ export const CANVAS_NODE_TYPES = {
   exportImage: 'exportImageNode',
   textAnnotation: 'textAnnotationNode',
   video: 'videoNode',
+  videoPreview: 'videoPreviewNode',
   audio: 'audioNode',
   videoStoryboard: 'videoStoryboardNode',
   group: 'groupNode',
@@ -82,6 +83,11 @@ export interface TextAnnotationNodeData extends NodeDisplayData {
   content: string;
   mode: TextAnnotationMode;
   lastAppliedTaskType?: string | null;
+  interfaceId?: string;
+  modelId?: string;
+  isGenerating?: boolean;
+  lastGeneratedAt?: number | null;
+  generationError?: string | null;
   [key: string]: unknown;
 }
 
@@ -98,15 +104,27 @@ export type VideoNodeTaskMode =
   | 'reference'
   | 'image-to-video'
   | 'first-last-frame'
+  | 'audio-to-video'
   | 'video-storyboard-generation';
 
 export interface VideoNodeData extends MediaFileNodeData {
+  audioFilePath?: string | null;
+  audioSourceFileName?: string | null;
   prompt: string;
   taskMode: VideoNodeTaskMode;
+  interfaceId?: string;
+  modelId?: string;
+  aspectRatio?: string;
+  generationSeconds?: number;
   taskStatus: MediaTaskStatus;
   taskMessage?: string | null;
   taskOutputSummary?: string | null;
+  outputFilePath?: string | null;
   lastExecutedAt?: number | null;
+}
+
+export interface VideoPreviewNodeData extends MediaFileNodeData {
+  posterImageUrl?: string | null;
 }
 
 export interface AudioNodeData extends MediaFileNodeData {
@@ -214,6 +232,7 @@ export interface VideoStoryboardSegment {
   tags?: string[];
   order: number;
   keyframeDataUrl?: string | null;
+  keyframeReference?: string;
   status: VideoStoryboardSegmentStatus;
 }
 
@@ -249,6 +268,7 @@ export type CanvasNodeData =
   | ExportImageNodeData
   | TextAnnotationNodeData
   | VideoNodeData
+  | VideoPreviewNodeData
   | AudioNodeData
   | VideoStoryboardNodeData
   | GroupNodeData
@@ -342,6 +362,12 @@ export function isVideoNode(
   node: CanvasNode | null | undefined
 ): node is Node<VideoNodeData, typeof CANVAS_NODE_TYPES.video> {
   return node?.type === CANVAS_NODE_TYPES.video;
+}
+
+export function isVideoPreviewNode(
+  node: CanvasNode | null | undefined
+): node is Node<VideoPreviewNodeData, typeof CANVAS_NODE_TYPES.videoPreview> {
+  return node?.type === CANVAS_NODE_TYPES.videoPreview;
 }
 
 export function isAudioNode(

@@ -4,9 +4,12 @@ import { persist } from 'zustand/middleware';
 export interface HistoryRecord {
   id: string;
   nodeId: string;
-  imageUrl: string;
+  type?: 'image' | 'video' | 'text';
+  imageUrl?: string;
+  mediaUrl?: string;
   prompt: string;
   model: string;
+  outputText?: string;
   createdAt: number;
   filePath?: string;
 }
@@ -28,11 +31,24 @@ export const useHistoryStore = create<HistoryStore>()(
           id: `hist-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
           createdAt: Date.now(),
         };
-        // deduplicate by node ID + image URL to prevent spam
-        if (state.records.some((r) => r.nodeId === record.nodeId && r.imageUrl === record.imageUrl)) {
+        const dedupeKey =
+          record.mediaUrl
+          || record.imageUrl
+          || record.outputText
+          || record.prompt
+          || '';
+        if (state.records.some((r) => {
+          const candidate =
+            r.mediaUrl
+            || r.imageUrl
+            || r.outputText
+            || r.prompt
+            || '';
+          return r.nodeId === record.nodeId && candidate === dedupeKey;
+        })) {
           return state;
         }
-        return { records: [newRecord, ...state.records].slice(0, 100) }; // keep last 100
+        return { records: [newRecord, ...state.records].slice(0, 200) };
       }),
       removeRecord: (id) => set((state) => ({
         records: state.records.filter((r) => r.id !== id),

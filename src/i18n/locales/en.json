@@ -1,7 +1,12 @@
 {
   "app": {
     "title": "StoryBox",
-    "subtitle": "StoryBox"
+    "subtitle": "StoryBox",
+    "history": "History",
+    "historyEmpty": "No history yet",
+    "clearHistory": "Clear History",
+    "clearHistoryConfirm": "Clear all history records?",
+    "noPrompt": "No content"
   },
   "common": {
     "save": "Save",
@@ -204,6 +209,7 @@
         "reference": "Reference Video",
         "image-to-video": "Image to Video",
         "first-last-frame": "First/Last Frame",
+        "audio-to-video": "Audio to Video",
         "video-storyboard-generation": "Video Storyboard Generation"
       }
     },
@@ -241,7 +247,9 @@
       "noSegments": "No storyboard segments yet",
       "emptySegmentText": "No description",
       "useCurrentForStart": "Use Current as Start",
-      "useCurrentForEnd": "Use Current as End"
+      "useCurrentForEnd": "Use Current as End",
+      "captureReference": "Keyframe Extract",
+      "captureReferencePlaceholder": "Auto extracted from screenshot. Editable."
     }
   },
   "viewer": {
