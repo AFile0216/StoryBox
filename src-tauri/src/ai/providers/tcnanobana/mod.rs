@@ -52,7 +52,7 @@ impl AIProvider for TcNanoBanaProvider {
 
     fn supports_model(&self, model: &str) -> bool { model.starts_with("tcnanobana/") }
 
-    fn list_models(&self) -> Vec<String> { vec\!["tcnanobana/gemini-2.5-flash-image".to_string()] }
+    fn list_models(&self) -> Vec<String> { vec!["tcnanobana/gemini-2.5-flash-image".to_string()] }
 
     async fn set_api_key(&self, api_key: String) -> Result<(), AIError> {
         let mut key = self.api_key.write().await;
@@ -63,7 +63,7 @@ impl AIProvider for TcNanoBanaProvider {
     async fn configure_runtime(&self, config: ProviderRuntimeConfig) -> Result<(), AIError> {
         self.set_api_key(config.api_key).await?;
         if let Some(ref url) = config.base_url {
-            if \!url.trim().is_empty() {
+            if !url.trim().is_empty() {
                 let mut stored = self.base_url.write().await;
                 *stored = url.trim().trim_end_matches("/").to_string();
             }
@@ -72,23 +72,23 @@ impl AIProvider for TcNanoBanaProvider {
     }
     async fn generate(&self, request: GenerateRequest) -> Result<String, AIError> {
         let api_key: String = match request.runtime_config.as_ref() {
-            Some(rc) if \!rc.api_key.trim().is_empty() => rc.api_key.trim().to_string(),
+            Some(rc) if !rc.api_key.trim().is_empty() => rc.api_key.trim().to_string(),
             _ => self.api_key.read().await.clone()
                 .ok_or_else(|| AIError::InvalidRequest("TC Nano Banana API key not set".to_string()))?,
         };
         let base_url = match request.runtime_config.as_ref() {
-            Some(rc) if \!rc.base_url.trim().is_empty() => rc.base_url.trim().trim_end_matches("/").to_string(),
+            Some(rc) if !rc.base_url.trim().is_empty() => rc.base_url.trim().trim_end_matches("/").to_string(),
             _ => self.base_url.read().await.clone(),
         };
-        let mut parts: Vec<Value> = vec\![json\!({"text": request.prompt})];
+        let mut parts: Vec<Value> = vec![json!({"text": request.prompt})];
         if let Some(ref images) = request.reference_images {
             for src in images {
                 if let Some(b64) = encode_image(src) {
-                    parts.push(json\!({"inlineData":{"mimeType":"image/png","data":b64}}));
+                    parts.push(json!({"inlineData":{"mimeType":"image/png","data":b64}}));
                 }
             }
         }
-        let body = json\!({
+        let body = json!({
             "model": "gemini-2.5-flash-image-preview",
             "data": {
                 "contents": [{"role":"user","parts":parts}],
@@ -101,22 +101,22 @@ impl AIProvider for TcNanoBanaProvider {
                 }
             }
         });
-        let create_url = format\!("{}/ai_in_one/v2/createImage", base_url);
-        info\!("[TCNanoBanana] POST {}", create_url);
+        let create_url = format!("{}/ai_in_one/v2/createImage", base_url);
+        info!("[TCNanoBanana] POST {}", create_url);
         let resp = self.client.post(&create_url)
-            .header("Authorization", format\!("Bearer {}", api_key))
+            .header("Authorization", format!("Bearer {}", api_key))
             .header("Content-Type", "application/json")
             .json(&body).send().await?;
-        if \!resp.status().is_success() {
+        if !resp.status().is_success() {
             let s = resp.status();
             let t = resp.text().await.unwrap_or_default();
-            return Err(AIError::Provider(format\!("TCNanoBanana createImage failed {}: {}", s, t)));
+            return Err(AIError::Provider(format!("TCNanoBanana createImage failed {}: {}", s, t)));
         }
         let rj: Value = resp.json().await?;
         let task_id = rj["data"]["id"].as_str()
             .ok_or_else(|| AIError::Provider("TCNanoBanana: missing task id".to_string()))?
             .to_string();
-        info\!("[TCNanoBanana] task_id={}", task_id);
+        info!("[TCNanoBanana] task_id={}", task_id);
         let query_url = format!("{}/ai_in_one/v2/queryImage", base_url);
         for attempt in 0..MAX_POLL_ATTEMPTS {
             sleep(Duration::from_millis(POLL_INTERVAL_MS)).await;
