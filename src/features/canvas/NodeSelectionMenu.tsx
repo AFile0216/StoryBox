@@ -23,20 +23,12 @@ const iconMap: Record<MenuIconKey, typeof Upload> = {
   video: Video,
 };
 
-export function NodeSelectionMenu({
-  position,
-  allowedTypes,
-  onSelect,
-  onClose,
-}: NodeSelectionMenuProps) {
+export function NodeSelectionMenu({ position, allowedTypes, onSelect, onClose }: NodeSelectionMenuProps) {
   const { t } = useTranslation();
   const menuRef = useRef<HTMLDivElement>(null);
   const [isVisible, setIsVisible] = useState(false);
 
-  const allowedTypeSet = useMemo(
-    () => (allowedTypes ? new Set(allowedTypes) : null),
-    [allowedTypes]
-  );
+  const allowedTypeSet = useMemo(() => (allowedTypes ? new Set(allowedTypes) : null), [allowedTypes]);
 
   const menuItems = useMemo(() => {
     const candidates = !allowedTypeSet || !allowedTypes
@@ -46,25 +38,15 @@ export function NodeSelectionMenu({
     const dedupedByLabel = new Map<string, (typeof candidates)[number]>();
     for (const definition of candidates) {
       const existing = dedupedByLabel.get(definition.menuLabelKey);
-      if (!existing) {
-        dedupedByLabel.set(definition.menuLabelKey, definition);
-        continue;
-      }
-
-      // Prefer user-visible definitions when multiple internal node types share the same label.
+      if (!existing) { dedupedByLabel.set(definition.menuLabelKey, definition); continue; }
       if (!existing.visibleInMenu && definition.visibleInMenu) {
         dedupedByLabel.set(definition.menuLabelKey, definition);
       }
     }
-
     return Array.from(dedupedByLabel.values());
   }, [allowedTypeSet, allowedTypes]);
 
-  useEffect(() => {
-    requestAnimationFrame(() => {
-      setIsVisible(true);
-    });
-  }, []);
+  useEffect(() => { requestAnimationFrame(() => setIsVisible(true)); }, []);
 
   const handleClose = useCallback(() => {
     setIsVisible(false);
@@ -73,73 +55,66 @@ export function NodeSelectionMenu({
 
   useEffect(() => {
     const onPointerDown = (event: MouseEvent) => {
-      if (menuRef.current?.contains(event.target as Node)) {
-        return;
-      }
-
+      if (menuRef.current?.contains(event.target as Node)) return;
       handleClose();
     };
-
     document.addEventListener('mousedown', onPointerDown, true);
-    return () => {
-      document.removeEventListener('mousedown', onPointerDown, true);
-    };
+    return () => document.removeEventListener('mousedown', onPointerDown, true);
   }, [handleClose]);
+
+  const subLabel = (icon: string) => {
+    if (icon === 'text') return 'Notes, prompts, references';
+    if (icon === 'video') return 'Video clips and storyboard nodes';
+    if (icon === 'audio') return 'Music and audio driven tasks';
+    if (icon === 'layout') return 'Storyboard and grouped content';
+    if (icon === 'upload') return 'Upload media into canvas';
+    return 'Generate or transform with AI';
+  };
 
   return (
     <div
       ref={menuRef}
       data-node-menu="true"
       className={`
-        absolute z-50 min-w-[280px] overflow-hidden rounded-[24px] border border-white/15 bg-[rgba(12,17,25,0.94)] shadow-[0_24px_80px_rgba(2,6,23,0.42)]
+        absolute z-50 min-w-[280px] overflow-hidden rounded-[24px]
+        border border-[var(--ui-border-soft)] bg-[var(--ui-surface-panel)]
+        shadow-[var(--ui-shadow-panel)] backdrop-blur-xl
         transition-all duration-150
         ${isVisible ? 'translate-y-0 scale-100 opacity-100' : 'translate-y-2 scale-[0.98] opacity-0'}
       `}
       style={{ left: position.x, top: position.y }}
     >
-      <div className="border-b border-white/8 bg-[linear-gradient(135deg,rgba(96,165,250,0.18),rgba(16,185,129,0.08)_58%,rgba(255,255,255,0.02))] px-4 py-3">
-        <div className="text-[10px] uppercase tracking-[0.22em] text-white/45">
+      <div className="border-b border-[var(--ui-border-soft)] bg-gradient-to-br from-accent/10 via-emerald-500/5 to-transparent px-4 py-3">
+        <div className="text-[10px] uppercase tracking-[0.22em] text-text-muted">
           {allowedTypes ? 'Connect And Create' : 'Quick Create'}
         </div>
-        <div className="mt-1 text-sm font-medium text-white/90">
+        <div className="mt-1 text-sm font-medium text-text-dark">
           {allowedTypes ? 'Create the next node on canvas' : 'Double-click canvas to add content'}
         </div>
       </div>
       <div className="grid grid-cols-2 gap-2 p-3">
-      {menuItems.map((item, index) => {
-        const Icon = iconMap[item.menuIcon] ?? Image;
-        return (
-          <button
-            key={item.type}
-            className="group flex min-h-[92px] w-full flex-col items-start justify-between rounded-[18px] border border-white/8 bg-white/[0.03] px-3 py-3 text-left transition-all hover:-translate-y-[1px] hover:border-white/18 hover:bg-white/[0.06]"
-            style={{ transitionDelay: isVisible ? `${index * 30}ms` : '0ms' }}
-            onClick={() => {
-              handleClose();
-              setTimeout(() => onSelect(item.type), UI_POPOVER_TRANSITION_MS + 10);
-            }}
-          >
-            <div className="flex h-10 w-10 items-center justify-center rounded-2xl border border-white/10 bg-white/[0.06] text-white/85 transition-colors group-hover:border-white/20 group-hover:bg-white/[0.1]">
-              <Icon className="h-4 w-4" />
-            </div>
-            <div className="mt-3">
-              <div className="text-sm font-medium text-white/92">{t(item.menuLabelKey)}</div>
-              <div className="mt-1 text-[11px] leading-5 text-white/48">
-                {item.menuIcon === 'text'
-                  ? 'Notes, prompts, references'
-                  : item.menuIcon === 'video'
-                    ? 'Video clips and storyboard nodes'
-                    : item.menuIcon === 'audio'
-                      ? 'Music and audio driven tasks'
-                      : item.menuIcon === 'layout'
-                        ? 'Storyboard and grouped content'
-                        : item.menuIcon === 'upload'
-                          ? 'Upload media into canvas'
-                          : 'Generate or transform with AI'}
+        {menuItems.map((item, index) => {
+          const Icon = iconMap[item.menuIcon] ?? Image;
+          return (
+            <button
+              key={item.type}
+              className="group flex min-h-[92px] w-full flex-col items-start justify-between rounded-[18px] border border-[var(--ui-border-soft)] bg-[var(--ui-surface-field)] px-3 py-3 text-left transition-all hover:-translate-y-[1px] hover:border-[var(--ui-border-strong)] hover:bg-[var(--ui-surface-panel)]"
+              style={{ transitionDelay: isVisible ? `${index * 30}ms` : '0ms' }}
+              onClick={() => {
+                handleClose();
+                setTimeout(() => onSelect(item.type), UI_POPOVER_TRANSITION_MS + 10);
+              }}
+            >
+              <div className="flex h-10 w-10 items-center justify-center rounded-2xl border border-[var(--ui-border-soft)] bg-[var(--ui-surface-panel)] text-text-dark transition-colors group-hover:border-accent/40 group-hover:text-accent">
+                <Icon className="h-4 w-4" />
               </div>
-            </div>
-          </button>
-        );
-      })}
+              <div className="mt-3">
+                <div className="text-sm font-medium text-text-dark">{t(item.menuLabelKey)}</div>
+                <div className="mt-1 text-[11px] leading-5 text-text-muted">{subLabel(item.menuIcon)}</div>
+              </div>
+            </button>
+          );
+        })}
       </div>
     </div>
   );

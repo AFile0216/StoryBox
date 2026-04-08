@@ -5,6 +5,7 @@ import { bootstrapApp } from './commands/app';
 import { Canvas } from './features/canvas/Canvas';
 import { TitleBar } from './components/TitleBar';
 import { SettingsDialog } from './components/SettingsDialog';
+import { HistoryDialog } from './components/HistoryDialog';
 import { UpdateAvailableDialog, type UpdateIgnoreMode } from './components/UpdateAvailableDialog';
 import { GlobalErrorDialog } from './components/GlobalErrorDialog';
 import { ProjectManager } from './features/project/ProjectManager';
@@ -47,6 +48,7 @@ function App() {
   const setBootstrap = useSettingsStore((state) => state.setBootstrap);
   const applyPersistedAppSettings = useSettingsStore((state) => state.applyPersistedAppSettings);
   const [showSettings, setShowSettings] = useState(false);
+  const [isHistoryOpen, setIsHistoryOpen] = useState(false);
   const [settingsInitialCategory, setSettingsInitialCategory] = useState<SettingsCategory>('general');
   const [showUpdateDialog, setShowUpdateDialog] = useState(false);
   const [latestVersion, setLatestVersion] = useState<string>('');
@@ -235,7 +237,8 @@ function App() {
           {currentProjectId ? <Canvas /> : <ProjectManager />}
         </main>
 
-        <SettingsDialog
+        <HistoryDialog isOpen={isHistoryOpen} onClose={() => setIsHistoryOpen(false)} />
+      <SettingsDialog
           isOpen={showSettings}
           onClose={() => setShowSettings(false)}
           initialCategory={settingsInitialCategory}

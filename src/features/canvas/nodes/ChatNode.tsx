@@ -1,6 +1,6 @@
 import { memo, useCallback, useEffect, useRef, useState } from 'react';
 import { Handle, Position, type NodeProps } from '@xyflow/react';
-import { MessageSquare, Send, StopCircle } from 'lucide-react';
+import { ImagePlus, MessageSquare, Send, StopCircle, X } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import ReactMarkdown from 'react-markdown';
 import remarkBreaks from 'remark-breaks';
@@ -45,6 +45,8 @@ export const ChatNode = memo(({ id, data, selected, width, height }: ChatNodePro
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const abortRef = useRef<AbortController | null>(null);
   const [localInput, setLocalInput] = useState(inputText);
+  const [pendingImages, setPendingImages] = useState<string[]>([]);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -53,6 +55,19 @@ export const ChatNode = memo(({ id, data, selected, width, height }: ChatNodePro
   // resolve selected interface + model
   const selectedInterface = customApiInterfaces.find((i) => i.id === data.interfaceId) ?? customApiInterfaces[0] ?? null;
   const selectedModel = data.modelId || selectedInterface?.modelIds[0] || '';
+
+  const handlePickImages = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files ?? []);
+    if (!files.length) return;
+    const base64s = await Promise.all(files.map((file) => new Promise<string>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result as string);
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    })));
+    setPendingImages((prev) => [...prev, ...base64s].slice(0, 4));
+    e.target.value = '';
+  }, []);
 
   const handleSend = useCallback(async () => {
     const text = localInput.trim();
@@ -63,6 +78,7 @@ export const ChatNode = memo(({ id, data, selected, width, height }: ChatNodePro
     const nextMessages = [...messages, userMsg, assistantMsg];
 
     setLocalInput('');
+    setPendingImages([]);
     updateNodeData(id, { messages: nextMessages, inputText: '', isStreaming: true });
 
     const ctrl = new AbortController();
@@ -200,7 +216,40 @@ export const ChatNode = memo(({ id, data, selected, width, height }: ChatNodePro
       </div>
 
       {/* input */}
+            {pendingImages && pendingImages.length > 0 && (
+        <div className="flex flex-wrap gap-1 px-2 pb-1">
+          {pendingImages.map((img, i) => (
+            <div key={i} className="relative">
+              <img src={img} alt="" className="h-10 rounded object-cover" />
+              <button
+                type="button"
+                className="absolute -right-1 -top-1 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-white"
+                onClick={(e) => { e.stopPropagation(); setPendingImages((p) => p.filter((_, j) => j !== i)); }}
+                onPointerDown={(e) => e.stopPropagation()}
+              >
+                <X className="h-2.5 w-2.5" />
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
       <div className="absolute bottom-2 left-2 right-2 flex items-end gap-1.5">
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/*"
+          multiple
+          className="hidden"
+          onChange={handlePickImages}
+        />
+        <button
+          type="button"
+          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-[var(--ui-border-soft)] bg-[var(--ui-surface-field)] text-text-muted hover:text-accent"
+          onClick={(e) => { e.stopPropagation(); fileInputRef.current?.click(); }}
+          onPointerDown={(e) => e.stopPropagation()}
+        >
+          <ImagePlus className="h-4 w-4" />
+        </button>
         <textarea
           className="nodrag nowheel ui-scrollbar flex-1 resize-none rounded-xl border border-white/10 bg-black/20 px-3 py-2 text-xs text-text-dark outline-none placeholder:text-text-muted focus:border-accent/50"
           rows={2}
@@ -228,7 +277,7 @@ export const ChatNode = memo(({ id, data, selected, width, height }: ChatNodePro
           <button
             type="button"
             className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-accent/40 bg-accent/20 text-accent hover:bg-accent/30 disabled:opacity-40"
-            disabled={!localInput.trim() || !selectedInterface}
+            disabled={(!localInput.trim() && pendingImages.length === 0) || !selectedInterface}
             onClick={() => void handleSend()}
             onPointerDown={(e) => e.stopPropagation()}
           >

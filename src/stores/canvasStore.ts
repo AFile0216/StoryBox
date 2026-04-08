@@ -1,3 +1,4 @@
+import { useHistoryStore } from './historyStore';
 import { create } from 'zustand';
 import {
   Connection,
@@ -1177,6 +1178,23 @@ export const useCanvasStore = create<CanvasState>((set, get) => ({
     set((state) => {
       let changed = false;
       const nextNodes = state.nodes.map((node) => {
+        if (node.id === nodeId) {
+          // Hook into image generation success
+          if (
+            (node.type === CANVAS_NODE_TYPES.imageEdit || node.type === CANVAS_NODE_TYPES.storyboardGen) &&
+            'imageUrl' in data &&
+            data.imageUrl &&
+            data.imageUrl !== (node.data as any).imageUrl &&
+            (node.data as any).generationJobId
+          ) {
+            useHistoryStore.getState().addRecord({
+              nodeId: node.id,
+              imageUrl: data.imageUrl as string,
+              prompt: (node.data as any).prompt ?? '',
+              model: String((node.data as any).generationProviderId || 'unknown') as string,
+            });
+          }
+        }
         if (node.id !== nodeId) {
           return node;
         }

@@ -188,30 +188,12 @@ export const VideoStoryboardNode = memo(({
     updateNodeData,
   ]);
 
-  useEffect(() => {
-    if (!linkedStoryboardGenNode || linkedStoryboardGenNode.type !== CANVAS_NODE_TYPES.storyboardGen) {
-      return;
-    }
-
+  const handleSyncToStoryboard = useCallback(() => {
+    if (!linkedStoryboardGenNode || linkedStoryboardGenNode.type !== CANVAS_NODE_TYPES.storyboardGen) return;
     const orderedSegments = sortSegments(data.segments);
     const grid = resolveStoryboardGrid(Math.max(orderedSegments.length, 1));
     const total = grid.rows * grid.cols;
     const frames = buildStoryboardFrames(orderedSegments, total);
-    const currentData = linkedStoryboardGenNode.data as StoryboardGenNodeData;
-    const currentFrames = currentData.frames ?? [];
-    const sameFrames = currentFrames.length === frames.length && currentFrames.every((frame, index) =>
-      frame.description === frames[index]?.description
-      && frame.referenceIndex === frames[index]?.referenceIndex
-    );
-    if (
-      currentData.gridRows === grid.rows
-      && currentData.gridCols === grid.cols
-      && sameFrames
-      && currentData.sourceStoryboardNodeId === id
-    ) {
-      return;
-    }
-
     updateNodeData(linkedStoryboardGenNode.id, {
       gridRows: grid.rows,
       gridCols: grid.cols,
@@ -220,7 +202,6 @@ export const VideoStoryboardNode = memo(({
       syncedFromStoryboardAt: Date.now(),
     });
   }, [data.segments, id, linkedStoryboardGenNode, updateNodeData]);
-
   const handlePickVideo = async () => {
     const selectedPath = await open({
       multiple: false,
@@ -282,6 +263,16 @@ export const VideoStoryboardNode = memo(({
               <PenLine className="h-3 w-3" />
               {t('node.videoStoryboard.openEditor', { defaultValue: '编辑分镜' })}
             </button>
+            {linkedStoryboardGenNode && (
+              <button
+                type="button"
+                className={`tapnow-node-button inline-flex items-center gap-1 px-2 py-1 ${uiDensity.metaText}`}
+                title={t('node.videoStoryboard.syncToGenHint', { defaultValue: '将分镜内容同步到生成节点（会覆盖生成节点的手动编辑）' })}
+                onClick={(event) => { event.stopPropagation(); handleSyncToStoryboard(); }}
+              >
+                {t('node.videoStoryboard.syncToGen', { defaultValue: '同步分镜' })}
+              </button>
+            )}
           </div>
         </div>
 

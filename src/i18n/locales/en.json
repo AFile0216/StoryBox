@@ -1,7 +1,7 @@
 {
   "app": {
-    "title": "Storyboard Copilot",
-    "subtitle": "AI Storyboard Tool"
+    "title": "StoryBox",
+    "subtitle": "StoryBox"
   },
   "common": {
     "save": "Save",
@@ -211,14 +211,13 @@
       "title": "Audio",
       "empty": "Select a local audio file to preview and route into video tasks.",
       "duration": "Duration",
-      "mode": "Mode",
-      "promptPlaceholder": "Describe the target video or motion style for this audio",
-      "missingAudio": "Please select an audio file first",
-      "mockResult": "Audio-to-video task is ready. Source duration: {{duration}}.",
       "mode": {
         "audio-to-video": "Audio to Video",
         "text-to-music": "Text to Music"
-      }
+      },
+      "promptPlaceholder": "Describe the target video or motion style for this audio",
+      "missingAudio": "Please select an audio file first",
+      "mockResult": "Audio-to-video task is ready. Source duration: {{duration}}."
     },
     "videoStoryboard": {
       "title": "Video Storyboard",

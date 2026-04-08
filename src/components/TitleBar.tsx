@@ -1,6 +1,6 @@
 import { useCallback } from 'react';
 import { getCurrentWindow } from '@tauri-apps/api/window';
-import { Minus, X, Maximize2, Settings, ArrowLeft } from 'lucide-react';
+import { Minus, X, Maximize2, Settings, ArrowLeft, History } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { Moon, Sun, Languages } from 'lucide-react';
 import { useThemeStore } from '@/stores/themeStore';
@@ -14,11 +14,12 @@ import maximizeHoverIcon from '@/assets/macos-traffic-lights/3-maximize-2-hover.
 
 interface TitleBarProps {
   onSettingsClick: () => void;
+  onHistoryClick?: () => void;
   showBackButton?: boolean;
   onBackClick?: () => void;
 }
 
-export function TitleBar({ onSettingsClick, showBackButton, onBackClick }: TitleBarProps) {
+export function TitleBar({ onSettingsClick, showBackButton, onBackClick, onHistoryClick }: TitleBarProps) {
   const { t, i18n } = useTranslation();
   const { theme, toggleTheme } = useThemeStore();
   const currentProjectName = useProjectStore((state) => state.currentProject?.name);
@@ -157,6 +158,16 @@ export function TitleBar({ onSettingsClick, showBackButton, onBackClick }: Title
           )}
         </button>
 
+        {onHistoryClick && (
+          <button
+            type="button"
+            onClick={onHistoryClick}
+            className="h-full px-3 hover:bg-bg-dark transition-colors"
+            title={t('app.history', { defaultValue: '历史记录' })}
+          >
+            <History className="w-4 h-4 text-text-muted" />
+          </button>
+        )}
         <button
           type="button"
           onClick={onSettingsClick}

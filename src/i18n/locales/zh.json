@@ -1,7 +1,7 @@
 {
   "app": {
-    "title": "分镜助手",
-    "subtitle": "Storyboard Copilot"
+    "title": "StoryBox",
+    "subtitle": "StoryBox"
   },
   "common": {
     "save": "保存",
@@ -198,13 +198,12 @@
       "title": "音频",
       "empty": "选择本地音频后即可预览，并继续接入音频生视频流程。",
       "duration": "时长",
-      "mode": "模式",
-      "promptPlaceholder": "描述要和音频配套的视频风格、镜头或节奏",
-      "missingAudio": "请先选择音频文件",
-      "mockResult": "音频生视频任务已准备完成，源音频时长 {{duration}}。",
       "mode": {
         "audio-to-video": "音频生视频"
-      }
+      },
+      "promptPlaceholder": "描述要和音频配套的视频风格、镜头或节奏",
+      "missingAudio": "请先选择音频文件",
+      "mockResult": "音频生视频任务已准备完成，源音频时长 {{duration}}。"
     },
     "videoStoryboard": {
       "title": "视频分镜",
