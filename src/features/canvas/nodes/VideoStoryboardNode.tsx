@@ -47,6 +47,17 @@ function formatSeconds(value: number | null | undefined): string {
   return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
 }
 
+function formatSecondsLabel(value: number | null | undefined): string {
+  if (!Number.isFinite(value) || value === null || value === undefined) {
+    return '0.0s';
+  }
+  return `${Math.max(0, value).toFixed(1)}s`;
+}
+
+function formatSegmentRange(startSec: number, endSec: number): string {
+  return `${formatSecondsLabel(startSec)}-${formatSecondsLabel(endSec)}`;
+}
+
 function sortSegments(segments: VideoStoryboardSegment[]): VideoStoryboardSegment[] {
   return [...segments]
     .sort((left, right) => {
@@ -76,7 +87,7 @@ function buildStoryboardFrames(segments: VideoStoryboardSegment[], total: number
   return Array.from({ length: total }, (_, index) => {
     const segment = ordered[index];
     const timePrefix = segment
-      ? `[${formatSeconds(segment.startSec)} - ${formatSeconds(segment.endSec)}]\n`
+      ? `[${formatSegmentRange(segment.startSec, segment.endSec)}]\n`
       : '';
     const detailLines = segment
       ? [

@@ -16,8 +16,8 @@ interface TokenRange extends TextRange {
   blockEnd: number;
 }
 
-const IMAGE_PREFIX = '\u56FE';
-const VIDEO_PREFIX = '\u89C6\u9891';
+const IMAGE_PREFIXES = ['\u56FE\u7247', '\u56FE'] as const;
+const VIDEO_PREFIXES = ['\u89C6\u9891'] as const;
 
 function clamp(value: number, min: number, max: number): number {
   return Math.max(min, Math.min(max, value));
@@ -34,8 +34,8 @@ function isAsciiDigit(char: string): boolean {
   return char >= '0' && char <= '9';
 }
 
-function resolveMediaPrefix(mediaType: ReferenceMediaType): string {
-  return mediaType === 'video' ? VIDEO_PREFIX : IMAGE_PREFIX;
+function resolveMediaPrefixes(mediaType: ReferenceMediaType): readonly string[] {
+  return mediaType === 'video' ? VIDEO_PREFIXES : IMAGE_PREFIXES;
 }
 
 function findReferenceTokensByPrefix(
@@ -109,7 +109,14 @@ function findReferenceTokensByPrefix(
 }
 
 export function findReferenceTokens(text: string, maxImageCount?: number): ReferenceTokenMatch[] {
-  return findReferenceTokensByPrefix(text, IMAGE_PREFIX, maxImageCount);
+  return IMAGE_PREFIXES
+    .flatMap((prefix) => findReferenceTokensByPrefix(text, prefix, maxImageCount))
+    .sort((left, right) => left.start - right.start || left.end - right.end)
+    .filter((token, index, list) =>
+      index === 0
+      || token.start !== list[index - 1].start
+      || token.end !== list[index - 1].end
+    );
 }
 
 export function findMediaReferenceTokens(
@@ -117,7 +124,14 @@ export function findMediaReferenceTokens(
   mediaType: ReferenceMediaType,
   maxCount?: number
 ): ReferenceTokenMatch[] {
-  return findReferenceTokensByPrefix(text, resolveMediaPrefix(mediaType), maxCount);
+  return resolveMediaPrefixes(mediaType)
+    .flatMap((prefix) => findReferenceTokensByPrefix(text, prefix, maxCount))
+    .sort((left, right) => left.start - right.start || left.end - right.end)
+    .filter((token, index, list) =>
+      index === 0
+      || token.start !== list[index - 1].start
+      || token.end !== list[index - 1].end
+    );
 }
 
 function toTokenRanges(tokens: ReferenceTokenMatch[], text: string): TokenRange[] {

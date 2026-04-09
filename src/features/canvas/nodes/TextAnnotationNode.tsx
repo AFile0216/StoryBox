@@ -49,7 +49,7 @@ const TEXT_MODES: TextAnnotationMode[] = [
 ];
 
 function stripReferenceTokens(prompt: string): string {
-  return prompt.replace(/@(?:\u56FE|\u89C6\u9891)\d+/gu, '').replace(/\s{2,}/gu, ' ').trim();
+  return prompt.replace(/@(?:\u56FE\u7247|\u56FE|\u89C6\u9891)\d+/gu, '').replace(/\s{2,}/gu, ' ').trim();
 }
 
 function resolveModeInstruction(mode: TextAnnotationMode): string {

@@ -430,10 +430,10 @@ export const ImageEditNode = memo(({ id, data, selected, width, height }: ImageE
   }, []);
 
   const handleGenerate = useCallback(async () => {
-    // 先从原始 promptDraft（含 @图N 标记）过滤图片，再去掉 @
+    // 先从原始 promptDraft（含 @图片N/@图N 标记）过滤图片，再去掉 @
     const filteredImages = filterReferencedImages(incomingImages, promptDraft);
 
-    const rawPrompt = promptDraft.replace(/@(?=图\d+)/g, '').trim();
+    const rawPrompt = promptDraft.replace(/@(?=(?:图片|图)\d+)/g, '').trim();
     if (!rawPrompt) {
       const errorMessage = t('node.imageEdit.promptRequired');
       setError(errorMessage);
@@ -506,7 +506,7 @@ export const ImageEditNode = memo(({ id, data, selected, width, height }: ImageE
         }
       }
 
-      // 根据提示词中的 @图N 标记过滤引用的图片（已在 handleGenerate 开头计算）
+      // 根据提示词中的 @图片N/@图N 标记过滤引用的图片（已在 handleGenerate 开头计算）
       const jobId = await canvasAiGateway.submitGenerateImageJob({
         prompt,
         model: requestResolution.requestModel,
@@ -641,7 +641,7 @@ export const ImageEditNode = memo(({ id, data, selected, width, height }: ImageE
   };
 
   const insertImageReference = useCallback((imageIndex: number) => {
-    const marker = `@图${imageIndex + 1}`;
+    const marker = `@图片${imageIndex + 1}`;
     const currentPrompt = promptDraftRef.current;
     const cursor = pickerCursor ?? currentPrompt.length;
     const { nextText: nextPrompt, nextCursor } = insertReferenceToken(currentPrompt, cursor, marker);

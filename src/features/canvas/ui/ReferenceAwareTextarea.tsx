@@ -124,14 +124,14 @@ function resolveMediaLabel(mediaType: ReferenceMediaType, index: number): string
   if (mediaType === 'video') {
     return `视频${index + 1}`;
   }
-  return `图${index + 1}`;
+  return `图片${index + 1}`;
 }
 
 function resolveMediaToken(mediaType: ReferenceMediaType, index: number): string {
   if (mediaType === 'video') {
     return `@视频${index + 1}`;
   }
-  return `@图${index + 1}`;
+  return `@图片${index + 1}`;
 }
 
 function renderTextWithHighlights(

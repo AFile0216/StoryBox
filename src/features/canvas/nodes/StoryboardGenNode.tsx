@@ -312,6 +312,43 @@ type GridStepperControlProps = {
   onIncrease: () => void;
 };
 
+function collectStoryboardGenIncomingImages(
+  nodeId: string,
+  nodes: ReturnType<typeof useCanvasStore.getState>['nodes'],
+  edges: ReturnType<typeof useCanvasStore.getState>['edges']
+): string[] {
+  const nodeById = new Map(nodes.map((node) => [node.id, node]));
+  const directSourceIds = edges
+    .filter((edge) => edge.target === nodeId)
+    .map((edge) => edge.source);
+
+  const collectedImages: string[] = [];
+  for (const sourceId of directSourceIds) {
+    const sourceNode = nodeById.get(sourceId);
+    if (!sourceNode) {
+      continue;
+    }
+
+    if (sourceNode.type === CANVAS_NODE_TYPES.videoStoryboard) {
+      collectedImages.push(...graphImageResolver.collectInputImages(sourceNode.id, nodes, edges));
+      continue;
+    }
+
+    if (
+      sourceNode.type === CANVAS_NODE_TYPES.upload
+      || sourceNode.type === CANVAS_NODE_TYPES.imageEdit
+      || sourceNode.type === CANVAS_NODE_TYPES.exportImage
+    ) {
+      const imageUrl = (sourceNode.data as { imageUrl?: string | null }).imageUrl;
+      if (typeof imageUrl === 'string' && imageUrl.trim().length > 0) {
+        collectedImages.push(imageUrl);
+      }
+    }
+  }
+
+  return [...new Set(collectedImages)];
+}
+
 function GridStepperControl({
   label,
   value,
@@ -592,7 +629,7 @@ export const StoryboardGenNode = memo(({ id, data, selected, width, height }: St
   );
 
   const incomingImages = useMemo(
-    () => graphImageResolver.collectInputImages(id, nodes, edges),
+    () => collectStoryboardGenIncomingImages(id, nodes, edges),
     [id, nodes, edges]
   );
   const incomingImageItems = useMemo(
@@ -600,7 +637,7 @@ export const StoryboardGenNode = memo(({ id, data, selected, width, height }: St
       incomingImages.map((imageUrl, index) => ({
         imageUrl,
         displayUrl: resolveImageDisplayUrl(imageUrl),
-        label: `图${index + 1}`,
+        label: `图片${index + 1}`,
       })),
     [incomingImages]
   );
@@ -1076,7 +1113,7 @@ export const StoryboardGenNode = memo(({ id, data, selected, width, height }: St
         selectedResolution.value
       );
 
-      // 从所有帧的原始描述中收集 @图N 引用
+      // 从所有帧的原始描述中收集 @图片N/@图N 引用
       // 必须在 buildPrompt/sanitize 之前从原始文本提取，因为 sanitize 会去掉 @
       const allFrameDescriptions = nodeData.frames
         .slice(0, safeRows * safeCols)
@@ -1305,7 +1342,7 @@ export const StoryboardGenNode = memo(({ id, data, selected, width, height }: St
       return;
     }
 
-    const marker = `@图${imageIndex + 1}`;
+    const marker = `@图片${imageIndex + 1}`;
     const currentDescription = frameDescriptionDraftsRef.current[frame.id] ?? frame.description;
     const cursor = pickerCursor ?? currentDescription.length;
     const { nextText: nextDescription, nextCursor } = insertReferenceToken(

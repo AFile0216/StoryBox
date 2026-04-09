@@ -12,6 +12,7 @@ import { useTranslation } from 'react-i18next';
 
 import type { VideoStoryboardSegment } from '@/features/canvas/domain/canvasNodes';
 import { resolveLocalAssetUrl } from '@/features/canvas/application/imageData';
+import { ReferenceAwareTextarea } from '@/features/canvas/ui/ReferenceAwareTextarea';
 
 interface StoryboardEditorModalProps {
   nodeId: string;
@@ -22,11 +23,15 @@ interface StoryboardEditorModalProps {
   onClose: () => void;
 }
 
-function formatSec(value: number): string {
-  const total = Math.max(0, Math.floor(value));
-  const minutes = Math.floor(total / 60);
-  const seconds = total % 60;
-  return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+function formatSecondsLabel(value: number | null | undefined): string {
+  if (!Number.isFinite(value) || value === null || value === undefined) {
+    return '0.0s';
+  }
+  return `${Math.max(0, value).toFixed(1)}s`;
+}
+
+function formatSegmentRange(startSec: number, endSec: number): string {
+  return `${formatSecondsLabel(startSec)}-${formatSecondsLabel(endSec)}`;
 }
 
 function clamp(value: number, min: number, max: number): number {
@@ -54,7 +59,7 @@ function extractKeyframeReference(canvas: HTMLCanvasElement, timeSec: number): s
   analysisCanvas.height = 48;
   const analysisCtx = analysisCanvas.getContext('2d');
   if (!analysisCtx) {
-    return `关键帧 ${formatSec(timeSec)}，请补充画面主体与镜头语言。`;
+    return `关键帧 ${formatSecondsLabel(timeSec)}，请补充画面主体与镜头语言。`;
   }
 
   analysisCtx.drawImage(canvas, 0, 0, analysisCanvas.width, analysisCanvas.height);
@@ -70,7 +75,7 @@ function extractKeyframeReference(canvas: HTMLCanvasElement, timeSec: number): s
     count += 1;
   }
   if (count === 0) {
-    return `关键帧 ${formatSec(timeSec)}，请补充画面主体与镜头语言。`;
+    return `关键帧 ${formatSecondsLabel(timeSec)}，请补充画面主体与镜头语言。`;
   }
 
   const avgR = totalR / count;
@@ -90,7 +95,7 @@ function extractKeyframeReference(canvas: HTMLCanvasElement, timeSec: number): s
         ? '画面偏暗'
         : '画面对比适中';
 
-  return `时间点 ${formatSec(timeSec)}，${tone}，${lighting}。请补充主体动作、景别与镜头运动。`;
+  return `时间点 ${formatSecondsLabel(timeSec)}，${tone}，${lighting}。请补充主体动作、景别与镜头运动。`;
 }
 
 const SEGMENT_COLORS = [
@@ -105,6 +110,7 @@ const SEGMENT_COLORS = [
 ];
 
 export const StoryboardEditorModal = memo(({
+  nodeId,
   filePath,
   durationSec,
   segments: initialSegments,
@@ -117,7 +123,9 @@ export const StoryboardEditorModal = memo(({
   const pendingSeekRef = useRef<number | null>(null);
   const seekingRef = useRef(false);
   const playheadTextRef = useRef<HTMLSpanElement>(null);
+  const playheadBadgeRef = useRef<HTMLSpanElement>(null);
   const playheadLineRef = useRef<HTMLDivElement>(null);
+  const playheadTickRafRef = useRef<number | null>(null);
   const timelineInputRef = useRef<HTMLInputElement>(null);
 
   const [segments, setSegments] = useState<VideoStoryboardSegment[]>(
@@ -137,16 +145,47 @@ export const StoryboardEditorModal = memo(({
   const activeSegment = segments.find((item) => item.id === activeId) ?? null;
 
   const updatePlayheadUI = useCallback((time: number) => {
+    const safeTime = clamp(Number.isFinite(time) ? time : 0, 0, safeMax);
+    const playheadPercent = safeMax > 0 ? (safeTime / safeMax) * 100 : 0;
     if (playheadTextRef.current) {
-      playheadTextRef.current.textContent = `${formatSec(time)} / ${formatSec(durationSec)}`;
+      playheadTextRef.current.textContent = `${formatSecondsLabel(safeTime)} / ${formatSecondsLabel(durationSec)}`;
+    }
+    if (playheadBadgeRef.current) {
+      playheadBadgeRef.current.textContent = formatSecondsLabel(safeTime);
+      playheadBadgeRef.current.style.left = `${playheadPercent}%`;
     }
     if (playheadLineRef.current) {
-      playheadLineRef.current.style.left = `${(time / safeMax) * 100}%`;
+      playheadLineRef.current.style.left = `${playheadPercent}%`;
     }
-    if (timelineInputRef.current && timelineInputRef.current.value !== String(time)) {
-      timelineInputRef.current.value = String(time);
+    if (timelineInputRef.current && timelineInputRef.current.value !== String(safeTime)) {
+      timelineInputRef.current.value = String(safeTime);
     }
   }, [durationSec, safeMax]);
+
+  const stopPlayheadTicker = useCallback(() => {
+    if (playheadTickRafRef.current !== null) {
+      cancelAnimationFrame(playheadTickRafRef.current);
+      playheadTickRafRef.current = null;
+    }
+  }, []);
+
+  const startPlayheadTicker = useCallback(() => {
+    stopPlayheadTicker();
+    const tick = () => {
+      const video = videoRef.current;
+      if (!video) {
+        playheadTickRafRef.current = null;
+        return;
+      }
+      updatePlayheadUI(video.currentTime);
+      if (!video.paused && !video.ended) {
+        playheadTickRafRef.current = requestAnimationFrame(tick);
+        return;
+      }
+      playheadTickRafRef.current = null;
+    };
+    playheadTickRafRef.current = requestAnimationFrame(tick);
+  }, [stopPlayheadTicker, updatePlayheadUI]);
 
   const requestSeek = useCallback((time: number) => {
     const video = videoRef.current;
@@ -254,12 +293,17 @@ export const StoryboardEditorModal = memo(({
   }, [requestSeek]);
 
   useEffect(() => {
+    updatePlayheadUI(videoRef.current?.currentTime ?? 0);
+  }, [updatePlayheadUI]);
+
+  useEffect(() => {
     return () => {
       if (seekRafRef.current !== null) {
         cancelAnimationFrame(seekRafRef.current);
       }
+      stopPlayheadTicker();
     };
-  }, []);
+  }, [stopPlayheadTicker]);
 
   const patchActive = useCallback((patch: Partial<VideoStoryboardSegment>) => {
     if (!activeId) {
@@ -440,8 +484,21 @@ export const StoryboardEditorModal = memo(({
                 className="h-full w-full cursor-pointer object-contain"
                 onClick={togglePlay}
                 onTimeUpdate={(event) => updatePlayheadUI(event.currentTarget.currentTime)}
-                onPlay={() => setIsPlaying(true)}
-                onPause={() => setIsPlaying(false)}
+                onLoadedMetadata={(event) => updatePlayheadUI(event.currentTarget.currentTime)}
+                onPlay={() => {
+                  setIsPlaying(true);
+                  startPlayheadTicker();
+                }}
+                onPause={(event) => {
+                  setIsPlaying(false);
+                  stopPlayheadTicker();
+                  updatePlayheadUI(event.currentTarget.currentTime);
+                }}
+                onEnded={(event) => {
+                  setIsPlaying(false);
+                  stopPlayheadTicker();
+                  updatePlayheadUI(event.currentTarget.currentTime);
+                }}
               />
             ) : (
               <div className="flex h-full items-center justify-center text-sm text-text-muted">
@@ -458,10 +515,10 @@ export const StoryboardEditorModal = memo(({
                 </button>
                 <span>{t('node.videoStoryboard.timeline', { defaultValue: '时间轴' })}</span>
               </div>
-              <span ref={playheadTextRef}>{formatSec(0)} / {formatSec(durationSec)}</span>
+              <span ref={playheadTextRef}>{formatSecondsLabel(0)} / {formatSecondsLabel(durationSec)}</span>
             </div>
 
-            <div className="relative mb-3 h-6 overflow-hidden rounded-md bg-white/5">
+            <div className="relative mb-3 h-6 rounded-md bg-white/5">
               {timelineMarkers.map((marker) => (
                 <div
                   key={marker.id}
@@ -479,6 +536,12 @@ export const StoryboardEditorModal = memo(({
                 className="pointer-events-none absolute top-0 h-full w-0.5 bg-white/80"
                 style={{ left: '0%' }}
               />
+              <span
+                ref={playheadBadgeRef}
+                className="pointer-events-none absolute left-0 top-0 z-10 -translate-x-1/2 rounded bg-black/70 px-1.5 py-0.5 text-[10px] leading-none text-white"
+              >
+                {formatSecondsLabel(0)}
+              </span>
               <input
                 ref={timelineInputRef}
                 type="range"
@@ -638,7 +701,7 @@ export const StoryboardEditorModal = memo(({
                         </div>
                       )}
                       <div className="text-[10px] text-text-muted">
-                        {formatSec(segment.startSec)} - {formatSec(segment.endSec)}
+                        {formatSegmentRange(segment.startSec, segment.endSec)}
                       </div>
                       <div className="mt-0.5 line-clamp-2 text-xs text-text-dark">
                         {segment.visualDesc || segment.text || t('node.videoStoryboard.emptySegmentText', { defaultValue: '暂无描述' })}
@@ -654,7 +717,7 @@ export const StoryboardEditorModal = memo(({
                 <div className="space-y-3">
                   <div className="flex items-center justify-between">
                     <span className="text-xs font-medium text-text-dark">
-                      {formatSec(activeSegment.startSec)} - {formatSec(activeSegment.endSec)}
+                      {formatSegmentRange(activeSegment.startSec, activeSegment.endSec)}
                       <span className="ml-2 text-text-muted">
                         ({(activeSegment.endSec - activeSegment.startSec).toFixed(1)}s)
                       </span>
@@ -669,24 +732,28 @@ export const StoryboardEditorModal = memo(({
                   </div>
 
                   <ScriptField
+                    nodeId={nodeId}
                     label={t('node.videoStoryboard.visualDesc', { defaultValue: '画面描述' })}
                     value={activeSegment.visualDesc ?? ''}
                     onChange={(value) => patchActive({ visualDesc: value })}
                     placeholder={t('node.videoStoryboard.visualDescPlaceholder', { defaultValue: '景别、运镜、画面内容…' })}
                   />
                   <ScriptField
+                    nodeId={nodeId}
                     label={t('node.videoStoryboard.dialogue', { defaultValue: '对白/旁白' })}
                     value={activeSegment.dialogue ?? ''}
                     onChange={(value) => patchActive({ dialogue: value })}
                     placeholder={t('node.videoStoryboard.dialoguePlaceholder', { defaultValue: '台词或旁白文字…' })}
                   />
                   <ScriptField
+                    nodeId={nodeId}
                     label={t('node.videoStoryboard.notes', { defaultValue: '备注' })}
                     value={activeSegment.notes ?? ''}
                     onChange={(value) => patchActive({ notes: value })}
                     placeholder={t('node.videoStoryboard.notesPlaceholder', { defaultValue: '拍摄要求、道具、情绪…' })}
                   />
                   <ScriptField
+                    nodeId={nodeId}
                     label={t('node.videoStoryboard.captureReference', { defaultValue: '关键帧参考提取' })}
                     value={activeSegment.keyframeReference ?? ''}
                     onChange={(value) => patchActive({ keyframeReference: value })}
@@ -754,11 +821,13 @@ export const StoryboardEditorModal = memo(({
 StoryboardEditorModal.displayName = 'StoryboardEditorModal';
 
 function ScriptField({
+  nodeId,
   label,
   value,
   onChange,
   placeholder,
 }: {
+  nodeId: string;
   label: string;
   value: string;
   onChange: (value: string) => void;
@@ -767,12 +836,14 @@ function ScriptField({
   return (
     <div>
       <div className="mb-1 text-[10px] uppercase tracking-[0.12em] text-text-muted">{label}</div>
-      <textarea
+      <ReferenceAwareTextarea
+        nodeId={nodeId}
         value={value}
-        onChange={(event) => onChange(event.target.value)}
+        onChange={onChange}
         placeholder={placeholder}
-        rows={3}
-        className="w-full resize-none rounded-lg border border-[rgba(255,255,255,0.08)] bg-bg-dark/50 px-3 py-2 text-sm text-text-dark outline-none placeholder:text-text-muted/60 focus:border-[rgba(255,255,255,0.2)]"
+        minHeightClassName="min-h-[92px]"
+        className="rounded-lg border border-[rgba(255,255,255,0.08)] bg-bg-dark/50 text-sm"
+        referenceMediaTypes={['image']}
       />
     </div>
   );
