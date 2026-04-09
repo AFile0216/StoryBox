@@ -186,6 +186,13 @@ function isVideoMimeType(mimeType: string | undefined | null): boolean {
   return mimeType.toLowerCase().startsWith('video/');
 }
 
+function isAudioMimeType(mimeType: string | undefined | null): boolean {
+  if (!mimeType) {
+    return false;
+  }
+  return mimeType.toLowerCase().startsWith('audio/');
+}
+
 function isVideoFilename(fileName: string | undefined | null): boolean {
   if (!fileName) {
     return false;
@@ -193,12 +200,35 @@ function isVideoFilename(fileName: string | undefined | null): boolean {
   return /\.(mp4|mov|m4v|webm|mkv|avi)$/iu.test(fileName);
 }
 
-function resolveDroppedVideoFiles(dataTransfer: DataTransfer | null): File[] {
+function isAudioFilename(fileName: string | undefined | null): boolean {
+  if (!fileName) {
+    return false;
+  }
+  return /\.(mp3|wav|ogg|m4a|flac|aac)$/iu.test(fileName);
+}
+
+interface DroppedMediaFile {
+  file: File;
+  type: 'video' | 'audio';
+}
+
+function resolveDroppedMediaFiles(dataTransfer: DataTransfer | null): DroppedMediaFile[] {
   if (!dataTransfer) {
     return [];
   }
   const files = Array.from(dataTransfer.files ?? []);
-  return files.filter((file) => isVideoMimeType(file.type) || isVideoFilename(file.name));
+  const mediaFiles: DroppedMediaFile[] = [];
+  for (const file of files) {
+    if (isVideoMimeType(file.type) || isVideoFilename(file.name)) {
+      mediaFiles.push({ file, type: 'video' });
+      continue;
+    }
+    if (isAudioMimeType(file.type) || isAudioFilename(file.name)) {
+      mediaFiles.push({ file, type: 'audio' });
+      continue;
+    }
+  }
+  return mediaFiles;
 }
 
 function resolveAllowedNodeTypes(handleType: HandleType): CanvasNodeType[] {
@@ -876,8 +906,8 @@ export function Canvas() {
     }
 
     const handleDragOver = (event: DragEvent) => {
-      const videoFiles = resolveDroppedVideoFiles(event.dataTransfer);
-      if (videoFiles.length === 0) {
+      const mediaFiles = resolveDroppedMediaFiles(event.dataTransfer);
+      if (mediaFiles.length === 0) {
         return;
       }
       event.preventDefault();
@@ -887,8 +917,8 @@ export function Canvas() {
     };
 
     const handleDrop = (event: DragEvent) => {
-      const videoFiles = resolveDroppedVideoFiles(event.dataTransfer);
-      if (videoFiles.length === 0) {
+      const mediaFiles = resolveDroppedMediaFiles(event.dataTransfer);
+      if (mediaFiles.length === 0) {
         return;
       }
 
@@ -902,27 +932,49 @@ export function Canvas() {
       const flowPoint = reactFlowInstance.screenToFlowPosition(screenPoint);
       let created = 0;
 
-      for (let index = 0; index < videoFiles.length; index += 1) {
-        const file = videoFiles[index];
+      for (let index = 0; index < mediaFiles.length; index += 1) {
+        const item = mediaFiles[index];
+        const { file } = item;
         const droppedPath = ((file as File & { path?: string }).path ?? '').trim();
         const resolvedPath = droppedPath || URL.createObjectURL(file);
         if (!resolvedPath) {
           continue;
         }
-        const sourceFileName = file.name || resolvedPath.split(/[/\\]/u).pop() || `video-${Date.now()}`;
-        addNode(
-          CANVAS_NODE_TYPES.videoPreview as CanvasNodeType,
-          {
-            x: flowPoint.x + index * 32,
-            y: flowPoint.y + index * 20,
-          },
-          {
-            filePath: resolvedPath,
-            sourceFileName,
-            mimeType: file.type || null,
-            displayName: sourceFileName,
-          }
-        );
+        const sourceFileName = file.name || resolvedPath.split(/[/\\]/u).pop() || `media-${Date.now()}`;
+        if (item.type === 'video') {
+          addNode(
+            CANVAS_NODE_TYPES.videoPreview as CanvasNodeType,
+            {
+              x: flowPoint.x + index * 32,
+              y: flowPoint.y + index * 20,
+            },
+            {
+              filePath: resolvedPath,
+              sourceFileName,
+              mimeType: file.type || null,
+              displayName: sourceFileName,
+            }
+          );
+        } else {
+          addNode(
+            CANVAS_NODE_TYPES.audio as CanvasNodeType,
+            {
+              x: flowPoint.x + index * 32,
+              y: flowPoint.y + index * 20,
+            },
+            {
+              filePath: resolvedPath,
+              sourceFileName,
+              mimeType: file.type || null,
+              displayName: sourceFileName,
+              taskStatus: 'idle',
+              taskMessage: null,
+              taskOutputSummary: null,
+              prompt: '',
+              taskMode: 'audio-to-video',
+            }
+          );
+        }
         created += 1;
       }
 

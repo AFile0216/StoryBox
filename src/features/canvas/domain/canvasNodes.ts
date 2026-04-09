@@ -7,6 +7,7 @@ export const CANVAS_NODE_TYPES = {
   textAnnotation: 'textAnnotationNode',
   video: 'videoNode',
   videoPreview: 'videoPreviewNode',
+  videoEditor: 'videoEditorNode',
   audio: 'audioNode',
   videoStoryboard: 'videoStoryboardNode',
   group: 'groupNode',
@@ -247,6 +248,23 @@ export interface VideoStoryboardNodeData extends MediaFileNodeData {
   lastCaptureDataUrl?: string | null;
 }
 
+export interface VideoEditorTimelineClip {
+  id: string;
+  sourceClipId: string;
+  startSec: number;
+  durationSec: number;
+}
+
+export interface VideoEditorNodeData extends MediaFileNodeData {
+  timelineClips: VideoEditorTimelineClip[];
+  currentTimeSec: number;
+  autoOpenEditor?: boolean;
+  taskStatus: MediaTaskStatus;
+  taskMessage?: string | null;
+  taskOutputSummary?: string | null;
+  outputFilePath?: string | null;
+}
+
 export interface ChatMessage {
   id: string;
   role: 'user' | 'assistant';
@@ -269,6 +287,7 @@ export type CanvasNodeData =
   | TextAnnotationNodeData
   | VideoNodeData
   | VideoPreviewNodeData
+  | VideoEditorNodeData
   | AudioNodeData
   | VideoStoryboardNodeData
   | GroupNodeData
@@ -368,6 +387,12 @@ export function isVideoPreviewNode(
   node: CanvasNode | null | undefined
 ): node is Node<VideoPreviewNodeData, typeof CANVAS_NODE_TYPES.videoPreview> {
   return node?.type === CANVAS_NODE_TYPES.videoPreview;
+}
+
+export function isVideoEditorNode(
+  node: CanvasNode | null | undefined
+): node is Node<VideoEditorNodeData, typeof CANVAS_NODE_TYPES.videoEditor> {
+  return node?.type === CANVAS_NODE_TYPES.videoEditor;
 }
 
 export function isAudioNode(

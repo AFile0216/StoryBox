@@ -15,6 +15,7 @@ import {
   type TextAnnotationNodeData,
   type UploadImageNodeData,
   type VideoNodeData,
+  type VideoEditorNodeData,
   type VideoPreviewNodeData,
   type VideoStoryboardNodeData,
 } from './canvasNodes';
@@ -233,6 +234,39 @@ const videoPreviewNodeDefinition: CanvasNodeDefinition<VideoPreviewNodeData> = {
   }),
 };
 
+const videoEditorNodeDefinition: CanvasNodeDefinition<VideoEditorNodeData> = {
+  type: CANVAS_NODE_TYPES.videoEditor,
+  menuLabelKey: 'node.menu.videoEditor',
+  menuIcon: 'video',
+  visibleInMenu: true,
+  capabilities: {
+    toolbar: true,
+    promptInput: false,
+  },
+  connectivity: {
+    sourceHandle: true,
+    targetHandle: true,
+    connectMenu: {
+      fromSource: true,
+      fromTarget: false,
+    },
+  },
+  createDefaultData: () => ({
+    displayName: DEFAULT_NODE_DISPLAY_NAME[CANVAS_NODE_TYPES.videoEditor],
+    filePath: null,
+    sourceFileName: null,
+    mimeType: null,
+    durationSec: null,
+    timelineClips: [],
+    currentTimeSec: 0,
+    autoOpenEditor: false,
+    taskStatus: 'idle',
+    taskMessage: null,
+    taskOutputSummary: null,
+    outputFilePath: null,
+  }),
+};
+
 const audioNodeDefinition: CanvasNodeDefinition<AudioNodeData> = {
   type: CANVAS_NODE_TYPES.audio,
   menuLabelKey: 'node.menu.audio',
@@ -427,6 +461,7 @@ export const canvasNodeDefinitions: Record<CanvasNodeType, CanvasNodeDefinition>
   [CANVAS_NODE_TYPES.textAnnotation]: textAnnotationNodeDefinition,
   [CANVAS_NODE_TYPES.video]: videoNodeDefinition,
   [CANVAS_NODE_TYPES.videoPreview]: videoPreviewNodeDefinition,
+  [CANVAS_NODE_TYPES.videoEditor]: videoEditorNodeDefinition,
   [CANVAS_NODE_TYPES.audio]: audioNodeDefinition,
   [CANVAS_NODE_TYPES.videoStoryboard]: videoStoryboardNodeDefinition,
   [CANVAS_NODE_TYPES.group]: groupNodeDefinition,

@@ -194,9 +194,11 @@ function inferEdgeRelation(sourceNode: CanvasNode, targetNode: CanvasNode): Canv
   if (
     sourceNode.type === CANVAS_NODE_TYPES.video ||
     sourceNode.type === CANVAS_NODE_TYPES.videoPreview ||
+    sourceNode.type === CANVAS_NODE_TYPES.videoEditor ||
     sourceNode.type === CANVAS_NODE_TYPES.videoStoryboard ||
     targetNode.type === CANVAS_NODE_TYPES.video ||
     targetNode.type === CANVAS_NODE_TYPES.videoPreview ||
+    targetNode.type === CANVAS_NODE_TYPES.videoEditor ||
     targetNode.type === CANVAS_NODE_TYPES.videoStoryboard
   ) {
     return 'video-flow';

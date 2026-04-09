@@ -100,6 +100,7 @@
       "storyboardGen": "Storyboard Generation",
       "textAnnotation": "Text Node",
       "video": "Video Node",
+      "videoEditor": "Video Editor",
       "audio": "Audio Node",
       "videoStoryboard": "Video Storyboard",
       "group": "Group",
@@ -250,6 +251,18 @@
       "useCurrentForEnd": "Use Current as End",
       "captureReference": "Keyframe Extract",
       "captureReferencePlaceholder": "Auto extracted from screenshot. Editable."
+    },
+    "videoEditor": {
+      "title": "Video Editor",
+      "openEditor": "Open Editor",
+      "generatePreview": "Generate Preview",
+      "missingVideo": "Please select a video first",
+      "previewReady": "Preview node generated from timeline",
+      "sourceClips": "Storyboard Clips",
+      "timeline": "Timeline",
+      "noSourceClips": "No storyboard clips found. Connect a storyboard split node.",
+      "noSequence": "Drag clips onto timeline to build sequence",
+      "editorTitle": "Video Editor"
     }
   },
   "viewer": {

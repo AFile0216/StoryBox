@@ -3,6 +3,7 @@ import {
   isImageEditNode,
   isUploadNode,
   isVideoNode,
+  isVideoEditorNode,
   isVideoPreviewNode,
   isVideoStoryboardNode,
   type CanvasEdge,
@@ -54,7 +55,7 @@ export class DefaultGraphImageResolver implements GraphImageResolver {
       return [];
     }
 
-    if (isVideoNode(node) || isVideoPreviewNode(node) || isVideoStoryboardNode(node)) {
+    if (isVideoNode(node) || isVideoPreviewNode(node) || isVideoEditorNode(node) || isVideoStoryboardNode(node)) {
       const candidatePaths = [
         node.data.filePath,
         (node.data as { outputFilePath?: string | null }).outputFilePath,

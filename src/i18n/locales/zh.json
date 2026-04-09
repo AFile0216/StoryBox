@@ -100,6 +100,7 @@
       "storyboardGen": "分镜生成",
       "textAnnotation": "文本节点",
       "video": "视频节点",
+      "videoEditor": "视频编辑",
       "audio": "音频节点",
       "videoStoryboard": "视频分镜",
       "group": "分组",
@@ -237,6 +238,18 @@
       "useCurrentForEnd": "当前位置设为结束",
       "captureReference": "关键帧参考提取",
       "captureReferencePlaceholder": "截图后会自动提取，可手动编辑。"
+    },
+    "videoEditor": {
+      "title": "视频编辑",
+      "openEditor": "打开编辑器",
+      "generatePreview": "生成预览",
+      "missingVideo": "请先选择视频文件",
+      "previewReady": "已根据时间轴生成预览节点",
+      "sourceClips": "分镜栏",
+      "timeline": "时间轴",
+      "noSourceClips": "未检测到分镜图片，请连接分镜节点",
+      "noSequence": "拖拽分镜到时间轴开始编排",
+      "editorTitle": "视频编辑器"
     }
   },
   "viewer": {

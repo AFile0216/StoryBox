@@ -205,6 +205,22 @@ export const VideoNode = memo(({ id, data, selected, width, height }: VideoNodeP
     addEdge(id, nextId, { relation: 'video-flow' });
   };
 
+  const handleCreateVideoEditorNode = () => {
+    if (!data.filePath) {
+      return;
+    }
+    const position = findNodePosition(id, 560, 440);
+    const nextId = addNode(CANVAS_NODE_TYPES.videoEditor as CanvasNodeType, position, {
+      filePath: data.filePath,
+      sourceFileName: data.sourceFileName ?? null,
+      mimeType: data.mimeType ?? null,
+      durationSec: data.durationSec ?? null,
+      displayName: `${data.sourceFileName ?? resolvedTitle} 视频编辑`,
+      autoOpenEditor: true,
+    });
+    addEdge(id, nextId, { relation: 'video-flow' });
+  };
+
   const createPreviewNodeFromPath = (path: string | null, name?: string | null) => {
     if (!path) {
       return null;
@@ -448,7 +464,7 @@ export const VideoNode = memo(({ id, data, selected, width, height }: VideoNodeP
         />
       </div>
 
-      <div className="grid grid-cols-[1fr_112px_112px_auto_auto] items-center gap-2">
+      <div className="grid grid-cols-[1fr_112px_112px_auto_auto_auto] items-center gap-2">
         <select
           className={`nodrag nowheel h-8 rounded-lg border border-[var(--ui-border-soft)] bg-[var(--ui-surface-field)] px-2 text-text-dark outline-none ${uiDensity.metaText}`}
           value={activeMode}
@@ -521,6 +537,22 @@ export const VideoNode = memo(({ id, data, selected, width, height }: VideoNodeP
           >
             <Clapperboard className="h-3.5 w-3.5" />
             分镜
+          </button>
+        ) : (
+          <div />
+        )}
+        {data.filePath ? (
+          <button
+            type="button"
+            onClick={(event) => {
+              event.stopPropagation();
+              handleCreateVideoEditorNode();
+            }}
+            className={`flex h-8 items-center gap-1 rounded-lg border border-[var(--ui-border-soft)] bg-[var(--ui-surface-field)] px-2 text-text-dark hover:bg-[var(--ui-surface-panel)] ${uiDensity.metaText}`}
+            title={t('node.videoEditor.openEditor', { defaultValue: '打开编辑器' })}
+          >
+            <Film className="h-3.5 w-3.5" />
+            视频编辑
           </button>
         ) : (
           <div />
