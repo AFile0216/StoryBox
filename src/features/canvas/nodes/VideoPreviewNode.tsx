@@ -1,4 +1,4 @@
-import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+﻿import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Handle, Position, type NodeProps } from '@xyflow/react';
 import { open } from '@tauri-apps/plugin-dialog';
 import { Film, Pause, Play, Video } from 'lucide-react';
@@ -38,16 +38,13 @@ function clamp(value: number, min: number, max: number): number {
 
 function formatSeconds(value: number | null | undefined): string {
   if (!Number.isFinite(value) || value === null || value === undefined) {
-    return '--:--';
+    return '0.0s';
   }
-  const total = Math.max(0, Math.floor(value));
-  const minutes = Math.floor(total / 60);
-  const seconds = total % 60;
-  return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+  return `${Math.max(0, value).toFixed(1)}s`;
 }
 
 function findActiveFrame(frames: VideoPreviewFrameItem[], timeSec: number): VideoPreviewFrameItem | null {
-  return frames.find((frame) => timeSec >= frame.startSec && timeSec <= frame.startSec + frame.durationSec) ?? null;
+  return frames.find((frame) => timeSec >= frame.startSec && timeSec < frame.startSec + frame.durationSec) ?? null;
 }
 
 export const VideoPreviewNode = memo(({ id, data, selected, width, height }: VideoPreviewNodeProps) => {
@@ -83,19 +80,34 @@ export const VideoPreviewNode = memo(({ id, data, selected, width, height }: Vid
         .sort((left, right) => left.startSec - right.startSec),
     [data.frames]
   );
+  const sequenceTextClips = useMemo(
+    () =>
+      [...(data.textClips ?? [])]
+        .filter((clip) => Number.isFinite(clip.startSec) && Number.isFinite(clip.durationSec) && clip.durationSec > 0)
+        .sort((left, right) => left.startSec - right.startSec),
+    [data.textClips]
+  );
   const sequenceDurationSec = useMemo(
-    () => sequenceFrames.reduce((max, frame) => Math.max(max, frame.startSec + frame.durationSec), 0),
-    [sequenceFrames]
+    () => Math.max(
+      sequenceFrames.reduce((max, frame) => Math.max(max, frame.startSec + frame.durationSec), 0),
+      sequenceTextClips.reduce((max, clip) => Math.max(max, clip.startSec + clip.durationSec), 0)
+    ),
+    [sequenceFrames, sequenceTextClips]
   );
   const timelineMaxSec = useMemo(
     () => Math.max(1, data.durationSec ?? 0, sequenceDurationSec),
     [data.durationSec, sequenceDurationSec]
   );
   const activeFrame = useMemo(
-    () => findActiveFrame(sequenceFrames, playheadSec) ?? sequenceFrames[0] ?? null,
+    () => findActiveFrame(sequenceFrames, playheadSec),
     [playheadSec, sequenceFrames]
   );
-  const activeFramePreview = activeFrame?.previewImageUrl || activeFrame?.imageUrl || data.posterImageUrl || null;
+  const activeTextClips = useMemo(
+    () => sequenceTextClips.filter((clip) => playheadSec >= clip.startSec && playheadSec < clip.startSec + clip.durationSec),
+    [playheadSec, sequenceTextClips]
+  );
+  const activeFramePreview = activeFrame?.previewImageUrl || activeFrame?.imageUrl || null;
+  const hasSequencePreview = sequenceFrames.length > 0;
 
   const stopTicker = useCallback(() => {
     if (tickerRef.current !== null) {
@@ -189,12 +201,41 @@ export const VideoPreviewNode = memo(({ id, data, selected, width, height }: Vid
             void handlePickVideo();
           }}
         >
-          {data.filePath ? t('node.media.changeFile', { defaultValue: '更换文件' }) : t('node.media.selectFile', { defaultValue: '选择文件' })}
+          {data.filePath
+            ? t('node.media.changeFile', { defaultValue: '更换文件' })
+            : t('node.media.selectFile', { defaultValue: '选择文件' })}
         </button>
       </div>
 
       <div className="tapnow-node-surface relative flex min-h-[160px] flex-1 items-center justify-center overflow-hidden">
-        {videoSrc ? (
+        {hasSequencePreview ? (
+          <div className="relative h-full w-full bg-black">
+            {activeFramePreview ? (
+              <img
+                src={resolveImageDisplayUrl(activeFramePreview)}
+                alt={activeFrame?.label ?? 'sequence-preview'}
+                className="h-full w-full object-contain"
+                draggable={false}
+              />
+            ) : null}
+            {activeTextClips.length > 0 ? (
+              <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-end gap-2 px-8 pb-6">
+                {activeTextClips.map((clip) => (
+                  <div
+                    key={clip.id}
+                    className="max-w-[80%] rounded-md bg-black/55 px-3 py-1 text-center font-medium text-white"
+                    style={{
+                      color: clip.color || '#ffffff',
+                      fontSize: `${Math.max(12, clip.fontSize ?? 24)}px`,
+                    }}
+                  >
+                    {clip.text}
+                  </div>
+                ))}
+              </div>
+            ) : null}
+          </div>
+        ) : videoSrc ? (
           <video
             src={videoSrc}
             controls
@@ -206,13 +247,6 @@ export const VideoPreviewNode = memo(({ id, data, selected, width, height }: Vid
               updateNodeData(id, { durationSec });
             }}
           />
-        ) : activeFramePreview ? (
-          <img
-            src={resolveImageDisplayUrl(activeFramePreview)}
-            alt={activeFrame?.label ?? 'sequence-preview'}
-            className="h-full w-full object-contain"
-            draggable={false}
-          />
         ) : (
           <div className="flex h-full w-full flex-col items-center justify-center gap-2 text-text-muted">
             <Video className="h-8 w-8 opacity-60" />
@@ -223,7 +257,7 @@ export const VideoPreviewNode = memo(({ id, data, selected, width, height }: Vid
         )}
       </div>
 
-      {videoSrc === null && sequenceFrames.length > 0 ? (
+      {hasSequencePreview ? (
         <div className="mt-2 rounded-lg border border-[var(--ui-border-soft)] bg-[var(--ui-surface-field)] p-2">
           <div className="mb-1 flex items-center justify-between text-[11px] text-text-muted">
             <button
@@ -301,3 +335,4 @@ export const VideoPreviewNode = memo(({ id, data, selected, width, height }: Vid
 });
 
 VideoPreviewNode.displayName = 'VideoPreviewNode';
+

@@ -281,7 +281,15 @@
       "timeline": "Timeline",
       "noSourceClips": "No storyboard clips found. Connect a storyboard split node.",
       "noSequence": "Drag clips onto timeline to build sequence",
-      "editorTitle": "Video Editor"
+      "editorTitle": "Video Editor",
+      "videoTrack": "Video Track",
+      "textTrack": "Text Track",
+      "addTextClip": "Add",
+      "textPlaceholder": "Enter text and add to text track",
+      "noTextClips": "No text clips yet",
+      "blackFrame": "Black Frame (No Clip)",
+      "previewFrame": "Current Clip",
+      "referenceVideoConnected": "Reference Video Connected"
     }
   },
   "viewer": {

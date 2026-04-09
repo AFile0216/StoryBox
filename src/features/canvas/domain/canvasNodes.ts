@@ -136,9 +136,19 @@ export interface VideoPreviewFrameItem {
   previewImageUrl?: string | null;
 }
 
+export interface VideoEditorTextClip {
+  id: string;
+  text: string;
+  startSec: number;
+  durationSec: number;
+  color?: string;
+  fontSize?: number;
+}
+
 export interface VideoPreviewNodeData extends MediaFileNodeData {
   posterImageUrl?: string | null;
   frames?: VideoPreviewFrameItem[];
+  textClips?: VideoEditorTextClip[];
   currentTimeSec?: number;
 }
 
@@ -274,6 +284,7 @@ export interface VideoEditorTimelineClip {
 
 export interface VideoEditorNodeData extends MediaFileNodeData {
   timelineClips: VideoEditorTimelineClip[];
+  textClips: VideoEditorTextClip[];
   currentTimeSec: number;
   autoOpenEditor?: boolean;
   taskStatus: MediaTaskStatus;

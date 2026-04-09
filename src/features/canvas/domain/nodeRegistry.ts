@@ -234,6 +234,7 @@ const videoPreviewNodeDefinition: CanvasNodeDefinition<VideoPreviewNodeData> = {
     durationSec: null,
     posterImageUrl: null,
     frames: [],
+    textClips: [],
     currentTimeSec: 0,
   }),
 };
@@ -262,6 +263,7 @@ const videoEditorNodeDefinition: CanvasNodeDefinition<VideoEditorNodeData> = {
     mimeType: null,
     durationSec: null,
     timelineClips: [],
+    textClips: [],
     currentTimeSec: 0,
     autoOpenEditor: false,
     taskStatus: 'idle',

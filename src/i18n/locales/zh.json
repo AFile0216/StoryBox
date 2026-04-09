@@ -274,7 +274,15 @@
       "timeline": "时间轴",
       "noSourceClips": "未检测到分镜图片，请连接分镜节点",
       "noSequence": "拖拽分镜到时间轴开始编排",
-      "editorTitle": "视频编辑器"
+      "editorTitle": "视频编辑器",
+      "videoTrack": "视频轨",
+      "textTrack": "文字轨",
+      "addTextClip": "添加",
+      "textPlaceholder": "输入文字后添加到文字轨",
+      "noTextClips": "暂无文字片段",
+      "blackFrame": "黑场（无分镜）",
+      "previewFrame": "当前分镜",
+      "referenceVideoConnected": "已连接参考视频"
     }
   },
   "viewer": {
