@@ -8,6 +8,7 @@ import {
   type CanvasNode,
   type CanvasNodeData,
 } from './canvasStore';
+import { useImageViewerStore } from './imageViewerStore';
 import {
   deleteProjectRecord,
   getProjectRecord,
@@ -712,7 +713,7 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
 
   openProject: (id) => {
     const reqSeq = ++openProjectRequestSeq;
-    useCanvasStore.getState().closeImageViewer();
+    useImageViewerStore.getState().closeImageViewer();
     set({ isOpeningProject: true });
 
     void (async () => {
@@ -751,7 +752,7 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
 
   closeProject: () => {
     openProjectRequestSeq += 1;
-    useCanvasStore.getState().closeImageViewer();
+    useImageViewerStore.getState().closeImageViewer();
     const { currentProjectId, currentProject } = get();
     let persistedSummary: ProjectSummary | null = null;
 

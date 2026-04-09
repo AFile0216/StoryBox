@@ -3,6 +3,7 @@ import {
   CANVAS_NODE_TYPES,
   DEFAULT_ASPECT_RATIO,
   type AudioNodeData,
+  type AudioPreviewNodeData,
   type CanvasNodeData,
   type CanvasNodeType,
   type ChatNodeData,
@@ -172,7 +173,7 @@ const videoNodeDefinition: CanvasNodeDefinition<VideoNodeData> = {
   type: CANVAS_NODE_TYPES.video,
   menuLabelKey: 'node.menu.video',
   menuIcon: 'video',
-  visibleInMenu: true,
+  visibleInMenu: false,
   capabilities: {
     toolbar: true,
     promptInput: false,
@@ -181,7 +182,7 @@ const videoNodeDefinition: CanvasNodeDefinition<VideoNodeData> = {
     sourceHandle: true,
     targetHandle: true,
     connectMenu: {
-      fromSource: true,
+      fromSource: false,
       fromTarget: false,
     },
   },
@@ -274,7 +275,7 @@ const audioNodeDefinition: CanvasNodeDefinition<AudioNodeData> = {
   type: CANVAS_NODE_TYPES.audio,
   menuLabelKey: 'node.menu.audio',
   menuIcon: 'audio',
-  visibleInMenu: true,
+  visibleInMenu: false,
   capabilities: {
     toolbar: true,
     promptInput: false,
@@ -283,7 +284,7 @@ const audioNodeDefinition: CanvasNodeDefinition<AudioNodeData> = {
     sourceHandle: true,
     targetHandle: true,
     connectMenu: {
-      fromSource: true,
+      fromSource: false,
       fromTarget: false,
     },
   },
@@ -300,6 +301,32 @@ const audioNodeDefinition: CanvasNodeDefinition<AudioNodeData> = {
     taskMessage: null,
     taskOutputSummary: null,
     lastExecutedAt: null,
+  }),
+};
+
+const audioPreviewNodeDefinition: CanvasNodeDefinition<AudioPreviewNodeData> = {
+  type: CANVAS_NODE_TYPES.audioPreview,
+  menuLabelKey: 'node.menu.audio',
+  menuIcon: 'audio',
+  visibleInMenu: false,
+  capabilities: {
+    toolbar: true,
+    promptInput: false,
+  },
+  connectivity: {
+    sourceHandle: true,
+    targetHandle: true,
+    connectMenu: {
+      fromSource: false,
+      fromTarget: false,
+    },
+  },
+  createDefaultData: () => ({
+    displayName: DEFAULT_NODE_DISPLAY_NAME[CANVAS_NODE_TYPES.audioPreview],
+    filePath: null,
+    sourceFileName: null,
+    mimeType: null,
+    durationSec: null,
   }),
 };
 
@@ -356,7 +383,7 @@ const groupNodeDefinition: CanvasNodeDefinition<GroupNodeData> = {
   },
   createDefaultData: () => ({
     displayName: DEFAULT_NODE_DISPLAY_NAME[CANVAS_NODE_TYPES.group],
-    label: '分组',
+    label: DEFAULT_NODE_DISPLAY_NAME[CANVAS_NODE_TYPES.group],
   }),
 };
 
@@ -467,6 +494,7 @@ export const canvasNodeDefinitions: Record<CanvasNodeType, CanvasNodeDefinition>
   [CANVAS_NODE_TYPES.videoPreview]: videoPreviewNodeDefinition,
   [CANVAS_NODE_TYPES.videoEditor]: videoEditorNodeDefinition,
   [CANVAS_NODE_TYPES.audio]: audioNodeDefinition,
+  [CANVAS_NODE_TYPES.audioPreview]: audioPreviewNodeDefinition,
   [CANVAS_NODE_TYPES.videoStoryboard]: videoStoryboardNodeDefinition,
   [CANVAS_NODE_TYPES.group]: groupNodeDefinition,
   [CANVAS_NODE_TYPES.storyboardSplit]: storyboardSplitDefinition,

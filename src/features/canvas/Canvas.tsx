@@ -26,9 +26,10 @@ import { useTranslation } from 'react-i18next';
 import '@xyflow/react/dist/style.css';
 
 import { useCanvasStore } from '@/stores/canvasStore';
+import { useImageViewerStore } from '@/stores/imageViewerStore';
 import { useProjectStore } from '@/stores/projectStore';
 import { getConfiguredProviderCount, useSettingsStore } from '@/stores/settingsStore';
-import { canvasAiGateway, canvasEventBus } from '@/features/canvas/application/canvasServices';
+import { canvasEventBus } from '@/features/canvas/application/canvasServices';
 import {
   CANVAS_NODE_TYPES,
   type CanvasEdge,
@@ -36,18 +37,11 @@ import {
   type CanvasNodeType,
   DEFAULT_NODE_WIDTH,
 } from '@/features/canvas/domain/canvasNodes';
-import { prepareNodeImage } from '@/features/canvas/application/imageData';
-import {
-  buildGenerationErrorReport,
-  CURRENT_RUNTIME_SESSION_ID,
-} from '@/features/canvas/application/generationErrorReport';
-import { showErrorDialog } from '@/features/canvas/application/errorDialog';
 import {
   getConnectMenuNodeTypes,
   nodeHasSourceHandle,
   nodeHasTargetHandle,
 } from '@/features/canvas/domain/nodeRegistry';
-import { embedStoryboardImageMetadata } from '@/commands/image';
 import { nodeTypes } from './nodes';
 import { edgeTypes } from './edges';
 import { NodeSelectionMenu } from './NodeSelectionMenu';
@@ -55,6 +49,10 @@ import { SelectedNodeOverlay } from './ui/SelectedNodeOverlay';
 import { NodeToolDialog } from './ui/NodeToolDialog';
 import { ImageViewerModal } from './ui/ImageViewerModal';
 import { MissingApiKeyHint } from '@/features/settings/MissingApiKeyHint';
+import { useCanvasMediaDrop } from './hooks/useCanvasMediaDrop';
+import { useGenerationPolling } from './hooks/useGenerationPolling';
+import { useCanvasViewportPersistence } from './hooks/useCanvasViewportPersistence';
+import { useCanvasKeyboardShortcuts } from './hooks/useCanvasKeyboardShortcuts';
 
 const DEFAULT_VIEWPORT: Viewport = { x: 0, y: 0, zoom: 1 };
 
@@ -96,13 +94,6 @@ interface DuplicateResult {
 }
 
 const ALT_DRAG_COPY_Z_INDEX = 2000;
-const GENERATION_JOB_POLL_INTERVAL_MS = 1400;
-
-interface GenerationStoryboardMetadata {
-  gridRows: number;
-  gridCols: number;
-  frameNotes: string[];
-}
 
 function getNodeSize(node: CanvasNode): { width: number; height: number } {
   const styleWidth = typeof node.style?.width === 'number' ? node.style.width : null;
@@ -180,136 +171,6 @@ function resolveClipboardImageFile(event: ClipboardEvent): File | null {
   return null;
 }
 
-function isVideoMimeType(mimeType: string | undefined | null): boolean {
-  if (!mimeType) {
-    return false;
-  }
-  return mimeType.toLowerCase().startsWith('video/');
-}
-
-function isAudioMimeType(mimeType: string | undefined | null): boolean {
-  if (!mimeType) {
-    return false;
-  }
-  return mimeType.toLowerCase().startsWith('audio/');
-}
-
-function isVideoFilename(fileName: string | undefined | null): boolean {
-  if (!fileName) {
-    return false;
-  }
-  return /\.(mp4|mov|m4v|webm|mkv|avi)$/iu.test(fileName);
-}
-
-function isAudioFilename(fileName: string | undefined | null): boolean {
-  if (!fileName) {
-    return false;
-  }
-  return /\.(mp3|wav|ogg|m4a|flac|aac)$/iu.test(fileName);
-}
-
-interface DroppedMediaPayload {
-  type: 'video' | 'audio';
-  file?: File;
-  path?: string;
-  name: string;
-  mimeType?: string | null;
-}
-
-function resolveMediaTypeByNameOrPath(nameOrPath: string | undefined | null): 'video' | 'audio' | null {
-  if (!nameOrPath) {
-    return null;
-  }
-  if (isVideoFilename(nameOrPath)) {
-    return 'video';
-  }
-  if (isAudioFilename(nameOrPath)) {
-    return 'audio';
-  }
-  return null;
-}
-
-function resolveDroppedFilePathFromUri(value: string): string | null {
-  const trimmed = value.trim();
-  if (!trimmed) {
-    return null;
-  }
-  if (!trimmed.toLowerCase().startsWith('file://')) {
-    return trimmed;
-  }
-  try {
-    const parsed = new URL(trimmed);
-    const decodedPath = decodeURIComponent(parsed.pathname);
-    return decodedPath.replace(/^\/([A-Za-z]:[\\/])/, '$1');
-  } catch {
-    return null;
-  }
-}
-
-function resolveDroppedMediaPayloads(dataTransfer: DataTransfer | null): DroppedMediaPayload[] {
-  if (!dataTransfer) {
-    return [];
-  }
-
-  const payloads: DroppedMediaPayload[] = [];
-  const dedupeKeys = new Set<string>();
-  const appendPayload = (payload: DroppedMediaPayload) => {
-    const keyBase = payload.path || payload.name;
-    const dedupeKey = `${payload.type}:${keyBase.trim().toLowerCase()}`;
-    if (!keyBase || dedupeKeys.has(dedupeKey)) {
-      return;
-    }
-    dedupeKeys.add(dedupeKey);
-    payloads.push(payload);
-  };
-
-  const files = Array.from(dataTransfer.files ?? []);
-  for (const file of files) {
-    const fromPath = ((file as File & { path?: string }).path ?? '').trim();
-    const resolvedType = isVideoMimeType(file.type)
-      ? 'video'
-      : isAudioMimeType(file.type)
-        ? 'audio'
-        : resolveMediaTypeByNameOrPath(file.name || fromPath);
-    if (!resolvedType) {
-      continue;
-    }
-    appendPayload({
-      type: resolvedType,
-      file,
-      path: fromPath || undefined,
-      name: file.name || fromPath.split(/[/\\]/u).pop() || `media-${Date.now()}`,
-      mimeType: file.type || null,
-    });
-  }
-
-  const uriListText = dataTransfer.getData('text/uri-list') || '';
-  const plainText = dataTransfer.getData('text/plain') || '';
-  const pathCandidates = [...uriListText.split(/\r?\n/u), ...plainText.split(/\r?\n/u)];
-  for (const rawCandidate of pathCandidates) {
-    const candidate = rawCandidate.trim();
-    if (!candidate || candidate.startsWith('#')) {
-      continue;
-    }
-    const resolvedPath = resolveDroppedFilePathFromUri(candidate);
-    if (!resolvedPath) {
-      continue;
-    }
-    const resolvedType = resolveMediaTypeByNameOrPath(resolvedPath);
-    if (!resolvedType) {
-      continue;
-    }
-    appendPayload({
-      type: resolvedType,
-      path: resolvedPath,
-      name: resolvedPath.split(/[/\\]/u).pop() || resolvedPath,
-      mimeType: null,
-    });
-  }
-
-  return payloads;
-}
-
 function resolveAllowedNodeTypes(handleType: HandleType): CanvasNodeType[] {
   return getConnectMenuNodeTypes(handleType);
 }
@@ -379,28 +240,15 @@ export function Canvas() {
   const [previewConnectionVisual, setPreviewConnectionVisual] =
     useState<PreviewConnectionVisual | null>(null);
 
-  const isRestoringCanvasRef = useRef(true);
-  const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const copiedSnapshotRef = useRef<ClipboardSnapshot | null>(null);
   const pasteIterationRef = useRef(0);
   const pasteImageHandledRef = useRef(false);
-  const activeGenerationPollNodeIdsRef = useRef(new Set<string>());
   const duplicateNodesRef = useRef<((sourceNodeIds: string[]) => string | null) | null>(null);
   const altDragCopyRef = useRef<{
     sourceNodeIds: string[];
     startPositions: Map<string, { x: number; y: number }>;
     copiedNodeIds: string[];
     sourceToCopyIdMap: Map<string, string>;
-  } | null>(null);
-  const edgePanGestureRef = useRef<{
-    active: boolean;
-    pointerId: number;
-    startClientX: number;
-    startClientY: number;
-    startViewportX: number;
-    startViewportY: number;
-    zoom: number;
-    moved: boolean;
   } | null>(null);
 
   const nodes = useCanvasStore((state) => state.nodes);
@@ -426,9 +274,9 @@ export function Canvas() {
   const closeToolDialog = useCanvasStore((state) => state.closeToolDialog);
   const setViewportState = useCanvasStore((state) => state.setViewportState);
   const setCanvasViewportSize = useCanvasStore((state) => state.setCanvasViewportSize);
-  const imageViewer = useCanvasStore((state) => state.imageViewer);
-  const closeImageViewer = useCanvasStore((state) => state.closeImageViewer);
-  const navigateImageViewer = useCanvasStore((state) => state.navigateImageViewer);
+  const imageViewer = useImageViewerStore((state) => state.imageViewer);
+  const closeImageViewer = useImageViewerStore((state) => state.closeImageViewer);
+  const navigateImageViewer = useImageViewerStore((state) => state.navigateImageViewer);
   const apiKeys = useSettingsStore((state) => state.apiKeys);
   const configuredApiKeyCount = useSettingsStore((state) => getConfiguredProviderCount(state));
 
@@ -439,40 +287,28 @@ export function Canvas() {
     (state) => state.cancelPendingViewportPersist
   );
 
-  const persistCanvasSnapshot = useCallback(() => {
-    if (isRestoringCanvasRef.current) {
-      return;
-    }
-
-    const currentProject = getCurrentProject();
-    if (!currentProject) {
-      return;
-    }
-
-    const currentNodes = useCanvasStore.getState().nodes;
-    const currentEdges = useCanvasStore.getState().edges;
-    const currentHistory = useCanvasStore.getState().history;
-    saveCurrentProject(
-      currentNodes,
-      currentEdges,
-      reactFlowInstance.getViewport(),
-      currentHistory
-    );
-  }, [getCurrentProject, reactFlowInstance, saveCurrentProject]);
-
-  const scheduleCanvasPersist = useCallback(
-    (delayMs = 140) => {
-      if (saveTimerRef.current) {
-        clearTimeout(saveTimerRef.current);
-      }
-
-      saveTimerRef.current = setTimeout(() => {
-        saveTimerRef.current = null;
-        persistCanvasSnapshot();
-      }, delayMs);
-    },
-    [persistCanvasSnapshot]
-  );
+  const {
+    scheduleCanvasPersist,
+    handleMoveStart,
+    handleMove,
+    handleMoveEnd,
+  } = useCanvasViewportPersistence({
+    reactFlowInstance,
+    wrapperRef,
+    suppressNextEdgeClickRef,
+    defaultViewport: DEFAULT_VIEWPORT,
+    nodes,
+    edges,
+    history,
+    dragHistorySnapshot,
+    getCurrentProject,
+    saveCurrentProject,
+    saveCurrentProjectViewport,
+    cancelPendingViewportPersist,
+    setCanvasData,
+    setViewportState,
+    closeImageViewer,
+  });
 
   useEffect(() => {
     const unsubscribeOpen = canvasEventBus.subscribe('tool-dialog/open', (payload) => {
@@ -488,188 +324,12 @@ export function Canvas() {
     };
   }, [openToolDialog, closeToolDialog]);
 
-  useEffect(() => {
-    isRestoringCanvasRef.current = true;
-    const project = getCurrentProject();
-    if (project) {
-      setCanvasData(project.nodes, project.edges, project.history);
-      setViewportState(project.viewport ?? DEFAULT_VIEWPORT);
-      requestAnimationFrame(() => {
-        reactFlowInstance.setViewport(project.viewport ?? DEFAULT_VIEWPORT, { duration: 0 });
-      });
-    } else {
-      setViewportState(DEFAULT_VIEWPORT);
-    }
-    const restoreTimer = setTimeout(() => {
-      isRestoringCanvasRef.current = false;
-    }, 0);
-
-    return () => {
-      clearTimeout(restoreTimer);
-      if (saveTimerRef.current) {
-        clearTimeout(saveTimerRef.current);
-        saveTimerRef.current = null;
-      }
-      closeImageViewer();
-      persistCanvasSnapshot();
-    };
-  }, [
-    closeImageViewer,
-    getCurrentProject,
-    persistCanvasSnapshot,
-    reactFlowInstance,
-    setCanvasData,
-    setViewportState,
-  ]);
-
-  useEffect(() => {
-    if (isRestoringCanvasRef.current || dragHistorySnapshot) {
-      return;
-    }
-
-    scheduleCanvasPersist();
-  }, [nodes, edges, history, dragHistorySnapshot, scheduleCanvasPersist]);
-
-  useEffect(() => {
-    const sleep = (delayMs: number) =>
-      new Promise<void>((resolve) => {
-        window.setTimeout(resolve, delayMs);
-      });
-
-    const pendingExportNodes = nodes.filter((node) => {
-      if (node.type !== CANVAS_NODE_TYPES.exportImage) {
-        return false;
-      }
-      const data = node.data as Record<string, unknown>;
-      return data.isGenerating === true && typeof data.generationJobId === 'string' && data.generationJobId.length > 0;
-    });
-
-    for (const pendingNode of pendingExportNodes) {
-      if (activeGenerationPollNodeIdsRef.current.has(pendingNode.id)) {
-        continue;
-      }
-      activeGenerationPollNodeIdsRef.current.add(pendingNode.id);
-
-      void (async () => {
-        try {
-          while (true) {
-            const currentNode = useCanvasStore.getState().nodes.find((node) => node.id === pendingNode.id);
-            if (!currentNode) {
-              break;
-            }
-
-            const currentData = currentNode.data as Record<string, unknown>;
-            const jobId = typeof currentData.generationJobId === 'string' ? currentData.generationJobId : '';
-            const isGenerating = currentData.isGenerating === true;
-            if (!jobId || !isGenerating) {
-              break;
-            }
-
-            const generationProviderId = typeof currentData.generationProviderId === 'string'
-              ? currentData.generationProviderId
-              : '';
-            if (generationProviderId) {
-              const providerApiKey = apiKeys[generationProviderId] ?? '';
-              if (providerApiKey) {
-                await canvasAiGateway.setApiKey(generationProviderId, providerApiKey).catch((error) => {
-                  console.warn('[GenerationJob] set_api_key failed before poll', {
-                    nodeId: pendingNode.id,
-                    generationProviderId,
-                    error,
-                  });
-                });
-              }
-            }
-
-            const status = await canvasAiGateway.getGenerateImageJob(jobId).catch((error) => {
-              console.warn('[GenerationJob] poll failed', { nodeId: pendingNode.id, jobId, error });
-              return null;
-            });
-            if (!status) {
-              await sleep(GENERATION_JOB_POLL_INTERVAL_MS);
-              continue;
-            }
-
-            if (status.status === 'queued' || status.status === 'running') {
-              await sleep(GENERATION_JOB_POLL_INTERVAL_MS);
-              continue;
-            }
-
-            if (status.status === 'succeeded' && typeof status.result === 'string' && status.result.trim()) {
-              const prepared = await prepareNodeImage(status.result);
-              const storyboardMetadataRaw = currentData.generationStoryboardMetadata as GenerationStoryboardMetadata | undefined;
-              const hasStoryboardMetadata = Boolean(
-                storyboardMetadataRaw
-                && Number.isFinite(storyboardMetadataRaw.gridRows)
-                && Number.isFinite(storyboardMetadataRaw.gridCols)
-                && Array.isArray(storyboardMetadataRaw.frameNotes)
-              );
-              let imageWithMetadata = prepared.imageUrl;
-              if (hasStoryboardMetadata && storyboardMetadataRaw) {
-                imageWithMetadata = await embedStoryboardImageMetadata(prepared.imageUrl, {
-                  gridRows: Math.max(1, Math.round(storyboardMetadataRaw.gridRows)),
-                  gridCols: Math.max(1, Math.round(storyboardMetadataRaw.gridCols)),
-                  frameNotes: storyboardMetadataRaw.frameNotes,
-                }).catch((error) => {
-                  console.warn('[GenerationJob] embed storyboard metadata failed', {
-                    nodeId: pendingNode.id,
-                    error,
-                  });
-                  return prepared.imageUrl;
-                });
-              }
-              const previewWithMetadata = prepared.previewImageUrl === prepared.imageUrl
-                ? imageWithMetadata
-                : prepared.previewImageUrl;
-
-              updateNodeData(pendingNode.id, {
-                imageUrl: imageWithMetadata,
-                previewImageUrl: previewWithMetadata,
-                aspectRatio: prepared.aspectRatio,
-                isGenerating: false,
-                generationStartedAt: null,
-                generationJobId: null,
-                generationProviderId: null,
-                generationClientSessionId: null,
-                generationStoryboardMetadata: undefined,
-                generationError: null,
-                generationErrorDetails: null,
-                generationDebugContext: undefined,
-              });
-              break;
-            }
-
-            const errorMessage = status.error ?? (status.status === 'not_found' ? 'generation job not found' : 'generation failed');
-            const generationClientSessionId = typeof currentData.generationClientSessionId === 'string'
-              ? currentData.generationClientSessionId
-              : '';
-            const shouldShowDialog = generationClientSessionId === CURRENT_RUNTIME_SESSION_ID;
-            if (shouldShowDialog) {
-              const reportText = buildGenerationErrorReport({
-                errorMessage,
-                errorDetails: status.error ?? undefined,
-                context: currentData.generationDebugContext,
-              });
-              void showErrorDialog(errorMessage, t('common.error'), status.error ?? undefined, reportText);
-            }
-            updateNodeData(pendingNode.id, {
-              isGenerating: false,
-              generationStartedAt: null,
-              generationJobId: null,
-              generationProviderId: null,
-              generationClientSessionId: null,
-              generationStoryboardMetadata: undefined,
-              generationError: errorMessage,
-              generationErrorDetails: status.error ?? null,
-            });
-            break;
-          }
-        } finally {
-          activeGenerationPollNodeIdsRef.current.delete(pendingNode.id);
-        }
-      })();
-    }
-  }, [apiKeys, nodes, updateNodeData]);
+  useGenerationPolling({
+    apiKeys,
+    nodes,
+    updateNodeData,
+    t,
+  });
 
   useEffect(() => {
     const element = wrapperRef.current;
@@ -777,153 +437,6 @@ export function Canvas() {
     [connectNodes, nodes, scheduleCanvasPersist]
   );
 
-  const handleMoveEnd = useCallback(
-    (_event: unknown, viewport: Viewport) => {
-      setViewportState(viewport);
-      const project = getCurrentProject();
-      if (!project || isRestoringCanvasRef.current) {
-        return;
-      }
-      saveCurrentProjectViewport(viewport);
-    },
-    [getCurrentProject, saveCurrentProjectViewport, setViewportState]
-  );
-
-  const handleMove = useCallback(
-    (_event: unknown, viewport: Viewport) => {
-      setViewportState(viewport);
-    },
-    [setViewportState]
-  );
-
-  const handleMoveStart = useCallback(() => {
-    cancelPendingViewportPersist();
-  }, [cancelPendingViewportPersist]);
-
-  useEffect(() => {
-    const wrapperElement = wrapperRef.current;
-    if (!wrapperElement) {
-      return;
-    }
-
-    const edgePathSelector = '.react-flow__edge-path, .react-flow__edge-interaction';
-    const dragThreshold = 4;
-
-    const handlePointerDown = (event: PointerEvent) => {
-      if (event.button !== 0) {
-        return;
-      }
-
-      const target = event.target as HTMLElement | null;
-      if (!target) {
-        return;
-      }
-
-      if (target.closest('.react-flow__edgeupdater')) {
-        return;
-      }
-
-      const edgePathElement = target.closest(edgePathSelector);
-      if (!edgePathElement) {
-        return;
-      }
-
-      const viewport = reactFlowInstance.getViewport();
-      edgePanGestureRef.current = {
-        active: true,
-        pointerId: event.pointerId,
-        startClientX: event.clientX,
-        startClientY: event.clientY,
-        startViewportX: viewport.x,
-        startViewportY: viewport.y,
-        zoom: viewport.zoom,
-        moved: false,
-      };
-      cancelPendingViewportPersist();
-    };
-
-    const handlePointerMove = (event: PointerEvent) => {
-      const gesture = edgePanGestureRef.current;
-      if (!gesture || !gesture.active || event.pointerId !== gesture.pointerId) {
-        return;
-      }
-
-      const deltaX = event.clientX - gesture.startClientX;
-      const deltaY = event.clientY - gesture.startClientY;
-
-      if (!gesture.moved && Math.hypot(deltaX, deltaY) >= dragThreshold) {
-        gesture.moved = true;
-      }
-      if (!gesture.moved) {
-        return;
-      }
-
-      suppressNextEdgeClickRef.current = true;
-      reactFlowInstance.setViewport(
-        {
-          x: gesture.startViewportX + deltaX,
-          y: gesture.startViewportY + deltaY,
-          zoom: gesture.zoom,
-        },
-        { duration: 0 }
-      );
-    };
-
-    const completeEdgePanGesture = () => {
-      const gesture = edgePanGestureRef.current;
-      if (!gesture) {
-        return;
-      }
-
-      edgePanGestureRef.current = null;
-      if (!gesture.moved) {
-        return;
-      }
-
-      const viewport = reactFlowInstance.getViewport();
-      setViewportState(viewport);
-      const project = getCurrentProject();
-      if (!project || isRestoringCanvasRef.current) {
-        return;
-      }
-      saveCurrentProjectViewport(viewport);
-    };
-
-    const handlePointerUp = (event: PointerEvent) => {
-      const gesture = edgePanGestureRef.current;
-      if (!gesture || event.pointerId !== gesture.pointerId) {
-        return;
-      }
-      completeEdgePanGesture();
-    };
-
-    const handlePointerCancel = (event: PointerEvent) => {
-      const gesture = edgePanGestureRef.current;
-      if (!gesture || event.pointerId !== gesture.pointerId) {
-        return;
-      }
-      completeEdgePanGesture();
-    };
-
-    wrapperElement.addEventListener('pointerdown', handlePointerDown, true);
-    window.addEventListener('pointermove', handlePointerMove, true);
-    window.addEventListener('pointerup', handlePointerUp, true);
-    window.addEventListener('pointercancel', handlePointerCancel, true);
-
-    return () => {
-      wrapperElement.removeEventListener('pointerdown', handlePointerDown, true);
-      window.removeEventListener('pointermove', handlePointerMove, true);
-      window.removeEventListener('pointerup', handlePointerUp, true);
-      window.removeEventListener('pointercancel', handlePointerCancel, true);
-    };
-  }, [
-    cancelPendingViewportPersist,
-    getCurrentProject,
-    reactFlowInstance,
-    saveCurrentProjectViewport,
-    setViewportState,
-  ]);
-
   const selectedNodeIds = useMemo(
     () => nodes.filter((node) => Boolean(node.selected)).map((node) => node.id),
     [nodes]
@@ -978,203 +491,28 @@ export function Canvas() {
     };
   }, [selectedUploadNodeId]);
 
-  const handleCanvasMediaDragOver = useCallback((event: Pick<DragEvent, 'preventDefault' | 'dataTransfer'>) => {
-    const mediaPayloads = resolveDroppedMediaPayloads(event.dataTransfer);
-    if (mediaPayloads.length === 0) {
-      return;
-    }
-    event.preventDefault();
-    if (event.dataTransfer) {
-      event.dataTransfer.dropEffect = 'copy';
-    }
-  }, []);
+  const { handleCanvasMediaDragOver, handleCanvasMediaDrop } = useCanvasMediaDrop({
+    addNode,
+    reactFlowInstance,
+    scheduleCanvasPersist,
+  });
 
-  const handleCanvasMediaDrop = useCallback(
-    (event: Pick<DragEvent, 'preventDefault' | 'stopPropagation' | 'dataTransfer' | 'clientX' | 'clientY'>) => {
-      const mediaPayloads = resolveDroppedMediaPayloads(event.dataTransfer);
-      if (mediaPayloads.length === 0) {
-        return;
-      }
-
-      event.preventDefault();
-      event.stopPropagation();
-
-      const flowPoint = reactFlowInstance.screenToFlowPosition({
-        x: event.clientX,
-        y: event.clientY,
-      });
-      let created = 0;
-
-      for (let index = 0; index < mediaPayloads.length; index += 1) {
-        const payload = mediaPayloads[index];
-        const droppedPath = payload.path?.trim() ?? '';
-        const filePath = ((payload.file as File & { path?: string } | undefined)?.path ?? '').trim();
-        const resolvedPath = droppedPath || filePath || (payload.file ? URL.createObjectURL(payload.file) : '');
-        if (!resolvedPath) {
-          continue;
-        }
-        const sourceFileName = payload.name || resolvedPath.split(/[/\\]/u).pop() || `media-${Date.now()}`;
-        if (payload.type === 'video') {
-          addNode(
-            CANVAS_NODE_TYPES.video as CanvasNodeType,
-            {
-              x: flowPoint.x + index * 32,
-              y: flowPoint.y + index * 20,
-            },
-            {
-              filePath: resolvedPath,
-              sourceFileName,
-              mimeType: payload.mimeType ?? payload.file?.type ?? null,
-              displayName: sourceFileName,
-              autoOpenPicker: false,
-            }
-          );
-        } else {
-          addNode(
-            CANVAS_NODE_TYPES.audio as CanvasNodeType,
-            {
-              x: flowPoint.x + index * 32,
-              y: flowPoint.y + index * 20,
-            },
-            {
-              filePath: resolvedPath,
-              sourceFileName,
-              mimeType: payload.mimeType ?? payload.file?.type ?? null,
-              displayName: sourceFileName,
-              autoOpenPicker: false,
-              taskStatus: 'idle',
-              taskMessage: null,
-              taskOutputSummary: null,
-              prompt: '',
-              taskMode: 'audio-to-video',
-            }
-          );
-        }
-        created += 1;
-      }
-
-      if (created > 0) {
-        scheduleCanvasPersist(0);
-      }
-    },
-    [addNode, reactFlowInstance, scheduleCanvasPersist]
-  );
-
-  useEffect(() => {
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (isTypingTarget(event.target)) {
-        return;
-      }
-
-      const commandPressed = event.ctrlKey || event.metaKey;
-      const key = event.key.toLowerCase();
-      const isUndo = commandPressed && key === 'z' && !event.shiftKey;
-      const isRedo = commandPressed && (key === 'y' || (key === 'z' && event.shiftKey));
-      const isGroup = commandPressed && key === 'g';
-      const isCopy = commandPressed && key === 'c' && !event.shiftKey;
-      const isPaste = commandPressed && key === 'v' && !event.shiftKey;
-
-      if (isCopy) {
-        if (selectedNodeIds.length === 0) {
-          return;
-        }
-        event.preventDefault();
-        const selectedIdSet = new Set(selectedNodeIds);
-        copiedSnapshotRef.current = {
-          nodes: nodes.filter((node) => selectedIdSet.has(node.id)),
-          edges: edges.filter(
-            (edge) => selectedIdSet.has(edge.source) && selectedIdSet.has(edge.target)
-          ),
-        };
-        return;
-      }
-
-      if (isPaste) {
-        if (selectedUploadNodeId) {
-          pasteImageHandledRef.current = false;
-          window.setTimeout(() => {
-            if (pasteImageHandledRef.current) {
-              pasteImageHandledRef.current = false;
-              return;
-            }
-
-            if (!copiedSnapshotRef.current || copiedSnapshotRef.current.nodes.length === 0) {
-              return;
-            }
-
-            void duplicateNodesRef.current?.(copiedSnapshotRef.current.nodes.map((node) => node.id));
-          }, 0);
-          return;
-        }
-
-        if (!copiedSnapshotRef.current || copiedSnapshotRef.current.nodes.length === 0) {
-          return;
-        }
-        event.preventDefault();
-        void duplicateNodesRef.current?.(copiedSnapshotRef.current.nodes.map((node) => node.id));
-        return;
-      }
-
-      if (isUndo || isRedo) {
-        event.preventDefault();
-        const changed = isUndo ? undo() : redo();
-        if (changed) {
-          scheduleCanvasPersist(0);
-        }
-        return;
-      }
-
-      if (isGroup) {
-        if (selectedNodeIds.length < 2) {
-          return;
-        }
-        event.preventDefault();
-        const createdGroupId = groupNodes(selectedNodeIds);
-        if (createdGroupId) {
-          scheduleCanvasPersist(0);
-        }
-        return;
-      }
-
-      if (event.key !== 'Delete' && event.key !== 'Backspace') {
-        return;
-      }
-
-      const idsToDelete = selectedNodeIds.length > 0
-        ? selectedNodeIds
-        : selectedNodeId
-          ? [selectedNodeId]
-          : [];
-      if (idsToDelete.length === 0) {
-        return;
-      }
-
-      event.preventDefault();
-      if (idsToDelete.length === 1) {
-        deleteNode(idsToDelete[0]);
-      } else {
-        deleteNodes(idsToDelete);
-      }
-      scheduleCanvasPersist(0);
-    };
-
-    document.addEventListener('keydown', handleKeyDown);
-    return () => {
-      document.removeEventListener('keydown', handleKeyDown);
-    };
-  }, [
-    edges,
+  useCanvasKeyboardShortcuts({
     nodes,
+    edges,
     selectedNodeId,
     selectedNodeIds,
+    selectedUploadNodeId,
     deleteNode,
     deleteNodes,
     groupNodes,
     undo,
     redo,
     scheduleCanvasPersist,
-    selectedUploadNodeId,
-  ]);
+    copiedSnapshotRef,
+    duplicateNodesRef,
+    pasteImageHandledRef,
+  });
 
   const openNodeMenuAtClientPosition = useCallback((clientX: number, clientY: number) => {
     const containerRect = wrapperRef.current?.getBoundingClientRect();

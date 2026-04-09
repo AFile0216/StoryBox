@@ -99,12 +99,31 @@
       "storyboard": "分镜节点",
       "storyboardGen": "分镜生成",
       "textAnnotation": "文本节点",
-      "video": "上传视频节点",
+      "video": "视频节点",
       "videoEditor": "视频编辑",
-      "audio": "上传音频节点",
+      "audio": "音频节点",
       "videoStoryboard": "视频分镜",
       "group": "分组",
       "chat": "AI 对话"
+    },
+    "display": {
+      "upload": "上传图片",
+      "imageEdit": "AI 图片",
+      "exportImage": "结果图片",
+      "textAnnotation": "文本节点",
+      "video": "视频节点",
+      "videoPreview": "视频预览",
+      "videoEditor": "视频编辑",
+      "audio": "音频节点",
+      "audioPreview": "音频预览",
+      "videoStoryboard": "视频分镜",
+      "group": "分组",
+      "storyboardSplit": "分镜",
+      "storyboardGen": "分镜生成",
+      "chat": "AI 对话",
+      "storyboardGenOutput": "分镜输出",
+      "storyboardSplitExport": "分镜导出",
+      "storyboardFrameEdit": "分镜单帧"
     },
     "imageNode": {
       "title": "图片节点",
@@ -127,7 +146,13 @@
       "apiKeyRequired": "请先完成接口配置",
       "modelRequired": "请先选择可用模型",
       "resultTitle": "结果图片",
-      "promptPlaceholder": "描述你想生成或编辑的内容"
+      "promptPlaceholder": "描述你想生成或编辑的内容",
+      "mode": {
+        "text-to-image": "文生图",
+        "image-to-image": "图生图",
+        "image-to-video": "图生视频",
+        "super-resolution": "超级分辨率"
+      }
     },
     "upload": {
       "uploadedAlt": "已上传图片",

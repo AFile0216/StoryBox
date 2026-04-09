@@ -1,6 +1,6 @@
 import { memo, useCallback, type ImgHTMLAttributes, type MouseEvent } from 'react';
 
-import { useCanvasStore } from '@/stores/canvasStore';
+import { useImageViewerStore } from '@/stores/imageViewerStore';
 
 export interface CanvasNodeImageProps extends ImgHTMLAttributes<HTMLImageElement> {
   viewerSourceUrl?: string | null;
@@ -36,7 +36,7 @@ export const CanvasNodeImage = memo(({
   src,
   ...props
 }: CanvasNodeImageProps) => {
-  const openImageViewer = useCanvasStore((state) => state.openImageViewer);
+  const openImageViewer = useImageViewerStore((state) => state.openImageViewer);
 
   const handleDoubleClick = useCallback((event: MouseEvent<HTMLImageElement>) => {
     onDoubleClick?.(event);

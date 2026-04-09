@@ -77,12 +77,6 @@ interface CanvasState {
   dragHistorySnapshot: CanvasHistorySnapshot | null;
   currentViewport: Viewport;
   canvasViewportSize: { width: number; height: number };
-  imageViewer: {
-    isOpen: boolean;
-    currentImageUrl: string | null;
-    imageList: string[];
-    currentIndex: number;
-  };
 
   onNodesChange: (changes: NodeChange<CanvasNode>[]) => void;
   onEdgesChange: (changes: EdgeChange<CanvasEdge>[]) => void;
@@ -158,9 +152,6 @@ interface CanvasState {
   closeToolDialog: () => void;
   setViewportState: (viewport: Viewport) => void;
   setCanvasViewportSize: (size: { width: number; height: number }) => void;
-  openImageViewer: (imageUrl: string, imageList?: string[]) => void;
-  closeImageViewer: () => void;
-  navigateImageViewer: (direction: 'prev' | 'next') => void;
 
   undo: () => boolean;
   redo: () => boolean;
@@ -204,7 +195,12 @@ function inferEdgeRelation(sourceNode: CanvasNode, targetNode: CanvasNode): Canv
     return 'video-flow';
   }
 
-  if (sourceNode.type === CANVAS_NODE_TYPES.audio || targetNode.type === CANVAS_NODE_TYPES.audio) {
+  if (
+    sourceNode.type === CANVAS_NODE_TYPES.audio
+    || sourceNode.type === CANVAS_NODE_TYPES.audioPreview
+    || targetNode.type === CANVAS_NODE_TYPES.audio
+    || targetNode.type === CANVAS_NODE_TYPES.audioPreview
+  ) {
     return 'audio-flow';
   }
 
@@ -625,12 +621,6 @@ export const useCanvasStore = create<CanvasState>((set, get) => ({
   dragHistorySnapshot: null,
   currentViewport: { x: 0, y: 0, zoom: 1 },
   canvasViewportSize: { width: 0, height: 0 },
-  imageViewer: {
-    isOpen: false,
-    currentImageUrl: null,
-    imageList: [],
-    currentIndex: 0,
-  },
 
   onNodesChange: (changes) => {
     set((state) => {
@@ -786,54 +776,6 @@ export const useCanvasStore = create<CanvasState>((set, get) => ({
 
   setCanvasViewportSize: (size) => {
     set({ canvasViewportSize: size });
-  },
-
-  openImageViewer: (imageUrl, imageList = []) => {
-    const list = imageList.length > 0 ? imageList : [imageUrl];
-    const index = list.indexOf(imageUrl);
-    set({
-      imageViewer: {
-        isOpen: true,
-        currentImageUrl: imageUrl,
-        imageList: list,
-        currentIndex: index >= 0 ? index : 0,
-      },
-    });
-  },
-
-  closeImageViewer: () => {
-    set({
-      imageViewer: {
-        isOpen: false,
-        currentImageUrl: null,
-        imageList: [],
-        currentIndex: 0,
-      },
-    });
-  },
-
-  navigateImageViewer: (direction) => {
-    const state = get();
-    const { currentIndex, imageList } = state.imageViewer;
-    if (direction === 'prev' && currentIndex > 0) {
-      const newIndex = currentIndex - 1;
-      set({
-        imageViewer: {
-          ...state.imageViewer,
-          currentIndex: newIndex,
-          currentImageUrl: imageList[newIndex],
-        },
-      });
-    } else if (direction === 'next' && currentIndex < imageList.length - 1) {
-      const newIndex = currentIndex + 1;
-      set({
-        imageViewer: {
-          ...state.imageViewer,
-          currentIndex: newIndex,
-          currentImageUrl: imageList[newIndex],
-        },
-      });
-    }
   },
 
   addNode: (type, position, data = {}) => {

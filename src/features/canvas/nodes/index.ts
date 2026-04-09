@@ -1,4 +1,5 @@
 import { AudioNode } from './AudioNode';
+import { AudioPreviewNode } from './AudioPreviewNode';
 import type { NodeTypes } from '@xyflow/react';
 
 import { ChatNode } from './ChatNode';
@@ -16,6 +17,7 @@ import { VideoStoryboardNode } from './VideoStoryboardNode';
 
 export const nodeTypes: NodeTypes = {
   audioNode: AudioNode,
+  audioPreviewNode: AudioPreviewNode,
   chatNode: ChatNode,
   exportImageNode: ImageNode,
   groupNode: GroupNode,
@@ -32,6 +34,7 @@ export const nodeTypes: NodeTypes = {
 
 export {
   AudioNode,
+  AudioPreviewNode,
   ChatNode,
   GroupNode,
   ImageEditNode,

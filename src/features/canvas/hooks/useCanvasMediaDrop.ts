@@ -1,0 +1,230 @@
+import { useCallback } from 'react';
+import type { ReactFlowInstance } from '@xyflow/react';
+
+import { CANVAS_NODE_TYPES, type CanvasNodeType } from '@/features/canvas/domain/canvasNodes';
+
+interface DroppedMediaPayload {
+  type: 'video' | 'audio';
+  file?: File;
+  path?: string;
+  name: string;
+  mimeType?: string | null;
+}
+
+interface UseCanvasMediaDropOptions {
+  addNode: (
+    type: CanvasNodeType,
+    position: { x: number; y: number },
+    data?: Record<string, unknown>
+  ) => string;
+  reactFlowInstance: ReactFlowInstance;
+  scheduleCanvasPersist: (delayMs?: number) => void;
+}
+
+function isVideoMimeType(mimeType: string | undefined | null): boolean {
+  if (!mimeType) {
+    return false;
+  }
+  return mimeType.toLowerCase().startsWith('video/');
+}
+
+function isAudioMimeType(mimeType: string | undefined | null): boolean {
+  if (!mimeType) {
+    return false;
+  }
+  return mimeType.toLowerCase().startsWith('audio/');
+}
+
+function isVideoFilename(fileName: string | undefined | null): boolean {
+  if (!fileName) {
+    return false;
+  }
+  return /\.(mp4|mov|m4v|webm|mkv|avi)$/iu.test(fileName);
+}
+
+function isAudioFilename(fileName: string | undefined | null): boolean {
+  if (!fileName) {
+    return false;
+  }
+  return /\.(mp3|wav|ogg|m4a|flac|aac)$/iu.test(fileName);
+}
+
+function resolveMediaTypeByNameOrPath(nameOrPath: string | undefined | null): 'video' | 'audio' | null {
+  if (!nameOrPath) {
+    return null;
+  }
+  if (isVideoFilename(nameOrPath)) {
+    return 'video';
+  }
+  if (isAudioFilename(nameOrPath)) {
+    return 'audio';
+  }
+  return null;
+}
+
+function resolveDroppedFilePathFromUri(value: string): string | null {
+  const trimmed = value.trim();
+  if (!trimmed) {
+    return null;
+  }
+  if (!trimmed.toLowerCase().startsWith('file://')) {
+    return trimmed;
+  }
+  try {
+    const parsed = new URL(trimmed);
+    const decodedPath = decodeURIComponent(parsed.pathname);
+    return decodedPath.replace(/^\/([A-Za-z]:[\\/])/, '$1');
+  } catch {
+    return null;
+  }
+}
+
+function resolveDroppedMediaPayloads(dataTransfer: DataTransfer | null): DroppedMediaPayload[] {
+  if (!dataTransfer) {
+    return [];
+  }
+
+  const payloads: DroppedMediaPayload[] = [];
+  const dedupeKeys = new Set<string>();
+  const appendPayload = (payload: DroppedMediaPayload) => {
+    const keyBase = payload.path || payload.name;
+    const dedupeKey = `${payload.type}:${keyBase.trim().toLowerCase()}`;
+    if (!keyBase || dedupeKeys.has(dedupeKey)) {
+      return;
+    }
+    dedupeKeys.add(dedupeKey);
+    payloads.push(payload);
+  };
+
+  const files = Array.from(dataTransfer.files ?? []);
+  for (const file of files) {
+    const fromPath = ((file as File & { path?: string }).path ?? '').trim();
+    const resolvedType = isVideoMimeType(file.type)
+      ? 'video'
+      : isAudioMimeType(file.type)
+        ? 'audio'
+        : resolveMediaTypeByNameOrPath(file.name || fromPath);
+    if (!resolvedType) {
+      continue;
+    }
+    appendPayload({
+      type: resolvedType,
+      file,
+      path: fromPath || undefined,
+      name: file.name || fromPath.split(/[/\\]/u).pop() || `media-${Date.now()}`,
+      mimeType: file.type || null,
+    });
+  }
+
+  const uriListText = dataTransfer.getData('text/uri-list') || '';
+  const plainText = dataTransfer.getData('text/plain') || '';
+  const pathCandidates = [...uriListText.split(/\r?\n/u), ...plainText.split(/\r?\n/u)];
+  for (const rawCandidate of pathCandidates) {
+    const candidate = rawCandidate.trim();
+    if (!candidate || candidate.startsWith('#')) {
+      continue;
+    }
+    const resolvedPath = resolveDroppedFilePathFromUri(candidate);
+    if (!resolvedPath) {
+      continue;
+    }
+    const resolvedType = resolveMediaTypeByNameOrPath(resolvedPath);
+    if (!resolvedType) {
+      continue;
+    }
+    appendPayload({
+      type: resolvedType,
+      path: resolvedPath,
+      name: resolvedPath.split(/[/\\]/u).pop() || resolvedPath,
+      mimeType: null,
+    });
+  }
+
+  return payloads;
+}
+
+export function useCanvasMediaDrop({
+  addNode,
+  reactFlowInstance,
+  scheduleCanvasPersist,
+}: UseCanvasMediaDropOptions) {
+  const handleCanvasMediaDragOver = useCallback((event: Pick<DragEvent, 'preventDefault' | 'dataTransfer'>) => {
+    const mediaPayloads = resolveDroppedMediaPayloads(event.dataTransfer);
+    if (mediaPayloads.length === 0) {
+      return;
+    }
+    event.preventDefault();
+    if (event.dataTransfer) {
+      event.dataTransfer.dropEffect = 'copy';
+    }
+  }, []);
+
+  const handleCanvasMediaDrop = useCallback(
+    (event: Pick<DragEvent, 'preventDefault' | 'stopPropagation' | 'dataTransfer' | 'clientX' | 'clientY'>) => {
+      const mediaPayloads = resolveDroppedMediaPayloads(event.dataTransfer);
+      if (mediaPayloads.length === 0) {
+        return;
+      }
+
+      event.preventDefault();
+      event.stopPropagation();
+
+      const flowPoint = reactFlowInstance.screenToFlowPosition({
+        x: event.clientX,
+        y: event.clientY,
+      });
+      let created = 0;
+
+      for (let index = 0; index < mediaPayloads.length; index += 1) {
+        const payload = mediaPayloads[index];
+        const droppedPath = payload.path?.trim() ?? '';
+        const filePath = ((payload.file as File & { path?: string } | undefined)?.path ?? '').trim();
+        const resolvedPath = droppedPath || filePath || (payload.file ? URL.createObjectURL(payload.file) : '');
+        if (!resolvedPath) {
+          continue;
+        }
+        const sourceFileName = payload.name || resolvedPath.split(/[/\\]/u).pop() || `media-${Date.now()}`;
+        if (payload.type === 'video') {
+          addNode(
+            CANVAS_NODE_TYPES.videoPreview as CanvasNodeType,
+            {
+              x: flowPoint.x + index * 32,
+              y: flowPoint.y + index * 20,
+            },
+            {
+              filePath: resolvedPath,
+              sourceFileName,
+              mimeType: payload.mimeType ?? payload.file?.type ?? null,
+              displayName: sourceFileName,
+            }
+          );
+        } else {
+          addNode(
+            CANVAS_NODE_TYPES.audioPreview as CanvasNodeType,
+            {
+              x: flowPoint.x + index * 32,
+              y: flowPoint.y + index * 20,
+            },
+            {
+              filePath: resolvedPath,
+              sourceFileName,
+              mimeType: payload.mimeType ?? payload.file?.type ?? null,
+              displayName: sourceFileName,
+            }
+          );
+        }
+        created += 1;
+      }
+
+      if (created > 0) {
+        scheduleCanvasPersist(0);
+      }
+    },
+    [addNode, reactFlowInstance, scheduleCanvasPersist]
+  );
+
+  return {
+    handleCanvasMediaDragOver,
+    handleCanvasMediaDrop,
+  };
+}

@@ -57,7 +57,7 @@ export class CanvasToolProcessor implements ToolProcessor {
           ),
         };
       default:
-        throw new Error('不支持的工具类型');
+        throw new Error('Unsupported tool type');
     }
   }
 
@@ -125,7 +125,7 @@ export class CanvasToolProcessor implements ToolProcessor {
 
     const context = canvas.getContext('2d');
     if (!context) {
-      throw new Error('无法初始化画布');
+      throw new Error('Failed to initialize canvas');
     }
 
     context.drawImage(
@@ -154,7 +154,7 @@ export class CanvasToolProcessor implements ToolProcessor {
 
     const context = canvas.getContext('2d');
     if (!context) {
-      throw new Error('无法初始化画布');
+      throw new Error('Failed to initialize canvas');
     }
 
     context.drawImage(image, 0, 0, canvas.width, canvas.height);
@@ -367,7 +367,7 @@ export class CanvasToolProcessor implements ToolProcessor {
     const usableHeight = image.naturalHeight - (rows - 1) * resolvedLineThickness;
 
     if (usableWidth < cols || usableHeight < rows) {
-      throw new Error('分割线过粗，无法完成切割');
+      throw new Error('Split line is too thick to finish slicing');
     }
 
     const columnWidths = this.splitIntoSegments(usableWidth, cols);
@@ -406,7 +406,7 @@ export class CanvasToolProcessor implements ToolProcessor {
 
         const context = canvas.getContext('2d');
         if (!context) {
-          throw new Error('无法初始化画布');
+          throw new Error('Failed to initialize canvas');
         }
 
         context.drawImage(

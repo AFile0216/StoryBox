@@ -105,10 +105,10 @@ const IMAGE_TASK_MODES: ImageEditTaskMode[] = [
 ];
 const SUPER_RES_LEVELS: SuperResolutionLevel[] = ['2x', '4x', '8x'];
 const IMAGE_TASK_MODE_LABELS: Record<ImageEditTaskMode, string> = {
-  'text-to-image': '文生图',
-  'image-to-image': '图生图',
-  'image-to-video': '图生视频',
-  'super-resolution': '超级分辨率',
+  'text-to-image': 'Text to Image',
+  'image-to-image': 'Image to Image',
+  'image-to-video': 'Image to Video',
+  'super-resolution': 'Super Resolution',
 };
 
 function getTextareaCaretOffset(

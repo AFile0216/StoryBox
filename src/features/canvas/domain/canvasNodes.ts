@@ -9,6 +9,7 @@ export const CANVAS_NODE_TYPES = {
   videoPreview: 'videoPreviewNode',
   videoEditor: 'videoEditorNode',
   audio: 'audioNode',
+  audioPreview: 'audioPreviewNode',
   videoStoryboard: 'videoStoryboardNode',
   group: 'groupNode',
   storyboardSplit: 'storyboardNode',
@@ -150,6 +151,8 @@ export interface AudioNodeData extends MediaFileNodeData {
   taskOutputSummary?: string | null;
   lastExecutedAt?: number | null;
 }
+
+export interface AudioPreviewNodeData extends MediaFileNodeData {}
 
 export type ImageEditTaskMode =
   | 'text-to-image'
@@ -303,6 +306,7 @@ export type CanvasNodeData =
   | VideoPreviewNodeData
   | VideoEditorNodeData
   | AudioNodeData
+  | AudioPreviewNodeData
   | VideoStoryboardNodeData
   | GroupNodeData
   | ImageEditNodeData
@@ -413,6 +417,12 @@ export function isAudioNode(
   node: CanvasNode | null | undefined
 ): node is Node<AudioNodeData, typeof CANVAS_NODE_TYPES.audio> {
   return node?.type === CANVAS_NODE_TYPES.audio;
+}
+
+export function isAudioPreviewNode(
+  node: CanvasNode | null | undefined
+): node is Node<AudioPreviewNodeData, typeof CANVAS_NODE_TYPES.audioPreview> {
+  return node?.type === CANVAS_NODE_TYPES.audioPreview;
 }
 
 export function isVideoStoryboardNode(
