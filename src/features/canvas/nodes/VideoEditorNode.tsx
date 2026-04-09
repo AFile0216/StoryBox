@@ -94,22 +94,19 @@ function formatTimelineSeconds(value: number): string {
 }
 
 function normalizeExportText(value: string): string {
-  return value.replace(/\r\n/gu, '\n').trim();
+  return value
+    .replace(/\r\n/gu, '\n')
+    .replace(/\s*\n+\s*/gu, ' ')
+    .replace(/\s{2,}/gu, ' ')
+    .trim();
 }
 
 function buildTimelineMarkdown(textClips: VideoEditorTextClip[]): string {
-  const lines: string[] = ['# Text Track Export', ''];
-  textClips.forEach((clip, index) => {
-    const normalizedText = normalizeExportText(clip.text).replace(/```/gu, '``\\`');
-    lines.push(`## Clip ${index + 1}`);
-    lines.push(`- Time: ${formatTimelineSeconds(clip.startSec)}-${formatTimelineSeconds(clip.startSec + clip.durationSec)}`);
-    lines.push('- Text:');
-    lines.push('```text');
-    lines.push(normalizedText);
-    lines.push('```');
-    lines.push('');
-  });
-  return lines.join('\n').trimEnd();
+  return textClips
+    .map((clip) => (
+      `${formatTimelineSeconds(clip.startSec)}-${formatTimelineSeconds(clip.startSec + clip.durationSec)} ${normalizeExportText(clip.text)}`
+    ))
+    .join('\n');
 }
 
 export const VideoEditorNode = memo(({ id, data, selected, width, height }: VideoEditorNodeProps) => {
