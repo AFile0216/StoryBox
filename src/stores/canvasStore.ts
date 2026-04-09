@@ -4,7 +4,6 @@ import {
   Connection,
   EdgeChange,
   NodeChange,
-  type Viewport,
   addEdge,
   applyEdgeChanges,
   applyNodeChanges,
@@ -18,7 +17,6 @@ import {
   EXPORT_RESULT_NODE_LAYOUT_HEIGHT,
   EXPORT_RESULT_NODE_MIN_HEIGHT,
   EXPORT_RESULT_NODE_MIN_WIDTH,
-  type ActiveToolDialog,
   type CanvasEdge,
   type CanvasEdgeData,
   type CanvasEdgeRelation,
@@ -43,9 +41,10 @@ import {
   resolveMinEdgeFittedSize,
   resolveSizeInsideTargetBox,
 } from '@/features/canvas/application/imageNodeSizing';
+import { useCanvasViewportStore } from './canvasViewportStore';
+import { useToolDialogStore } from './toolDialogStore';
 
 export type {
-  ActiveToolDialog,
   CanvasEdge,
   CanvasNode,
   CanvasNodeData,
@@ -72,11 +71,8 @@ interface CanvasState {
   edges: CanvasEdge[];
   selectedNodeId: string | null;
   hoveredNodeId: string | null;
-  activeToolDialog: ActiveToolDialog | null;
   history: CanvasHistoryState;
   dragHistorySnapshot: CanvasHistorySnapshot | null;
-  currentViewport: Viewport;
-  canvasViewportSize: { width: number; height: number };
 
   onNodesChange: (changes: NodeChange<CanvasNode>[]) => void;
   onEdgesChange: (changes: EdgeChange<CanvasEdge>[]) => void;
@@ -147,11 +143,6 @@ interface CanvasState {
   updateEdgeData: (edgeId: string, data: Partial<CanvasEdgeData>) => void;
   setSelectedNode: (nodeId: string | null) => void;
   setHoveredNode: (nodeId: string | null) => void;
-
-  openToolDialog: (dialog: ActiveToolDialog) => void;
-  closeToolDialog: () => void;
-  setViewportState: (viewport: Viewport) => void;
-  setCanvasViewportSize: (size: { width: number; height: number }) => void;
 
   undo: () => boolean;
   redo: () => boolean;
@@ -586,16 +577,6 @@ function resolveSelectedNodeId(selectedNodeId: string | null, nodes: CanvasNode[
   return nodes.some((node) => node.id === selectedNodeId) ? selectedNodeId : null;
 }
 
-function resolveActiveToolDialog(
-  activeToolDialog: ActiveToolDialog | null,
-  nodes: CanvasNode[]
-): ActiveToolDialog | null {
-  if (!activeToolDialog) {
-    return null;
-  }
-  return nodes.some((node) => node.id === activeToolDialog.nodeId) ? activeToolDialog : null;
-}
-
 function createDefaultStoryboardExportOptions(): StoryboardExportOptions {
   return {
     showFrameIndex: false,
@@ -616,11 +597,8 @@ export const useCanvasStore = create<CanvasState>((set, get) => ({
   edges: [],
   selectedNodeId: null,
   hoveredNodeId: null,
-  activeToolDialog: null,
   history: { past: [], future: [] },
   dragHistorySnapshot: null,
-  currentViewport: { x: 0, y: 0, zoom: 1 },
-  canvasViewportSize: { width: 0, height: 0 },
 
   onNodesChange: (changes) => {
     set((state) => {
@@ -698,7 +676,6 @@ export const useCanvasStore = create<CanvasState>((set, get) => ({
       return {
         nodes: nextNodes,
         selectedNodeId: resolveSelectedNodeId(state.selectedNodeId, nextNodes),
-        activeToolDialog: resolveActiveToolDialog(state.activeToolDialog, nextNodes),
         history: nextHistory,
         dragHistorySnapshot: nextDragHistorySnapshot,
       };
@@ -759,23 +736,15 @@ export const useCanvasStore = create<CanvasState>((set, get) => ({
   setCanvasData: (nodes, edges, history) => {
     const normalizedNodes = normalizeNodes(nodes);
     const normalizedEdges = normalizeEdgesWithNodes(edges, normalizedNodes);
+    useToolDialogStore.getState().closeToolDialog();
 
     set({
       nodes: normalizedNodes,
       edges: normalizedEdges,
       selectedNodeId: null,
-      activeToolDialog: null,
       history: normalizeHistory(history),
       dragHistorySnapshot: null,
     });
-  },
-
-  setViewportState: (viewport) => {
-    set({ currentViewport: viewport });
-  },
-
-  setCanvasViewportSize: (size) => {
-    set({ canvasViewportSize: size });
   },
 
   addNode: (type, position, data = {}) => {
@@ -867,16 +836,17 @@ export const useCanvasStore = create<CanvasState>((set, get) => ({
     const anchorX = sourceNode.position.x + sourceWidth + 28;
     const anchorY = sourceNode.position.y;
 
-    const zoom = Math.max(0.01, state.currentViewport.zoom || 1);
-    const viewportWidth = state.canvasViewportSize.width;
-    const viewportHeight = state.canvasViewportSize.height;
+    const viewportState = useCanvasViewportStore.getState();
+    const zoom = Math.max(0.01, viewportState.currentViewport.zoom || 1);
+    const viewportWidth = viewportState.canvasViewportSize.width;
+    const viewportHeight = viewportState.canvasViewportSize.height;
     const hasViewportBounds = viewportWidth > 0 && viewportHeight > 0;
     const visibleBounds = hasViewportBounds
       ? {
-          minX: -state.currentViewport.x / zoom,
-          minY: -state.currentViewport.y / zoom,
-          maxX: -state.currentViewport.x / zoom + viewportWidth / zoom,
-          maxY: -state.currentViewport.y / zoom + viewportHeight / zoom,
+          minX: -viewportState.currentViewport.x / zoom,
+          minY: -viewportState.currentViewport.y / zoom,
+          maxX: -viewportState.currentViewport.x / zoom + viewportWidth / zoom,
+          maxY: -viewportState.currentViewport.y / zoom + viewportHeight / zoom,
         }
       : null;
 
@@ -1002,11 +972,11 @@ export const useCanvasStore = create<CanvasState>((set, get) => ({
       width: derivedSize.width,
       height: derivedSize.height,
     };
+    useToolDialogStore.getState().closeToolDialog();
 
     set({
       nodes: [...state.nodes, node],
       selectedNodeId: node.id,
-      activeToolDialog: null,
       history: {
         past: pushSnapshot(state.history.past, createSnapshot(state.nodes, state.edges)),
         future: [],
@@ -1074,11 +1044,11 @@ export const useCanvasStore = create<CanvasState>((set, get) => ({
       width: derivedSize.width,
       height: derivedSize.height,
     };
+    useToolDialogStore.getState().closeToolDialog();
 
     set({
       nodes: [...state.nodes, node],
       selectedNodeId: node.id,
-      activeToolDialog: null,
       history: {
         past: pushSnapshot(state.history.past, createSnapshot(state.nodes, state.edges)),
         future: [],
@@ -1105,11 +1075,11 @@ export const useCanvasStore = create<CanvasState>((set, get) => ({
       frameAspectRatio: resolvedFrameAspectRatio,
       exportOptions: createDefaultStoryboardExportOptions(),
     });
+    useToolDialogStore.getState().closeToolDialog();
 
     set({
       nodes: [...state.nodes, node],
       selectedNodeId: node.id,
-      activeToolDialog: null,
       history: {
         past: pushSnapshot(state.history.past, createSnapshot(state.nodes, state.edges)),
         future: [],
@@ -1342,10 +1312,6 @@ export const useCanvasStore = create<CanvasState>((set, get) => ({
         edges: nextEdges,
         selectedNodeId:
           state.selectedNodeId && deleteSet.has(state.selectedNodeId) ? null : state.selectedNodeId,
-        activeToolDialog:
-          state.activeToolDialog && deleteSet.has(state.activeToolDialog.nodeId)
-            ? null
-            : state.activeToolDialog,
         history: {
           past: pushSnapshot(state.history.past, createSnapshot(state.nodes, state.edges)),
           future: [],
@@ -1483,14 +1449,14 @@ export const useCanvasStore = create<CanvasState>((set, get) => ({
     if (!insertedGroup) {
       nextNodes.push(groupNode);
     }
+    const activeToolDialog = useToolDialogStore.getState().activeToolDialog;
+    if (activeToolDialog && memberSet.has(activeToolDialog.nodeId)) {
+      useToolDialogStore.getState().closeToolDialog();
+    }
 
     set({
       nodes: nextNodes,
       selectedNodeId: groupNode.id,
-      activeToolDialog:
-        state.activeToolDialog && memberSet.has(state.activeToolDialog.nodeId)
-          ? null
-          : state.activeToolDialog,
       history: {
         past: pushSnapshot(state.history.past, createSnapshot(state.nodes, state.edges)),
         future: [],
@@ -1545,8 +1511,6 @@ export const useCanvasStore = create<CanvasState>((set, get) => ({
       nodes: nextNodes,
       edges: nextEdges,
       selectedNodeId: state.selectedNodeId === groupNodeId ? null : state.selectedNodeId,
-      activeToolDialog:
-        state.activeToolDialog?.nodeId === groupNodeId ? null : state.activeToolDialog,
       history: {
         past: pushSnapshot(state.history.past, createSnapshot(state.nodes, state.edges)),
         future: [],
@@ -1692,14 +1656,6 @@ export const useCanvasStore = create<CanvasState>((set, get) => ({
     set((state) => (state.hoveredNodeId === nodeId ? {} : { hoveredNodeId: nodeId }));
   },
 
-  openToolDialog: (dialog) => {
-    set({ activeToolDialog: dialog });
-  },
-
-  closeToolDialog: () => {
-    set({ activeToolDialog: null });
-  },
-
   undo: () => {
     const state = get();
     const target = state.history.past[state.history.past.length - 1];
@@ -1714,7 +1670,6 @@ export const useCanvasStore = create<CanvasState>((set, get) => ({
       nodes: target.nodes,
       edges: target.edges,
       selectedNodeId: resolveSelectedNodeId(state.selectedNodeId, target.nodes),
-      activeToolDialog: resolveActiveToolDialog(state.activeToolDialog, target.nodes),
       history: {
         past: nextPast,
         future: pushSnapshot(state.history.future, currentSnapshot),
@@ -1738,7 +1693,6 @@ export const useCanvasStore = create<CanvasState>((set, get) => ({
       nodes: target.nodes,
       edges: target.edges,
       selectedNodeId: resolveSelectedNodeId(state.selectedNodeId, target.nodes),
-      activeToolDialog: resolveActiveToolDialog(state.activeToolDialog, target.nodes),
       history: {
         past: pushSnapshot(state.history.past, currentSnapshot),
         future: nextFuture,
@@ -1749,6 +1703,7 @@ export const useCanvasStore = create<CanvasState>((set, get) => ({
   },
 
   clearCanvas: () => {
+    useToolDialogStore.getState().closeToolDialog();
     set((state) => {
       if (state.nodes.length === 0 && state.edges.length === 0) {
         return {};
@@ -1758,7 +1713,6 @@ export const useCanvasStore = create<CanvasState>((set, get) => ({
         nodes: [],
         edges: [],
         selectedNodeId: null,
-        activeToolDialog: null,
         history: {
           past: pushSnapshot(state.history.past, createSnapshot(state.nodes, state.edges)),
           future: [],
@@ -1768,3 +1722,10 @@ export const useCanvasStore = create<CanvasState>((set, get) => ({
     });
   },
 }));
+
+useCanvasStore.subscribe((state, previousState) => {
+  if (state.nodes === previousState.nodes) {
+    return;
+  }
+  useToolDialogStore.getState().syncToolDialogWithNodes(state.nodes);
+});

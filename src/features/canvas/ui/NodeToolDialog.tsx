@@ -17,6 +17,7 @@ import { prepareNodeImage, resolveImageDisplayUrl } from '@/features/canvas/appl
 import { readStoryboardImageMetadata } from '@/commands/image';
 import { getToolPlugin, type ToolOptions } from '@/features/canvas/tools';
 import { useCanvasStore } from '@/stores/canvasStore';
+import { useToolDialogStore } from '@/stores/toolDialogStore';
 import { UiButton, UiModal } from '@/components/ui';
 import { UI_DIALOG_TRANSITION_MS } from '@/components/ui/motion';
 import { FormToolEditor } from './tool-editors/FormToolEditor';
@@ -26,7 +27,7 @@ import { SplitStoryboardToolEditor } from './tool-editors/SplitStoryboardToolEdi
 
 export function NodeToolDialog() {
   const { t } = useTranslation();
-  const activeToolDialog = useCanvasStore((state) => state.activeToolDialog);
+  const activeToolDialog = useToolDialogStore((state) => state.activeToolDialog);
   const nodes = useCanvasStore((state) => state.nodes);
   const addDerivedExportNode = useCanvasStore((state) => state.addDerivedExportNode);
   const addStoryboardSplitNode = useCanvasStore((state) => state.addStoryboardSplitNode);

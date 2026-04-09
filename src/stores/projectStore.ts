@@ -8,6 +8,7 @@ import {
   type CanvasNode,
   type CanvasNodeData,
 } from './canvasStore';
+import { useCanvasViewportStore } from './canvasViewportStore';
 import { useImageViewerStore } from './imageViewerStore';
 import {
   deleteProjectRecord,
@@ -758,11 +759,12 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
 
     if (currentProjectId && currentProject && currentProject.id === currentProjectId) {
       const canvasState = useCanvasStore.getState();
+      const viewportState = useCanvasViewportStore.getState();
       const nextProject: Project = {
         ...currentProject,
         nodes: canvasState.nodes,
         edges: canvasState.edges,
-        viewport: canvasState.currentViewport ?? currentProject.viewport ?? DEFAULT_VIEWPORT,
+        viewport: viewportState.currentViewport ?? currentProject.viewport ?? DEFAULT_VIEWPORT,
         history: canvasState.history ?? currentProject.history ?? createEmptyHistory(),
         nodeCount: canvasState.nodes.length,
         updatedAt: Date.now(),

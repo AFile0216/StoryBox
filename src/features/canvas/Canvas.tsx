@@ -26,9 +26,11 @@ import { useTranslation } from 'react-i18next';
 import '@xyflow/react/dist/style.css';
 
 import { useCanvasStore } from '@/stores/canvasStore';
+import { useCanvasViewportStore } from '@/stores/canvasViewportStore';
 import { useImageViewerStore } from '@/stores/imageViewerStore';
 import { useProjectStore } from '@/stores/projectStore';
 import { getConfiguredProviderCount, useSettingsStore } from '@/stores/settingsStore';
+import { useToolDialogStore } from '@/stores/toolDialogStore';
 import { canvasEventBus } from '@/features/canvas/application/canvasServices';
 import {
   CANVAS_NODE_TYPES,
@@ -270,10 +272,10 @@ export function Canvas() {
   const groupNodes = useCanvasStore((state) => state.groupNodes);
   const undo = useCanvasStore((state) => state.undo);
   const redo = useCanvasStore((state) => state.redo);
-  const openToolDialog = useCanvasStore((state) => state.openToolDialog);
-  const closeToolDialog = useCanvasStore((state) => state.closeToolDialog);
-  const setViewportState = useCanvasStore((state) => state.setViewportState);
-  const setCanvasViewportSize = useCanvasStore((state) => state.setCanvasViewportSize);
+  const openToolDialog = useToolDialogStore((state) => state.openToolDialog);
+  const closeToolDialog = useToolDialogStore((state) => state.closeToolDialog);
+  const setViewportState = useCanvasViewportStore((state) => state.setViewportState);
+  const setCanvasViewportSize = useCanvasViewportStore((state) => state.setCanvasViewportSize);
   const imageViewer = useImageViewerStore((state) => state.imageViewer);
   const closeImageViewer = useImageViewerStore((state) => state.closeImageViewer);
   const navigateImageViewer = useImageViewerStore((state) => state.navigateImageViewer);
