@@ -1,6 +1,6 @@
-import { memo, useCallback, useEffect, useMemo } from 'react';
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Handle, Position, type NodeProps } from '@xyflow/react';
-import { FileText, LoaderCircle, Wand2 } from 'lucide-react';
+import { Copy, FileText, LoaderCircle, Wand2 } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkBreaks from 'remark-breaks';
 import remarkGfm from 'remark-gfm';
@@ -123,6 +123,8 @@ export const TextAnnotationNode = memo(({
     return byId ?? customApiInterfaces[0] ?? null;
   }, [customApiInterfaces, data.interfaceId]);
   const selectedModel = data.modelId || selectedInterface?.modelIds[0] || '';
+  const [copyState, setCopyState] = useState<'idle' | 'copied' | 'error'>('idle');
+  const copyResetTimerRef = useRef<number | null>(null);
   const resolvedTitle = resolveNodeDisplayName(CANVAS_NODE_TYPES.textAnnotation, data);
   const resolvedWidth = Math.max(MIN_WIDTH, Math.round(width ?? DEFAULT_WIDTH));
   const resolvedHeight = Math.max(MIN_HEIGHT, Math.round(height ?? DEFAULT_HEIGHT));
@@ -139,12 +141,41 @@ export const TextAnnotationNode = memo(({
     }
   }, [data.interfaceId, id, selectedInterface, selectedModel, updateNodeData]);
 
+  useEffect(() => () => {
+    if (copyResetTimerRef.current !== null) {
+      clearTimeout(copyResetTimerRef.current);
+    }
+  }, []);
+
   const handleMarkdownLinkClick = useCallback((href?: string) => {
     if (!href) {
       return;
     }
     void openUrl(href);
   }, []);
+
+  const scheduleCopyReset = useCallback(() => {
+    if (copyResetTimerRef.current !== null) {
+      clearTimeout(copyResetTimerRef.current);
+    }
+    copyResetTimerRef.current = window.setTimeout(() => {
+      setCopyState('idle');
+      copyResetTimerRef.current = null;
+    }, 1600);
+  }, []);
+
+  const handleCopyText = useCallback(async () => {
+    if (!content.trim()) {
+      return;
+    }
+    try {
+      await navigator.clipboard.writeText(content);
+      setCopyState('copied');
+    } catch {
+      setCopyState('error');
+    }
+    scheduleCopyReset();
+  }, [content, scheduleCopyReset]);
 
   const handleGenerate = useCallback(async () => {
     const prompt = content.trim();
@@ -243,7 +274,7 @@ export const TextAnnotationNode = memo(({
         onTitleChange={(nextTitle) => updateNodeData(id, { displayName: nextTitle })}
       />
 
-      <div className="mb-2 mt-6 grid grid-cols-[1fr_1fr_1fr_auto] items-center gap-2">
+      <div className="mb-2 mt-6 grid grid-cols-[1fr_1fr_1fr_auto_auto] items-center gap-2">
         <UiSelect
           value={mode}
           onChange={(event) =>
@@ -293,6 +324,23 @@ export const TextAnnotationNode = memo(({
             <option value="">{t('node.imageEdit.modelRequired', { defaultValue: '请先配置模型' })}</option>
           ) : null}
         </UiSelect>
+
+        <button
+          type="button"
+          className={`flex h-8 items-center gap-1.5 rounded-lg border border-[var(--ui-border-soft)] px-3 text-xs font-medium text-text-dark hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-60 ${uiDensity.buttonText}`}
+          onClick={(event) => {
+            event.stopPropagation();
+            void handleCopyText();
+          }}
+          disabled={!content.trim()}
+        >
+          <Copy className="h-3.5 w-3.5" />
+          {copyState === 'copied'
+            ? t('common.copied', { defaultValue: '已复制' })
+            : copyState === 'error'
+              ? t('common.error', { defaultValue: '错误' })
+              : t('common.copyText', { defaultValue: '复制文本' })}
+        </button>
 
         <button
           type="button"

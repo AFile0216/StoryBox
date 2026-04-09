@@ -295,7 +295,10 @@
       "currentRange": "Current Timeline Range",
       "clipNote": "Storyboard Note",
       "notePlaceholder": "Write note for this storyboard range",
-      "noSelectedClipForNote": "Select a storyboard clip in timeline first"
+      "noSelectedClipForNote": "Select a storyboard clip in timeline first",
+      "noTextToExport": "No text clips available for export",
+      "snapOn": "Snap: On",
+      "snapOff": "Snap: Off"
     }
   },
   "viewer": {

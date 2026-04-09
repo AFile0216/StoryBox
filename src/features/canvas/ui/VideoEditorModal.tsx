@@ -8,7 +8,7 @@
   type DragEvent as ReactDragEvent,
   type MouseEvent as ReactMouseEvent,
 } from 'react';
-import { Pause, Play, Save, Sparkles, Trash2, Type, X } from 'lucide-react';
+import { Magnet, Pause, Play, Save, Sparkles, Trash2, Type, X } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 
 import { resolveImageDisplayUrl } from '@/features/canvas/application/imageData';
@@ -55,6 +55,9 @@ interface ClipDragState {
 
 const DEFAULT_CLIP_DURATION_SEC = 2;
 const MIN_CLIP_DURATION_SEC = 0.5;
+const SNAP_THRESHOLD_RATIO = 0.01;
+const SNAP_THRESHOLD_MIN_SEC = 0.08;
+const SNAP_THRESHOLD_MAX_SEC = 0.4;
 
 function createSequenceClipId(): string {
   return `video-seq-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
@@ -139,20 +142,122 @@ function findActiveTrackClip<T extends TimelineClipLike>(clips: T[], timeSec: nu
   ) ?? null;
 }
 
+function collectTrackEdges<T extends TimelineClipLike>(clips: T[], excludeClipId?: string): number[] {
+  const edges: number[] = [];
+  clips.forEach((clip) => {
+    if (excludeClipId && clip.id === excludeClipId) {
+      return;
+    }
+    edges.push(clip.startSec);
+    edges.push(clip.startSec + clip.durationSec);
+  });
+  return edges;
+}
+
+function resolveSnapThresholdSec(timelineMaxSec: number): number {
+  return clamp(
+    timelineMaxSec * SNAP_THRESHOLD_RATIO,
+    SNAP_THRESHOLD_MIN_SEC,
+    SNAP_THRESHOLD_MAX_SEC
+  );
+}
+
+function findClosestAnchor(
+  targetSec: number,
+  anchors: number[],
+  thresholdSec: number
+): { anchor: number; delta: number } | null {
+  let matched: { anchor: number; delta: number } | null = null;
+  for (const anchor of anchors) {
+    const delta = Math.abs(anchor - targetSec);
+    if (delta > thresholdSec) {
+      continue;
+    }
+    if (!matched || delta < matched.delta) {
+      matched = { anchor, delta };
+    }
+  }
+  return matched;
+}
+
+function resolveSnappedClip(
+  clip: TimelineClipLike,
+  mode: DragMode,
+  anchors: number[],
+  thresholdSec: number
+): Pick<TimelineClipLike, 'startSec' | 'durationSec'> {
+  if (anchors.length === 0) {
+    return { startSec: clip.startSec, durationSec: clip.durationSec };
+  }
+
+  const clipEnd = clip.startSec + clip.durationSec;
+  if (mode === 'move') {
+    const snapStart = findClosestAnchor(clip.startSec, anchors, thresholdSec);
+    const snapEnd = findClosestAnchor(clipEnd, anchors, thresholdSec);
+
+    if (!snapStart && !snapEnd) {
+      return { startSec: clip.startSec, durationSec: clip.durationSec };
+    }
+    if (!snapEnd || (snapStart && snapStart.delta <= snapEnd.delta)) {
+      return {
+        startSec: Math.max(0, snapStart!.anchor),
+        durationSec: clip.durationSec,
+      };
+    }
+    return {
+      startSec: Math.max(0, snapEnd.anchor - clip.durationSec),
+      durationSec: clip.durationSec,
+    };
+  }
+
+  if (mode === 'resize-left') {
+    const snapStart = findClosestAnchor(clip.startSec, anchors, thresholdSec);
+    if (!snapStart) {
+      return { startSec: clip.startSec, durationSec: clip.durationSec };
+    }
+    const nextStart = Math.max(0, Math.min(snapStart.anchor, clipEnd - MIN_CLIP_DURATION_SEC));
+    return {
+      startSec: nextStart,
+      durationSec: clipEnd - nextStart,
+    };
+  }
+
+  const snapEnd = findClosestAnchor(clipEnd, anchors, thresholdSec);
+  if (!snapEnd) {
+    return { startSec: clip.startSec, durationSec: clip.durationSec };
+  }
+  const nextEnd = Math.max(clip.startSec + MIN_CLIP_DURATION_SEC, snapEnd.anchor);
+  return {
+    startSec: clip.startSec,
+    durationSec: nextEnd - clip.startSec,
+  };
+}
+
 function applyDragToTrack<T extends TimelineClipLike>(
   clips: T[],
   dragState: ClipDragState,
-  deltaSec: number
+  deltaSec: number,
+  snapAnchors: number[],
+  snapEnabled: boolean
 ): T[] {
+  const snapThresholdSec = resolveSnapThresholdSec(dragState.timelineMaxSec);
   return normalizeTrackClips(clips.map((clip) => {
     if (clip.id !== dragState.clipId) {
       return clip;
     }
 
     if (dragState.mode === 'move') {
-      return {
+      const movedClip = {
         ...clip,
         startSec: Math.max(0, dragState.startSec + deltaSec),
+      };
+      if (!snapEnabled) {
+        return movedClip;
+      }
+      const snapped = resolveSnappedClip(movedClip, dragState.mode, snapAnchors, snapThresholdSec);
+      return {
+        ...movedClip,
+        ...snapped,
       };
     }
 
@@ -162,16 +267,32 @@ function applyDragToTrack<T extends TimelineClipLike>(
         0,
         Math.min(dragState.startSec + deltaSec, clipEnd - MIN_CLIP_DURATION_SEC)
       );
-      return {
+      const resizedClip = {
         ...clip,
         startSec: nextStart,
         durationSec: clipEnd - nextStart,
       };
+      if (!snapEnabled) {
+        return resizedClip;
+      }
+      const snapped = resolveSnappedClip(resizedClip, dragState.mode, snapAnchors, snapThresholdSec);
+      return {
+        ...resizedClip,
+        ...snapped,
+      };
     }
 
-    return {
+    const resizedClip = {
       ...clip,
       durationSec: Math.max(MIN_CLIP_DURATION_SEC, dragState.durationSec + deltaSec),
+    };
+    if (!snapEnabled) {
+      return resizedClip;
+    }
+    const snapped = resolveSnappedClip(resizedClip, dragState.mode, snapAnchors, snapThresholdSec);
+    return {
+      ...resizedClip,
+      ...snapped,
     };
   }));
 }
@@ -208,6 +329,8 @@ export const VideoEditorModal = memo(({
   const timelineTrackRef = useRef<HTMLDivElement | null>(null);
   const videoTrackRef = useRef<HTMLDivElement | null>(null);
   const tickerRef = useRef<number | null>(null);
+  const timelineClipsRef = useRef<VideoEditorTimelineClip[]>([]);
+  const textClipsRef = useRef<VideoEditorTextClip[]>([]);
 
   const [timelineClips, setTimelineClips] = useState<VideoEditorTimelineClip[]>(
     () => normalizeTrackClips(initialTimelineClips)
@@ -221,6 +344,7 @@ export const VideoEditorModal = memo(({
   const [textDraft, setTextDraft] = useState('');
   const [activeVideoClipId, setActiveVideoClipId] = useState<string | null>(null);
   const [activeTextClipId, setActiveTextClipId] = useState<string | null>(null);
+  const [snapEnabled, setSnapEnabled] = useState(true);
 
   const sourceClipMap = useMemo(
     () => new Map(sourceClips.map((clip) => [clip.id, clip])),
@@ -314,6 +438,14 @@ export const VideoEditorModal = memo(({
   }, [timelineMaxSec]);
 
   useEffect(() => {
+    timelineClipsRef.current = timelineClips;
+  }, [timelineClips]);
+
+  useEffect(() => {
+    textClipsRef.current = textClips;
+  }, [textClips]);
+
+  useEffect(() => {
     if (!activeVideoClipId) {
       return;
     }
@@ -338,9 +470,21 @@ export const VideoEditorModal = memo(({
       const deltaSec = (deltaPx / dragState.trackWidth) * dragState.timelineMaxSec;
 
       if (dragState.trackType === 'video') {
-        setTimelineClips((previous) => applyDragToTrack(previous, dragState, deltaSec));
+        setTimelineClips((previous) => {
+          const snapAnchors = [
+            ...collectTrackEdges(previous, dragState.clipId),
+            ...collectTrackEdges(textClipsRef.current),
+          ];
+          return applyDragToTrack(previous, dragState, deltaSec, snapAnchors, snapEnabled);
+        });
       } else {
-        setTextClips((previous) => applyDragToTrack(previous, dragState, deltaSec));
+        setTextClips((previous) => {
+          const snapAnchors = [
+            ...collectTrackEdges(previous, dragState.clipId),
+            ...collectTrackEdges(timelineClipsRef.current),
+          ];
+          return applyDragToTrack(previous, dragState, deltaSec, snapAnchors, snapEnabled);
+        });
       }
     };
 
@@ -355,7 +499,7 @@ export const VideoEditorModal = memo(({
       window.removeEventListener('mousemove', handleMove);
       window.removeEventListener('mouseup', handleUp);
     };
-  }, [dragState]);
+  }, [dragState, snapEnabled]);
 
   useEffect(() => {
     if (!isPlaying) {
@@ -401,7 +545,15 @@ export const VideoEditorModal = memo(({
     }
 
     setTimelineClips((previous) => {
-      const safeStart = findAvailableStartSec(previous, startSec, DEFAULT_CLIP_DURATION_SEC);
+      const snapAnchors = [
+        ...collectTrackEdges(previous),
+        ...collectTrackEdges(textClipsRef.current),
+      ];
+      const snapThresholdSec = resolveSnapThresholdSec(timelineMaxSec);
+      const snappedStart = snapEnabled
+        ? findClosestAnchor(startSec, snapAnchors, snapThresholdSec)?.anchor ?? startSec
+        : startSec;
+      const safeStart = findAvailableStartSec(previous, snappedStart, DEFAULT_CLIP_DURATION_SEC);
       return normalizeTrackClips([
         ...previous,
         {
@@ -412,7 +564,7 @@ export const VideoEditorModal = memo(({
         },
       ]);
     });
-  }, [sourceClipMap, timelineClips, timelineMaxSec]);
+  }, [snapEnabled, sourceClipMap, timelineClips, timelineMaxSec]);
 
   const handleTimelineDragOver = useCallback((event: ReactDragEvent<HTMLDivElement>) => {
     event.preventDefault();
@@ -620,6 +772,20 @@ export const VideoEditorModal = memo(({
                   <span className="font-medium text-sky-300">
                     {t('node.videoEditor.timeline', { defaultValue: '时间轴' })}
                   </span>
+                  <button
+                    type="button"
+                    className={`inline-flex items-center gap-1 rounded border px-2 py-0.5 text-[10px] transition-colors ${
+                      snapEnabled
+                        ? 'border-sky-300/55 bg-sky-400/15 text-sky-200'
+                        : 'border-white/20 bg-white/5 text-text-muted hover:bg-white/10'
+                    }`}
+                    onClick={() => setSnapEnabled((previous) => !previous)}
+                  >
+                    <Magnet className="h-3 w-3" />
+                    {snapEnabled
+                      ? t('node.videoEditor.snapOn', { defaultValue: '吸附：开' })
+                      : t('node.videoEditor.snapOff', { defaultValue: '吸附：关' })}
+                  </button>
                 </div>
                 <span>{formatSeconds(playheadSec)} / {formatSeconds(timelineMaxSec)}</span>
               </div>

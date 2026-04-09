@@ -93,48 +93,23 @@ function formatTimelineSeconds(value: number): string {
   return `${Math.max(0, value).toFixed(1)}s`;
 }
 
-function sanitizeInlineText(value: string): string {
-  return value.replace(/\s+/gu, ' ').trim();
+function normalizeExportText(value: string): string {
+  return value.replace(/\r\n/gu, '\n').trim();
 }
 
-function buildTimelineMarkdown(
-  timelineClips: VideoEditorTimelineClip[],
-  textClips: VideoEditorTextClip[],
-  sourceClipMap: Map<string, VideoEditorSourceClipItem>
-): string {
-  const lines: string[] = [
-    '# Video Timeline',
-    '',
-    '## Storyboard Track',
-  ];
-
-  if (timelineClips.length === 0) {
-    lines.push('- None');
-  } else {
-    timelineClips.forEach((clip, index) => {
-      const source = sourceClipMap.get(clip.sourceClipId);
-      const clipName = sanitizeInlineText(source?.label ?? clip.sourceClipId);
-      const note = sanitizeInlineText(clip.note ?? '');
-      const notePart = note ? ` | Note: ${note}` : '';
-      lines.push(
-        `${index + 1}. ${formatTimelineSeconds(clip.startSec)}-${formatTimelineSeconds(clip.startSec + clip.durationSec)} | Storyboard: ${clipName}${notePart}`
-      );
-    });
-  }
-
-  lines.push('');
-  lines.push('## Text Track');
-  if (textClips.length === 0) {
-    lines.push('- None');
-  } else {
-    textClips.forEach((clip, index) => {
-      lines.push(
-        `${index + 1}. ${formatTimelineSeconds(clip.startSec)}-${formatTimelineSeconds(clip.startSec + clip.durationSec)} | Text: ${sanitizeInlineText(clip.text)}`
-      );
-    });
-  }
-
-  return lines.join('\n');
+function buildTimelineMarkdown(textClips: VideoEditorTextClip[]): string {
+  const lines: string[] = ['# Text Track Export', ''];
+  textClips.forEach((clip, index) => {
+    const normalizedText = normalizeExportText(clip.text).replace(/```/gu, '``\\`');
+    lines.push(`## Clip ${index + 1}`);
+    lines.push(`- Time: ${formatTimelineSeconds(clip.startSec)}-${formatTimelineSeconds(clip.startSec + clip.durationSec)}`);
+    lines.push('- Text:');
+    lines.push('```text');
+    lines.push(normalizedText);
+    lines.push('```');
+    lines.push('');
+  });
+  return lines.join('\n').trimEnd();
 }
 
 export const VideoEditorNode = memo(({ id, data, selected, width, height }: VideoEditorNodeProps) => {
@@ -171,10 +146,6 @@ export const VideoEditorNode = memo(({ id, data, selected, width, height }: Vide
   const incomingStoryboardClips = useMemo(
     () => collectIncomingStoryboardClips(id, nodes, edges),
     [edges, id, nodes]
-  );
-  const sourceClipMap = useMemo(
-    () => new Map(incomingStoryboardClips.map((clip) => [clip.id, clip])),
-    [incomingStoryboardClips]
   );
 
   const resolvedVideoPath = data.filePath || incomingVideos[0] || null;
@@ -213,17 +184,9 @@ export const VideoEditorNode = memo(({ id, data, selected, width, height }: Vide
   }, [id, updateNodeData]);
 
   const handleGenerateTextNode = useCallback((
-    clips: VideoEditorTimelineClip[],
+    _clips: VideoEditorTimelineClip[],
     textClips: VideoEditorTextClip[] = []
   ) => {
-    const normalizedClips = [...clips]
-      .filter((clip) => Number.isFinite(clip.startSec) && Number.isFinite(clip.durationSec) && clip.durationSec > 0)
-      .map((clip) => ({
-        ...clip,
-        note: sanitizeInlineText(clip.note ?? ''),
-      }))
-      .sort((left, right) => left.startSec - right.startSec);
-
     const normalizedTextClips = [...textClips]
       .filter((clip) => Number.isFinite(clip.startSec) && Number.isFinite(clip.durationSec) && clip.durationSec > 0)
       .map((clip) => ({
@@ -233,29 +196,23 @@ export const VideoEditorNode = memo(({ id, data, selected, width, height }: Vide
       .filter((clip) => clip.text.length > 0)
       .sort((left, right) => left.startSec - right.startSec);
 
-    if (normalizedClips.length === 0 && normalizedTextClips.length === 0) {
+    if (normalizedTextClips.length === 0) {
       updateNodeData(id, {
         taskStatus: 'error',
-        taskMessage: t('node.videoEditor.noSequence', { defaultValue: '请先在时间轴编排分镜序列' }),
+        taskMessage: t('node.videoEditor.noTextToExport', { defaultValue: '文本轨暂无可导出内容' }),
       });
       return;
     }
 
-    const timelineEnd = Math.max(
-      normalizedClips.reduce(
-        (max, clip) => Math.max(max, clip.startSec + clip.durationSec),
-        0
-      ),
-      normalizedTextClips.reduce(
-        (max, clip) => Math.max(max, clip.startSec + clip.durationSec),
-        0
-      )
+    const timelineEnd = normalizedTextClips.reduce(
+      (max, clip) => Math.max(max, clip.startSec + clip.durationSec),
+      0
     );
-    const markdown = buildTimelineMarkdown(normalizedClips, normalizedTextClips, sourceClipMap);
+    const markdown = buildTimelineMarkdown(normalizedTextClips);
 
     const nextPosition = findNodePosition(id, 460, 360);
     const textNodeId = addNode(CANVAS_NODE_TYPES.textAnnotation as CanvasNodeType, nextPosition, {
-      displayName: `${resolvedTitle} Timeline`,
+      displayName: `${resolvedTitle} Text Track`,
       content: markdown,
       mode: 'plain-text',
       lastAppliedTaskType: 'video-editor-markdown',
@@ -264,7 +221,7 @@ export const VideoEditorNode = memo(({ id, data, selected, width, height }: Vide
     updateNodeData(id, {
       taskStatus: 'success',
       taskMessage: t('node.videoEditor.textNodeReady', { defaultValue: '已生成时间线文本节点' }),
-      taskOutputSummary: `${normalizedClips.length} storyboard clip(s), ${normalizedTextClips.length} text clip(s), ${formatTimelineSeconds(timelineEnd)}`,
+      taskOutputSummary: `${normalizedTextClips.length} text clip(s), ${formatTimelineSeconds(timelineEnd)}`,
       outputFilePath: null,
     });
   }, [
@@ -273,7 +230,6 @@ export const VideoEditorNode = memo(({ id, data, selected, width, height }: Vide
     findNodePosition,
     id,
     resolvedTitle,
-    sourceClipMap,
     t,
     updateNodeData,
   ]);

@@ -288,7 +288,10 @@
       "currentRange": "当前时间线范围",
       "clipNote": "分镜备注",
       "notePlaceholder": "填写该时间段分镜备注",
-      "noSelectedClipForNote": "请先在时间轴选择一个分镜片段"
+      "noSelectedClipForNote": "请先在时间轴选择一个分镜片段",
+      "noTextToExport": "文本轨暂无可导出内容",
+      "snapOn": "吸附：开",
+      "snapOff": "吸附：关"
     }
   },
   "viewer": {
