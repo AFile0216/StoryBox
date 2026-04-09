@@ -280,6 +280,7 @@ export interface VideoEditorTimelineClip {
   sourceClipId: string;
   startSec: number;
   durationSec: number;
+  note?: string;
 }
 
 export interface VideoEditorNodeData extends MediaFileNodeData {

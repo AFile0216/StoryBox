@@ -275,8 +275,10 @@
       "title": "Video Editor",
       "openEditor": "Open Editor",
       "generatePreview": "Generate Preview",
+      "generateTextNode": "Generate Text Node",
       "missingVideo": "Please select a video first",
       "previewReady": "Preview node generated from timeline",
+      "textNodeReady": "Timeline text node generated",
       "sourceClips": "Storyboard Clips",
       "timeline": "Timeline",
       "noSourceClips": "No storyboard clips found. Connect a storyboard split node.",
@@ -289,7 +291,11 @@
       "noTextClips": "No text clips yet",
       "blackFrame": "Black Frame (No Clip)",
       "previewFrame": "Current Clip",
-      "referenceVideoConnected": "Reference Video Connected"
+      "referenceVideoConnected": "Reference Video Connected",
+      "currentRange": "Current Timeline Range",
+      "clipNote": "Storyboard Note",
+      "notePlaceholder": "Write note for this storyboard range",
+      "noSelectedClipForNote": "Select a storyboard clip in timeline first"
     }
   },
   "viewer": {

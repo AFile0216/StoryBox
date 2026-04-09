@@ -219,6 +219,7 @@ export const VideoEditorModal = memo(({
   const [isPlaying, setIsPlaying] = useState(false);
   const [dragState, setDragState] = useState<ClipDragState | null>(null);
   const [textDraft, setTextDraft] = useState('');
+  const [activeVideoClipId, setActiveVideoClipId] = useState<string | null>(null);
   const [activeTextClipId, setActiveTextClipId] = useState<string | null>(null);
 
   const sourceClipMap = useMemo(
@@ -238,6 +239,10 @@ export const VideoEditorModal = memo(({
   const activeVideoClip = useMemo(
     () => findActiveTrackClip(timelineClips, playheadSec),
     [playheadSec, timelineClips]
+  );
+  const selectedVideoClip = useMemo(
+    () => timelineClips.find((clip) => clip.id === activeVideoClipId) ?? activeVideoClip ?? null,
+    [activeVideoClip, activeVideoClipId, timelineClips]
   );
   const activeSourceClip = useMemo(
     () => (activeVideoClip ? sourceClipMap.get(activeVideoClip.sourceClipId) ?? null : null),
@@ -307,6 +312,15 @@ export const VideoEditorModal = memo(({
   useEffect(() => {
     setPlayheadSec((previous) => clamp(previous, 0, timelineMaxSec));
   }, [timelineMaxSec]);
+
+  useEffect(() => {
+    if (!activeVideoClipId) {
+      return;
+    }
+    if (!timelineClips.some((clip) => clip.id === activeVideoClipId)) {
+      setActiveVideoClipId(null);
+    }
+  }, [activeVideoClipId, timelineClips]);
 
   useEffect(() => {
     return () => {
@@ -443,6 +457,7 @@ export const VideoEditorModal = memo(({
 
   const handleRemoveVideoClip = useCallback((clipId: string) => {
     setTimelineClips((previous) => previous.filter((clip) => clip.id !== clipId));
+    setActiveVideoClipId((previous) => (previous === clipId ? null : previous));
   }, []);
 
   const handleRemoveTextClip = useCallback((clipId: string) => {
@@ -487,6 +502,18 @@ export const VideoEditorModal = memo(({
     }));
   }, []);
 
+  const handleUpdateVideoClipNote = useCallback((clipId: string, value: string) => {
+    setTimelineClips((previous) => previous.map((clip) => {
+      if (clip.id !== clipId) {
+        return clip;
+      }
+      return {
+        ...clip,
+        note: value,
+      };
+    }));
+  }, []);
+
   return (
     <div
       className="fixed inset-0 z-50 p-6"
@@ -518,7 +545,7 @@ export const VideoEditorModal = memo(({
               }}
             >
               <Sparkles className="h-3.5 w-3.5" />
-              {t('node.videoEditor.generatePreview', { defaultValue: '生成预览' })}
+              {t('node.videoEditor.generateTextNode', { defaultValue: '生成文本节点' })}
             </button>
             <button
               type="button"
@@ -635,14 +662,19 @@ export const VideoEditorModal = memo(({
                       const source = sourceClipMap.get(clip.sourceClipId);
                       const left = `${(clip.startSec / timelineMaxSec) * 100}%`;
                       const width = `${Math.max(3, (clip.durationSec / timelineMaxSec) * 100)}%`;
+                      const isSelected = activeVideoClipId === clip.id;
+                      const isPlayheadActive = activeVideoClip?.id === clip.id;
                       return (
                         <div
                           key={clip.id}
                           className={`absolute bottom-2 top-6 rounded border border-sky-400/55 bg-sky-500/35 ${
-                            activeVideoClip?.id === clip.id ? 'ring-1 ring-sky-300/80' : ''
+                            isSelected ? 'ring-2 ring-sky-200/90' : isPlayheadActive ? 'ring-1 ring-sky-300/80' : ''
                           }`}
                           style={{ left, width }}
-                          onMouseDown={(event) => handleClipMouseDown(event, clip, 'move', 'video')}
+                          onMouseDown={(event) => {
+                            setActiveVideoClipId(clip.id);
+                            handleClipMouseDown(event, clip, 'move', 'video');
+                          }}
                         >
                           <button
                             type="button"
@@ -656,7 +688,10 @@ export const VideoEditorModal = memo(({
                           </button>
                           <div
                             className="absolute inset-y-0 left-0 w-2 cursor-ew-resize rounded-l bg-black/25 hover:bg-black/40"
-                            onMouseDown={(event) => handleClipMouseDown(event, clip, 'resize-left', 'video')}
+                            onMouseDown={(event) => {
+                              setActiveVideoClipId(clip.id);
+                              handleClipMouseDown(event, clip, 'resize-left', 'video');
+                            }}
                           />
                           <div className="mx-2 mt-1 truncate text-[10px] text-white">{source?.label ?? 'Clip'}</div>
                           <div className="mx-2 truncate text-[10px] text-white/85">
@@ -664,7 +699,10 @@ export const VideoEditorModal = memo(({
                           </div>
                           <div
                             className="absolute inset-y-0 right-0 w-2 cursor-ew-resize rounded-r bg-black/25 hover:bg-black/40"
-                            onMouseDown={(event) => handleClipMouseDown(event, clip, 'resize-right', 'video')}
+                            onMouseDown={(event) => {
+                              setActiveVideoClipId(clip.id);
+                              handleClipMouseDown(event, clip, 'resize-right', 'video');
+                            }}
                           />
                         </div>
                       );
@@ -746,118 +784,150 @@ export const VideoEditorModal = memo(({
             </div>
           </div>
 
-          <div className="flex w-[320px] shrink-0 flex-col p-5">
-            <div className="mb-2 text-sm font-medium text-text-dark">
-              {t('node.videoEditor.sourceClips', { defaultValue: '分镜栏' })}
-            </div>
-            <div className="ui-scrollbar max-h-[40%] space-y-2 overflow-y-auto rounded-[16px] border border-[rgba(255,255,255,0.14)] bg-bg-dark/30 p-3 pr-2">
-              {sourceClips.length === 0 ? (
-                <div className="rounded-lg border border-[rgba(255,255,255,0.08)] bg-bg-dark/30 px-3 py-4 text-xs text-text-muted">
-                  {t('node.videoEditor.noSourceClips', { defaultValue: '未检测到分镜图片，请连接分镜节点' })}
-                </div>
-              ) : (
-                sourceClips.map((clip) => {
-                  const previewUrl = clip.previewImageUrl || clip.imageUrl;
-                  return (
-                    <div
-                      key={clip.id}
-                      draggable
-                      onDragStart={(event) => {
-                        event.dataTransfer.setData('storybox/source-clip-id', clip.id);
-                        event.dataTransfer.effectAllowed = 'copy';
-                      }}
-                      className="cursor-grab rounded-xl border border-[rgba(255,255,255,0.1)] bg-bg-dark/40 p-2 transition-colors hover:border-[rgba(255,255,255,0.22)] active:cursor-grabbing"
-                    >
-                      {previewUrl ? (
-                        <img
-                          src={resolveImageDisplayUrl(previewUrl)}
-                          alt={clip.label}
-                          className="mb-1.5 h-20 w-full rounded-lg object-cover"
-                          draggable={false}
-                        />
-                      ) : (
-                        <div className="mb-1.5 flex h-20 items-center justify-center rounded bg-white/5 text-xs text-text-muted">
-                          {clip.label}
-                        </div>
-                      )}
-                      <div className="truncate text-xs text-text-dark">{clip.label}</div>
-                    </div>
-                  );
-                })
-              )}
-            </div>
-
-            <div className="mt-4 text-sm font-medium text-text-dark">
-              {t('node.videoEditor.textTrack', { defaultValue: '文字轨' })}
-            </div>
-            <div className="mt-2 rounded-[16px] border border-[rgba(255,255,255,0.14)] bg-bg-dark/30 p-3">
-              <div className="flex items-center gap-2">
-                <div className="flex min-w-0 flex-1 items-center gap-2 rounded-md border border-[rgba(255,255,255,0.14)] bg-black/30 px-2 py-1">
-                  <Type className="h-3.5 w-3.5 shrink-0 text-text-muted" />
-                  <input
-                    type="text"
-                    value={textDraft}
-                    onChange={(event) => setTextDraft(event.target.value)}
-                    onKeyDown={(event) => {
-                      if (event.key === 'Enter') {
-                        event.preventDefault();
-                        handleAddTextClip();
-                      }
-                    }}
-                    className="w-full bg-transparent text-xs text-text-dark outline-none"
-                    placeholder={t('node.videoEditor.textPlaceholder', { defaultValue: '输入文字后添加到文字轨' })}
-                  />
-                </div>
-                <button
-                  type="button"
-                  className="rounded-md bg-amber-500/80 px-2 py-1 text-xs font-medium text-white hover:bg-amber-500"
-                  onClick={handleAddTextClip}
-                >
-                  {t('node.videoEditor.addTextClip', { defaultValue: '添加' })}
-                </button>
+          <div className="flex w-[620px] shrink-0 gap-4 p-5">
+            <div className="flex min-w-0 flex-1 flex-col">
+              <div className="mb-2 text-sm font-medium text-text-dark">
+                {t('node.videoEditor.sourceClips', { defaultValue: '分镜栏' })}
               </div>
-
-              <div className="ui-scrollbar mt-3 max-h-[220px] space-y-2 overflow-y-auto pr-1">
-                {textClips.length === 0 ? (
-                  <div className="rounded-lg border border-[rgba(255,255,255,0.08)] bg-bg-dark/20 px-3 py-2 text-xs text-text-muted">
-                    {t('node.videoEditor.noTextClips', { defaultValue: '暂无文字片段' })}
+              <div className="ui-scrollbar flex-1 space-y-2 overflow-y-auto rounded-[16px] border border-[rgba(255,255,255,0.14)] bg-bg-dark/30 p-3 pr-2">
+                {sourceClips.length === 0 ? (
+                  <div className="rounded-lg border border-[rgba(255,255,255,0.08)] bg-bg-dark/30 px-3 py-4 text-xs text-text-muted">
+                    {t('node.videoEditor.noSourceClips', { defaultValue: '未检测到分镜图片，请连接分镜节点' })}
                   </div>
                 ) : (
-                  sortTrackClips(textClips).map((clip) => (
-                    <div
-                      key={clip.id}
-                      className={`rounded-lg border p-2 ${
-                        activeTextClipId === clip.id
-                          ? 'border-amber-300/60 bg-amber-500/15'
-                          : 'border-[rgba(255,255,255,0.12)] bg-black/25'
-                      }`}
-                      onMouseDown={() => setActiveTextClipId(clip.id)}
-                    >
-                      <input
-                        type="text"
-                        value={clip.text}
-                        onChange={(event) => handleUpdateTextClip(clip.id, event.target.value)}
-                        onFocus={() => setActiveTextClipId(clip.id)}
-                        className="w-full rounded border border-[rgba(255,255,255,0.14)] bg-black/30 px-2 py-1 text-xs text-text-dark outline-none"
-                      />
-                      <div className="mt-1 flex items-center justify-between text-[10px] text-text-muted">
-                        <span>
-                          {formatSeconds(clip.startSec)}-{formatSeconds(clip.startSec + clip.durationSec)}
-                        </span>
-                        <button
-                          type="button"
-                          className="text-red-300 hover:text-red-200"
-                          onClick={(event) => {
-                            event.stopPropagation();
-                            handleRemoveTextClip(clip.id);
-                          }}
-                        >
-                          {t('common.delete', { defaultValue: '删除' })}
-                        </button>
+                  sourceClips.map((clip) => {
+                    const previewUrl = clip.previewImageUrl || clip.imageUrl;
+                    return (
+                      <div
+                        key={clip.id}
+                        draggable
+                        onDragStart={(event) => {
+                          event.dataTransfer.setData('storybox/source-clip-id', clip.id);
+                          event.dataTransfer.effectAllowed = 'copy';
+                        }}
+                        className="cursor-grab rounded-xl border border-[rgba(255,255,255,0.1)] bg-bg-dark/40 p-2 transition-colors hover:border-[rgba(255,255,255,0.22)] active:cursor-grabbing"
+                      >
+                        {previewUrl ? (
+                          <img
+                            src={resolveImageDisplayUrl(previewUrl)}
+                            alt={clip.label}
+                            className="mb-1.5 h-20 w-full rounded-lg object-cover"
+                            draggable={false}
+                          />
+                        ) : (
+                          <div className="mb-1.5 flex h-20 items-center justify-center rounded bg-white/5 text-xs text-text-muted">
+                            {clip.label}
+                          </div>
+                        )}
+                        <div className="truncate text-xs text-text-dark">{clip.label}</div>
                       </div>
-                    </div>
-                  ))
+                    );
+                  })
                 )}
+              </div>
+
+              <div className="mt-3 rounded-[16px] border border-[rgba(255,255,255,0.14)] bg-bg-dark/30 p-3">
+                <div className="text-[11px] text-text-muted">
+                  {t('node.videoEditor.currentRange', { defaultValue: '当前时间线范围' })}
+                </div>
+                <div className="mt-1 text-xs font-medium text-text-dark">
+                  {selectedVideoClip
+                    ? `${formatSeconds(selectedVideoClip.startSec)}-${formatSeconds(selectedVideoClip.startSec + selectedVideoClip.durationSec)}`
+                    : `${formatSeconds(playheadSec)}-${formatSeconds(playheadSec)}`}
+                </div>
+                <div className="mt-2 text-[11px] text-text-muted">
+                  {t('node.videoEditor.clipNote', { defaultValue: '分镜备注' })}
+                </div>
+                <textarea
+                  value={selectedVideoClip?.note ?? ''}
+                  disabled={!selectedVideoClip}
+                  onChange={(event) => {
+                    if (!selectedVideoClip) {
+                      return;
+                    }
+                    handleUpdateVideoClipNote(selectedVideoClip.id, event.target.value);
+                  }}
+                  placeholder={selectedVideoClip
+                    ? t('node.videoEditor.notePlaceholder', { defaultValue: '填写该时间段分镜备注' })
+                    : t('node.videoEditor.noSelectedClipForNote', { defaultValue: '请先在时间轴选择一个分镜片段' })}
+                  className="mt-1 h-20 w-full resize-none rounded-md border border-[rgba(255,255,255,0.14)] bg-black/30 px-2 py-1 text-xs text-text-dark outline-none disabled:opacity-60"
+                />
+              </div>
+            </div>
+
+            <div className="flex min-w-0 flex-1 flex-col">
+              <div className="mb-2 text-sm font-medium text-text-dark">
+                {t('node.videoEditor.textTrack', { defaultValue: '文字轨' })}
+              </div>
+              <div className="flex flex-1 flex-col rounded-[16px] border border-[rgba(255,255,255,0.14)] bg-bg-dark/30 p-3">
+                <div className="flex items-center gap-2">
+                  <div className="flex min-w-0 flex-1 items-center gap-2 rounded-md border border-[rgba(255,255,255,0.14)] bg-black/30 px-2 py-1">
+                    <Type className="h-3.5 w-3.5 shrink-0 text-text-muted" />
+                    <input
+                      type="text"
+                      value={textDraft}
+                      onChange={(event) => setTextDraft(event.target.value)}
+                      onKeyDown={(event) => {
+                        if (event.key === 'Enter') {
+                          event.preventDefault();
+                          handleAddTextClip();
+                        }
+                      }}
+                      className="w-full bg-transparent text-xs text-text-dark outline-none"
+                      placeholder={t('node.videoEditor.textPlaceholder', { defaultValue: '输入文字后添加到文字轨' })}
+                    />
+                  </div>
+                  <button
+                    type="button"
+                    className="rounded-md bg-amber-500/80 px-2 py-1 text-xs font-medium text-white hover:bg-amber-500"
+                    onClick={handleAddTextClip}
+                  >
+                    {t('node.videoEditor.addTextClip', { defaultValue: '添加' })}
+                  </button>
+                </div>
+
+                <div className="ui-scrollbar mt-3 flex-1 space-y-2 overflow-y-auto pr-1">
+                  {textClips.length === 0 ? (
+                    <div className="rounded-lg border border-[rgba(255,255,255,0.08)] bg-bg-dark/20 px-3 py-2 text-xs text-text-muted">
+                      {t('node.videoEditor.noTextClips', { defaultValue: '暂无文字片段' })}
+                    </div>
+                  ) : (
+                    sortTrackClips(textClips).map((clip) => (
+                      <div
+                        key={clip.id}
+                        className={`rounded-lg border p-2 ${
+                          activeTextClipId === clip.id
+                            ? 'border-amber-300/60 bg-amber-500/15'
+                            : 'border-[rgba(255,255,255,0.12)] bg-black/25'
+                        }`}
+                        onMouseDown={() => setActiveTextClipId(clip.id)}
+                      >
+                        <input
+                          type="text"
+                          value={clip.text}
+                          onChange={(event) => handleUpdateTextClip(clip.id, event.target.value)}
+                          onFocus={() => setActiveTextClipId(clip.id)}
+                          className="w-full rounded border border-[rgba(255,255,255,0.14)] bg-black/30 px-2 py-1 text-xs text-text-dark outline-none"
+                        />
+                        <div className="mt-1 flex items-center justify-between text-[10px] text-text-muted">
+                          <span>
+                            {formatSeconds(clip.startSec)}-{formatSeconds(clip.startSec + clip.durationSec)}
+                          </span>
+                          <button
+                            type="button"
+                            className="text-red-300 hover:text-red-200"
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              handleRemoveTextClip(clip.id);
+                            }}
+                          >
+                            {t('common.delete', { defaultValue: '删除' })}
+                          </button>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
               </div>
             </div>
           </div>

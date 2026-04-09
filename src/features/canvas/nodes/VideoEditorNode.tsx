@@ -1,4 +1,4 @@
-import { memo, useCallback, useEffect, useMemo, useState } from 'react';
+﻿import { memo, useCallback, useEffect, useMemo, useState } from 'react';
 import { Handle, Position, type NodeProps } from '@xyflow/react';
 import { createPortal } from 'react-dom';
 import { Clapperboard, Film, Sparkles } from 'lucide-react';
@@ -12,7 +12,6 @@ import {
   type VideoEditorNodeData,
   type VideoEditorTextClip,
   type VideoEditorTimelineClip,
-  type VideoPreviewFrameItem,
 } from '@/features/canvas/domain/canvasNodes';
 import { resolveNodeDisplayName } from '@/features/canvas/domain/nodeDisplay';
 import { resolveAdaptiveHandleStyle, resolveResponsiveNodeClasses } from '@/features/canvas/ui/nodeMetrics';
@@ -56,7 +55,7 @@ function collectIncomingStoryboardClips(
     const sourceData = sourceNode.data as StoryboardSplitNodeData;
     const sourceName = typeof sourceData.displayName === 'string' && sourceData.displayName.trim()
       ? sourceData.displayName.trim()
-      : '分镜';
+      : '鍒嗛暅';
     const orderedFrames = [...sourceData.frames].sort((left, right) => left.order - right.order);
     orderedFrames.forEach((frame, index) => {
       if (!frame.imageUrl && !frame.previewImageUrl) {
@@ -88,6 +87,54 @@ function formatSeconds(value: number | null | undefined): string {
   const minutes = Math.floor(total / 60);
   const seconds = total % 60;
   return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+}
+
+function formatTimelineSeconds(value: number): string {
+  return `${Math.max(0, value).toFixed(1)}s`;
+}
+
+function sanitizeInlineText(value: string): string {
+  return value.replace(/\s+/gu, ' ').trim();
+}
+
+function buildTimelineMarkdown(
+  timelineClips: VideoEditorTimelineClip[],
+  textClips: VideoEditorTextClip[],
+  sourceClipMap: Map<string, VideoEditorSourceClipItem>
+): string {
+  const lines: string[] = [
+    '# Video Timeline',
+    '',
+    '## Storyboard Track',
+  ];
+
+  if (timelineClips.length === 0) {
+    lines.push('- None');
+  } else {
+    timelineClips.forEach((clip, index) => {
+      const source = sourceClipMap.get(clip.sourceClipId);
+      const clipName = sanitizeInlineText(source?.label ?? clip.sourceClipId);
+      const note = sanitizeInlineText(clip.note ?? '');
+      const notePart = note ? ` | Note: ${note}` : '';
+      lines.push(
+        `${index + 1}. ${formatTimelineSeconds(clip.startSec)}-${formatTimelineSeconds(clip.startSec + clip.durationSec)} | Storyboard: ${clipName}${notePart}`
+      );
+    });
+  }
+
+  lines.push('');
+  lines.push('## Text Track');
+  if (textClips.length === 0) {
+    lines.push('- None');
+  } else {
+    textClips.forEach((clip, index) => {
+      lines.push(
+        `${index + 1}. ${formatTimelineSeconds(clip.startSec)}-${formatTimelineSeconds(clip.startSec + clip.durationSec)} | Text: ${sanitizeInlineText(clip.text)}`
+      );
+    });
+  }
+
+  return lines.join('\n');
 }
 
 export const VideoEditorNode = memo(({ id, data, selected, width, height }: VideoEditorNodeProps) => {
@@ -165,45 +212,17 @@ export const VideoEditorNode = memo(({ id, data, selected, width, height }: Vide
     });
   }, [id, updateNodeData]);
 
-  const handleGeneratePreview = useCallback((
+  const handleGenerateTextNode = useCallback((
     clips: VideoEditorTimelineClip[],
     textClips: VideoEditorTextClip[] = []
   ) => {
     const normalizedClips = [...clips]
       .filter((clip) => Number.isFinite(clip.startSec) && Number.isFinite(clip.durationSec) && clip.durationSec > 0)
+      .map((clip) => ({
+        ...clip,
+        note: sanitizeInlineText(clip.note ?? ''),
+      }))
       .sort((left, right) => left.startSec - right.startSec);
-    if (normalizedClips.length === 0) {
-      updateNodeData(id, {
-        taskStatus: 'error',
-        taskMessage: t('node.videoEditor.noSequence', { defaultValue: '请先在时间轴编排分镜序列' }),
-      });
-      return;
-    }
-
-    const frames: VideoPreviewFrameItem[] = [];
-    for (const clip of normalizedClips) {
-      const source = sourceClipMap.get(clip.sourceClipId);
-      if (!source) {
-        continue;
-      }
-      frames.push({
-        id: clip.id,
-        sourceClipId: clip.sourceClipId,
-        label: source.label,
-        startSec: Math.max(0, clip.startSec),
-        durationSec: Math.max(0.1, clip.durationSec),
-        imageUrl: source.imageUrl ?? source.previewImageUrl ?? null,
-        previewImageUrl: source.previewImageUrl ?? source.imageUrl ?? null,
-      });
-    }
-
-    if (frames.length === 0) {
-      updateNodeData(id, {
-        taskStatus: 'error',
-        taskMessage: t('node.videoEditor.noSourceClips', { defaultValue: '未检测到可用分镜图片' }),
-      });
-      return;
-    }
 
     const normalizedTextClips = [...textClips]
       .filter((clip) => Number.isFinite(clip.startSec) && Number.isFinite(clip.durationSec) && clip.durationSec > 0)
@@ -214,9 +233,17 @@ export const VideoEditorNode = memo(({ id, data, selected, width, height }: Vide
       .filter((clip) => clip.text.length > 0)
       .sort((left, right) => left.startSec - right.startSec);
 
+    if (normalizedClips.length === 0 && normalizedTextClips.length === 0) {
+      updateNodeData(id, {
+        taskStatus: 'error',
+        taskMessage: t('node.videoEditor.noSequence', { defaultValue: '请先在时间轴编排分镜序列' }),
+      });
+      return;
+    }
+
     const timelineEnd = Math.max(
-      frames.reduce(
-        (max, frame) => Math.max(max, frame.startSec + frame.durationSec),
+      normalizedClips.reduce(
+        (max, clip) => Math.max(max, clip.startSec + clip.durationSec),
         0
       ),
       normalizedTextClips.reduce(
@@ -224,34 +251,28 @@ export const VideoEditorNode = memo(({ id, data, selected, width, height }: Vide
         0
       )
     );
-    const nextPosition = findNodePosition(id, 560, 380);
-    const previewNodeId = addNode(CANVAS_NODE_TYPES.videoPreview as CanvasNodeType, nextPosition, {
-      filePath: resolvedVideoPath,
-      sourceFileName: data.sourceFileName ?? null,
-      mimeType: data.mimeType ?? null,
-      durationSec: timelineEnd,
-      displayName: `${resolvedTitle} Preview`,
-      posterImageUrl: frames[0]?.previewImageUrl ?? frames[0]?.imageUrl ?? null,
-      frames,
-      textClips: normalizedTextClips,
-      currentTimeSec: frames[0]?.startSec ?? 0,
+    const markdown = buildTimelineMarkdown(normalizedClips, normalizedTextClips, sourceClipMap);
+
+    const nextPosition = findNodePosition(id, 460, 360);
+    const textNodeId = addNode(CANVAS_NODE_TYPES.textAnnotation as CanvasNodeType, nextPosition, {
+      displayName: `${resolvedTitle} Timeline`,
+      content: markdown,
+      mode: 'plain-text',
+      lastAppliedTaskType: 'video-editor-markdown',
     });
-    addEdge(id, previewNodeId, { relation: 'video-flow', autoGenerated: true });
+    addEdge(id, textNodeId, { relation: 'text-flow', autoGenerated: true });
     updateNodeData(id, {
       taskStatus: 'success',
-      taskMessage: t('node.videoEditor.previewReady', { defaultValue: '已根据时间轴生成预览节点' }),
-      taskOutputSummary: `${frames.length} clip(s), ${normalizedTextClips.length} text clip(s)`,
-      outputFilePath: resolvedVideoPath ?? null,
+      taskMessage: t('node.videoEditor.textNodeReady', { defaultValue: '已生成时间线文本节点' }),
+      taskOutputSummary: `${normalizedClips.length} storyboard clip(s), ${normalizedTextClips.length} text clip(s), ${formatTimelineSeconds(timelineEnd)}`,
+      outputFilePath: null,
     });
   }, [
     addEdge,
     addNode,
-    data.mimeType,
-    data.sourceFileName,
     findNodePosition,
     id,
     resolvedTitle,
-    resolvedVideoPath,
     sourceClipMap,
     t,
     updateNodeData,
@@ -300,11 +321,11 @@ export const VideoEditorNode = memo(({ id, data, selected, width, height }: Vide
             className="inline-flex items-center justify-center gap-1 rounded-lg bg-accent px-3 py-1.5 text-xs font-medium text-white hover:bg-accent/80"
             onClick={(event) => {
               event.stopPropagation();
-              handleGeneratePreview(data.timelineClips ?? [], data.textClips ?? []);
+              handleGenerateTextNode(data.timelineClips ?? [], data.textClips ?? []);
             }}
           >
             <Sparkles className="h-3.5 w-3.5" />
-            {t('node.videoEditor.generatePreview', { defaultValue: '生成预览' })}
+            {t('node.videoEditor.generateTextNode', { defaultValue: '生成文本节点' })}
           </button>
         </div>
 
@@ -383,7 +404,7 @@ export const VideoEditorNode = memo(({ id, data, selected, width, height }: Vide
           initialTextClips={data.textClips ?? []}
           initialPlayheadSec={data.currentTimeSec ?? 0}
           onSave={handleSaveTimeline}
-          onGenerate={handleGeneratePreview}
+          onGenerate={handleGenerateTextNode}
           onClose={() => setEditorOpen(false)}
         />,
         document.body
@@ -393,3 +414,4 @@ export const VideoEditorNode = memo(({ id, data, selected, width, height }: Vide
 });
 
 VideoEditorNode.displayName = 'VideoEditorNode';
+

@@ -268,8 +268,10 @@
       "title": "视频编辑",
       "openEditor": "打开编辑器",
       "generatePreview": "生成预览",
+      "generateTextNode": "生成文本节点",
       "missingVideo": "请先选择视频文件",
       "previewReady": "已根据时间轴生成预览节点",
+      "textNodeReady": "已生成时间线文本节点",
       "sourceClips": "分镜栏",
       "timeline": "时间轴",
       "noSourceClips": "未检测到分镜图片，请连接分镜节点",
@@ -282,7 +284,11 @@
       "noTextClips": "暂无文字片段",
       "blackFrame": "黑场（无分镜）",
       "previewFrame": "当前分镜",
-      "referenceVideoConnected": "已连接参考视频"
+      "referenceVideoConnected": "已连接参考视频",
+      "currentRange": "当前时间线范围",
+      "clipNote": "分镜备注",
+      "notePlaceholder": "填写该时间段分镜备注",
+      "noSelectedClipForNote": "请先在时间轴选择一个分镜片段"
     }
   },
   "viewer": {
