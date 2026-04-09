@@ -111,6 +111,7 @@ export type VideoNodeTaskMode =
 export interface VideoNodeData extends MediaFileNodeData {
   audioFilePath?: string | null;
   audioSourceFileName?: string | null;
+  autoOpenPicker?: boolean;
   prompt: string;
   taskMode: VideoNodeTaskMode;
   interfaceId?: string;
@@ -124,11 +125,24 @@ export interface VideoNodeData extends MediaFileNodeData {
   lastExecutedAt?: number | null;
 }
 
+export interface VideoPreviewFrameItem {
+  id: string;
+  sourceClipId: string;
+  label: string;
+  startSec: number;
+  durationSec: number;
+  imageUrl: string | null;
+  previewImageUrl?: string | null;
+}
+
 export interface VideoPreviewNodeData extends MediaFileNodeData {
   posterImageUrl?: string | null;
+  frames?: VideoPreviewFrameItem[];
+  currentTimeSec?: number;
 }
 
 export interface AudioNodeData extends MediaFileNodeData {
+  autoOpenPicker?: boolean;
   prompt: string;
   taskMode: 'text-to-music' | 'audio-to-video';
   taskStatus: MediaTaskStatus;

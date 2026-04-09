@@ -99,9 +99,9 @@
       "storyboard": "Storyboard Node",
       "storyboardGen": "Storyboard Generation",
       "textAnnotation": "Text Node",
-      "video": "Video Node",
+      "video": "Upload Video Node",
       "videoEditor": "Video Editor",
-      "audio": "Audio Node",
+      "audio": "Upload Audio Node",
       "videoStoryboard": "Video Storyboard",
       "group": "Group",
       "chat": "AI Chat"

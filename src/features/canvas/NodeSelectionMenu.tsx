@@ -75,7 +75,7 @@ export function NodeSelectionMenu({ position, allowedTypes, onSelect, onClose }:
       ref={menuRef}
       data-node-menu="true"
       className={`
-        absolute z-50 min-w-[220px] overflow-hidden rounded-xl
+        absolute z-50 w-max max-w-[180px] overflow-hidden rounded-lg
         border border-[var(--ui-border-soft)] bg-[var(--ui-surface-panel)]
         shadow-[var(--ui-shadow-panel)]
         transition-all duration-120
@@ -83,13 +83,13 @@ export function NodeSelectionMenu({ position, allowedTypes, onSelect, onClose }:
       `}
       style={{ left: position.x, top: position.y }}
     >
-      <div className="py-1.5">
+      <div className="py-1">
         {menuItems.map((item, index) => {
           return (
             <button
               key={item.type}
-              className="w-full px-4 py-2.5 text-left text-[15px] text-text-dark transition-colors hover:bg-[var(--ui-surface-field)]"
-              style={{ transitionDelay: isVisible ? `${index * 18}ms` : '0ms' }}
+              className="w-full whitespace-nowrap px-3 py-1.5 text-left text-sm leading-5 text-text-dark transition-colors hover:bg-[var(--ui-surface-field)]"
+              style={{ transitionDelay: isVisible ? `${index * 10}ms` : '0ms' }}
               onClick={() => {
                 handleClose();
                 setTimeout(() => onSelect(item.type), UI_POPOVER_TRANSITION_MS + 10);

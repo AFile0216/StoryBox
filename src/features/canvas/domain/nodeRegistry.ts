@@ -191,6 +191,7 @@ const videoNodeDefinition: CanvasNodeDefinition<VideoNodeData> = {
     sourceFileName: null,
     audioFilePath: null,
     audioSourceFileName: null,
+    autoOpenPicker: false,
     mimeType: null,
     durationSec: null,
     prompt: '',
@@ -231,6 +232,8 @@ const videoPreviewNodeDefinition: CanvasNodeDefinition<VideoPreviewNodeData> = {
     mimeType: null,
     durationSec: null,
     posterImageUrl: null,
+    frames: [],
+    currentTimeSec: 0,
   }),
 };
 
@@ -288,6 +291,7 @@ const audioNodeDefinition: CanvasNodeDefinition<AudioNodeData> = {
     displayName: DEFAULT_NODE_DISPLAY_NAME[CANVAS_NODE_TYPES.audio],
     filePath: null,
     sourceFileName: null,
+    autoOpenPicker: false,
     mimeType: null,
     durationSec: null,
     prompt: '',

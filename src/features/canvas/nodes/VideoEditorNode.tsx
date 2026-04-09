@@ -1,6 +1,5 @@
 import { memo, useCallback, useEffect, useMemo, useState } from 'react';
 import { Handle, Position, type NodeProps } from '@xyflow/react';
-import { open } from '@tauri-apps/plugin-dialog';
 import { createPortal } from 'react-dom';
 import { Clapperboard, Film, Sparkles } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
@@ -12,12 +11,13 @@ import {
   type StoryboardSplitNodeData,
   type VideoEditorNodeData,
   type VideoEditorTimelineClip,
+  type VideoPreviewFrameItem,
 } from '@/features/canvas/domain/canvasNodes';
 import { resolveNodeDisplayName } from '@/features/canvas/domain/nodeDisplay';
 import { resolveAdaptiveHandleStyle, resolveResponsiveNodeClasses } from '@/features/canvas/ui/nodeMetrics';
 import { NodeHeader, NODE_HEADER_FLOATING_POSITION_CLASS } from '@/features/canvas/ui/NodeHeader';
 import { NodeResizeHandle } from '@/features/canvas/ui/NodeResizeHandle';
-import { resolveLocalAssetUrl } from '@/features/canvas/application/imageData';
+import { resolveImageDisplayUrl } from '@/features/canvas/application/imageData';
 import { graphImageResolver } from '@/features/canvas/application/canvasServices';
 import { VideoEditorModal, type VideoEditorSourceClipItem } from '@/features/canvas/ui/VideoEditorModal';
 import { useCanvasStore } from '@/stores/canvasStore';
@@ -124,31 +124,19 @@ export const VideoEditorNode = memo(({ id, data, selected, width, height }: Vide
     () => collectIncomingStoryboardClips(id, nodes, edges),
     [edges, id, nodes]
   );
-
-  const resolvedVideoPath = data.filePath || incomingVideos[0] || null;
-  const videoSrc = useMemo(
-    () => (resolvedVideoPath ? resolveLocalAssetUrl(resolvedVideoPath) : null),
-    [resolvedVideoPath]
+  const sourceClipMap = useMemo(
+    () => new Map(incomingStoryboardClips.map((clip) => [clip.id, clip])),
+    [incomingStoryboardClips]
   );
 
-  const handlePickVideo = async () => {
-    const selectedPath = await open({
-      multiple: false,
-      filters: [{ name: 'Video', extensions: ['mp4', 'mov', 'm4v', 'webm', 'mkv', 'avi'] }],
-    });
-    if (!selectedPath || Array.isArray(selectedPath)) {
-      return;
-    }
-    const normalizedPath = selectedPath.trim();
-    const fileName = normalizedPath.split(/[/\\]/u).pop() ?? normalizedPath;
-    updateNodeData(id, {
-      filePath: normalizedPath,
-      sourceFileName: fileName,
-      taskStatus: 'idle',
-      taskMessage: null,
-      taskOutputSummary: null,
-    });
-  };
+  const resolvedVideoPath = data.filePath || incomingVideos[0] || null;
+  const timelineDurationSec = useMemo(
+    () => (data.timelineClips ?? []).reduce(
+      (max, clip) => Math.max(max, clip.startSec + clip.durationSec),
+      0
+    ),
+    [data.timelineClips]
+  );
 
   useEffect(() => {
     if (!data.autoOpenEditor) {
@@ -166,41 +154,74 @@ export const VideoEditorNode = memo(({ id, data, selected, width, height }: Vide
   }, [id, updateNodeData]);
 
   const handleGeneratePreview = useCallback((clips: VideoEditorTimelineClip[]) => {
-    const targetPath = data.filePath || incomingVideos[0] || null;
-    if (!targetPath) {
+    const normalizedClips = [...clips]
+      .filter((clip) => Number.isFinite(clip.startSec) && Number.isFinite(clip.durationSec) && clip.durationSec > 0)
+      .sort((left, right) => left.startSec - right.startSec);
+    if (normalizedClips.length === 0) {
       updateNodeData(id, {
         taskStatus: 'error',
-        taskMessage: t('node.videoEditor.missingVideo', { defaultValue: '请先选择视频文件' }),
+        taskMessage: t('node.videoEditor.noSequence', { defaultValue: '请先在时间轴编排分镜序列' }),
       });
       return;
     }
 
-    const fileName = data.sourceFileName || targetPath.split(/[/\\]/u).pop() || 'video-preview';
+    const frames: VideoPreviewFrameItem[] = [];
+    for (const clip of normalizedClips) {
+      const source = sourceClipMap.get(clip.sourceClipId);
+      if (!source) {
+        continue;
+      }
+      frames.push({
+        id: clip.id,
+        sourceClipId: clip.sourceClipId,
+        label: source.label,
+        startSec: Math.max(0, clip.startSec),
+        durationSec: Math.max(0.1, clip.durationSec),
+        imageUrl: source.imageUrl ?? source.previewImageUrl ?? null,
+        previewImageUrl: source.previewImageUrl ?? source.imageUrl ?? null,
+      });
+    }
+
+    if (frames.length === 0) {
+      updateNodeData(id, {
+        taskStatus: 'error',
+        taskMessage: t('node.videoEditor.noSourceClips', { defaultValue: '未检测到可用分镜图片' }),
+      });
+      return;
+    }
+
+    const timelineEnd = frames.reduce(
+      (max, frame) => Math.max(max, frame.startSec + frame.durationSec),
+      0
+    );
     const nextPosition = findNodePosition(id, 560, 380);
     const previewNodeId = addNode(CANVAS_NODE_TYPES.videoPreview as CanvasNodeType, nextPosition, {
-      filePath: targetPath,
-      sourceFileName: fileName,
+      filePath: resolvedVideoPath,
+      sourceFileName: data.sourceFileName ?? null,
       mimeType: data.mimeType ?? null,
-      durationSec: data.durationSec ?? null,
-      displayName: `${fileName} Preview`,
+      durationSec: timelineEnd,
+      displayName: `${resolvedTitle} Preview`,
+      posterImageUrl: frames[0]?.previewImageUrl ?? frames[0]?.imageUrl ?? null,
+      frames,
+      currentTimeSec: frames[0]?.startSec ?? 0,
     });
     addEdge(id, previewNodeId, { relation: 'video-flow', autoGenerated: true });
     updateNodeData(id, {
       taskStatus: 'success',
       taskMessage: t('node.videoEditor.previewReady', { defaultValue: '已根据时间轴生成预览节点' }),
-      taskOutputSummary: `${clips.length} clip(s)`,
-      outputFilePath: targetPath,
+      taskOutputSummary: `${frames.length} clip(s)`,
+      outputFilePath: resolvedVideoPath ?? null,
     });
   }, [
     addEdge,
     addNode,
-    data.durationSec,
-    data.filePath,
     data.mimeType,
     data.sourceFileName,
     findNodePosition,
     id,
-    incomingVideos,
+    resolvedTitle,
+    resolvedVideoPath,
+    sourceClipMap,
     t,
     updateNodeData,
   ]);
@@ -226,16 +247,9 @@ export const VideoEditorNode = memo(({ id, data, selected, width, height }: Vide
           <div className={`tapnow-node-pill px-2 py-1 uppercase tracking-[0.12em] ${uiDensity.metaText}`}>
             {t('node.videoEditor.title', { defaultValue: '视频编辑' })}
           </div>
-          <button
-            type="button"
-            className={`tapnow-node-button px-2 py-1 ${uiDensity.metaText}`}
-            onClick={(event) => {
-              event.stopPropagation();
-              void handlePickVideo();
-            }}
-          >
-            {data.filePath ? t('node.media.changeFile') : t('node.media.selectFile')}
-          </button>
+          <span className={`rounded-md border border-[var(--ui-border-soft)] bg-[var(--ui-surface-field)] px-2 py-1 text-text-muted ${uiDensity.metaText}`}>
+            PR Timeline
+          </span>
         </div>
 
         <div className="mb-2 grid grid-cols-2 gap-2">
@@ -263,22 +277,17 @@ export const VideoEditorNode = memo(({ id, data, selected, width, height }: Vide
           </button>
         </div>
 
-        <div className="tapnow-node-surface relative flex min-h-[160px] flex-1 items-center justify-center overflow-hidden">
-          {videoSrc ? (
-            <video
-              src={videoSrc}
-              controls
-              className="h-full w-full object-contain"
-              onLoadedMetadata={(event) => {
-                const nextDuration = Number.isFinite(event.currentTarget.duration)
-                  ? event.currentTarget.duration
-                  : null;
-                updateNodeData(id, { durationSec: nextDuration });
-              }}
+        <div className="tapnow-node-surface relative flex min-h-[160px] flex-1 items-center justify-center overflow-hidden p-2">
+          {incomingStoryboardClips[0]?.previewImageUrl || incomingStoryboardClips[0]?.imageUrl ? (
+            <img
+              src={resolveImageDisplayUrl(incomingStoryboardClips[0].previewImageUrl ?? incomingStoryboardClips[0].imageUrl ?? '')}
+              alt="storyboard-cover"
+              className="h-full w-full rounded-lg object-cover"
+              draggable={false}
             />
           ) : (
             <div className="px-4 text-center text-sm text-text-muted">
-              {t('node.videoEditor.missingVideo', { defaultValue: '请先选择视频文件' })}
+              {t('node.videoEditor.noSourceClips', { defaultValue: '未检测到分镜图片，请连接分镜节点' })}
             </div>
           )}
         </div>
@@ -288,7 +297,7 @@ export const VideoEditorNode = memo(({ id, data, selected, width, height }: Vide
             <div className="text-[10px] uppercase tracking-[0.12em] text-text-muted">
               {t('node.video.duration', { defaultValue: '时长' })}
             </div>
-            <div className="mt-1 text-sm text-text-dark">{formatSeconds(data.durationSec)}</div>
+            <div className="mt-1 text-sm text-text-dark">{formatSeconds(timelineDurationSec || data.durationSec)}</div>
           </div>
           <div className={`tapnow-node-panel ${uiDensity.panelPadding}`}>
             <div className="text-[10px] uppercase tracking-[0.12em] text-text-muted">

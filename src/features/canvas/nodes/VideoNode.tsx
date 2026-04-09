@@ -190,6 +190,14 @@ export const VideoNode = memo(({ id, data, selected, width, height }: VideoNodeP
     });
   };
 
+  useEffect(() => {
+    if (!data.autoOpenPicker) {
+      return;
+    }
+    updateNodeData(id, { autoOpenPicker: false });
+    void handlePickFile('video');
+  }, [data.autoOpenPicker, id, updateNodeData]);
+
   const handleCreateStoryboardNode = () => {
     if (!data.filePath) {
       return;

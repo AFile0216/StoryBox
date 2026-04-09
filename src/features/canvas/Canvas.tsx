@@ -4,6 +4,7 @@ import {
   useEffect,
   useMemo,
   useRef,
+  type DragEvent as ReactDragEvent,
   type MouseEvent as ReactMouseEvent,
 } from 'react';
 import {
@@ -207,28 +208,106 @@ function isAudioFilename(fileName: string | undefined | null): boolean {
   return /\.(mp3|wav|ogg|m4a|flac|aac)$/iu.test(fileName);
 }
 
-interface DroppedMediaFile {
-  file: File;
+interface DroppedMediaPayload {
   type: 'video' | 'audio';
+  file?: File;
+  path?: string;
+  name: string;
+  mimeType?: string | null;
 }
 
-function resolveDroppedMediaFiles(dataTransfer: DataTransfer | null): DroppedMediaFile[] {
+function resolveMediaTypeByNameOrPath(nameOrPath: string | undefined | null): 'video' | 'audio' | null {
+  if (!nameOrPath) {
+    return null;
+  }
+  if (isVideoFilename(nameOrPath)) {
+    return 'video';
+  }
+  if (isAudioFilename(nameOrPath)) {
+    return 'audio';
+  }
+  return null;
+}
+
+function resolveDroppedFilePathFromUri(value: string): string | null {
+  const trimmed = value.trim();
+  if (!trimmed) {
+    return null;
+  }
+  if (!trimmed.toLowerCase().startsWith('file://')) {
+    return trimmed;
+  }
+  try {
+    const parsed = new URL(trimmed);
+    const decodedPath = decodeURIComponent(parsed.pathname);
+    return decodedPath.replace(/^\/([A-Za-z]:[\\/])/, '$1');
+  } catch {
+    return null;
+  }
+}
+
+function resolveDroppedMediaPayloads(dataTransfer: DataTransfer | null): DroppedMediaPayload[] {
   if (!dataTransfer) {
     return [];
   }
+
+  const payloads: DroppedMediaPayload[] = [];
+  const dedupeKeys = new Set<string>();
+  const appendPayload = (payload: DroppedMediaPayload) => {
+    const keyBase = payload.path || payload.name;
+    const dedupeKey = `${payload.type}:${keyBase.trim().toLowerCase()}`;
+    if (!keyBase || dedupeKeys.has(dedupeKey)) {
+      return;
+    }
+    dedupeKeys.add(dedupeKey);
+    payloads.push(payload);
+  };
+
   const files = Array.from(dataTransfer.files ?? []);
-  const mediaFiles: DroppedMediaFile[] = [];
   for (const file of files) {
-    if (isVideoMimeType(file.type) || isVideoFilename(file.name)) {
-      mediaFiles.push({ file, type: 'video' });
+    const fromPath = ((file as File & { path?: string }).path ?? '').trim();
+    const resolvedType = isVideoMimeType(file.type)
+      ? 'video'
+      : isAudioMimeType(file.type)
+        ? 'audio'
+        : resolveMediaTypeByNameOrPath(file.name || fromPath);
+    if (!resolvedType) {
       continue;
     }
-    if (isAudioMimeType(file.type) || isAudioFilename(file.name)) {
-      mediaFiles.push({ file, type: 'audio' });
-      continue;
-    }
+    appendPayload({
+      type: resolvedType,
+      file,
+      path: fromPath || undefined,
+      name: file.name || fromPath.split(/[/\\]/u).pop() || `media-${Date.now()}`,
+      mimeType: file.type || null,
+    });
   }
-  return mediaFiles;
+
+  const uriListText = dataTransfer.getData('text/uri-list') || '';
+  const plainText = dataTransfer.getData('text/plain') || '';
+  const pathCandidates = [...uriListText.split(/\r?\n/u), ...plainText.split(/\r?\n/u)];
+  for (const rawCandidate of pathCandidates) {
+    const candidate = rawCandidate.trim();
+    if (!candidate || candidate.startsWith('#')) {
+      continue;
+    }
+    const resolvedPath = resolveDroppedFilePathFromUri(candidate);
+    if (!resolvedPath) {
+      continue;
+    }
+    const resolvedType = resolveMediaTypeByNameOrPath(resolvedPath);
+    if (!resolvedType) {
+      continue;
+    }
+    appendPayload({
+      type: resolvedType,
+      path: resolvedPath,
+      name: resolvedPath.split(/[/\\]/u).pop() || resolvedPath,
+      mimeType: null,
+    });
+  }
+
+  return payloads;
 }
 
 function resolveAllowedNodeTypes(handleType: HandleType): CanvasNodeType[] {
@@ -899,51 +978,45 @@ export function Canvas() {
     };
   }, [selectedUploadNodeId]);
 
-  useEffect(() => {
-    const element = wrapperRef.current;
-    if (!element) {
+  const handleCanvasMediaDragOver = useCallback((event: Pick<DragEvent, 'preventDefault' | 'dataTransfer'>) => {
+    const mediaPayloads = resolveDroppedMediaPayloads(event.dataTransfer);
+    if (mediaPayloads.length === 0) {
       return;
     }
+    event.preventDefault();
+    if (event.dataTransfer) {
+      event.dataTransfer.dropEffect = 'copy';
+    }
+  }, []);
 
-    const handleDragOver = (event: DragEvent) => {
-      const mediaFiles = resolveDroppedMediaFiles(event.dataTransfer);
-      if (mediaFiles.length === 0) {
-        return;
-      }
-      event.preventDefault();
-      if (event.dataTransfer) {
-        event.dataTransfer.dropEffect = 'copy';
-      }
-    };
-
-    const handleDrop = (event: DragEvent) => {
-      const mediaFiles = resolveDroppedMediaFiles(event.dataTransfer);
-      if (mediaFiles.length === 0) {
+  const handleCanvasMediaDrop = useCallback(
+    (event: Pick<DragEvent, 'preventDefault' | 'stopPropagation' | 'dataTransfer' | 'clientX' | 'clientY'>) => {
+      const mediaPayloads = resolveDroppedMediaPayloads(event.dataTransfer);
+      if (mediaPayloads.length === 0) {
         return;
       }
 
       event.preventDefault();
       event.stopPropagation();
 
-      const screenPoint = {
+      const flowPoint = reactFlowInstance.screenToFlowPosition({
         x: event.clientX,
         y: event.clientY,
-      };
-      const flowPoint = reactFlowInstance.screenToFlowPosition(screenPoint);
+      });
       let created = 0;
 
-      for (let index = 0; index < mediaFiles.length; index += 1) {
-        const item = mediaFiles[index];
-        const { file } = item;
-        const droppedPath = ((file as File & { path?: string }).path ?? '').trim();
-        const resolvedPath = droppedPath || URL.createObjectURL(file);
+      for (let index = 0; index < mediaPayloads.length; index += 1) {
+        const payload = mediaPayloads[index];
+        const droppedPath = payload.path?.trim() ?? '';
+        const filePath = ((payload.file as File & { path?: string } | undefined)?.path ?? '').trim();
+        const resolvedPath = droppedPath || filePath || (payload.file ? URL.createObjectURL(payload.file) : '');
         if (!resolvedPath) {
           continue;
         }
-        const sourceFileName = file.name || resolvedPath.split(/[/\\]/u).pop() || `media-${Date.now()}`;
-        if (item.type === 'video') {
+        const sourceFileName = payload.name || resolvedPath.split(/[/\\]/u).pop() || `media-${Date.now()}`;
+        if (payload.type === 'video') {
           addNode(
-            CANVAS_NODE_TYPES.videoPreview as CanvasNodeType,
+            CANVAS_NODE_TYPES.video as CanvasNodeType,
             {
               x: flowPoint.x + index * 32,
               y: flowPoint.y + index * 20,
@@ -951,8 +1024,9 @@ export function Canvas() {
             {
               filePath: resolvedPath,
               sourceFileName,
-              mimeType: file.type || null,
+              mimeType: payload.mimeType ?? payload.file?.type ?? null,
               displayName: sourceFileName,
+              autoOpenPicker: false,
             }
           );
         } else {
@@ -965,8 +1039,9 @@ export function Canvas() {
             {
               filePath: resolvedPath,
               sourceFileName,
-              mimeType: file.type || null,
+              mimeType: payload.mimeType ?? payload.file?.type ?? null,
               displayName: sourceFileName,
+              autoOpenPicker: false,
               taskStatus: 'idle',
               taskMessage: null,
               taskOutputSummary: null,
@@ -981,16 +1056,9 @@ export function Canvas() {
       if (created > 0) {
         scheduleCanvasPersist(0);
       }
-    };
-
-    element.addEventListener('dragover', handleDragOver);
-    element.addEventListener('drop', handleDrop);
-
-    return () => {
-      element.removeEventListener('dragover', handleDragOver);
-      element.removeEventListener('drop', handleDrop);
-    };
-  }, [addNode, reactFlowInstance, scheduleCanvasPersist]);
+    },
+    [addNode, reactFlowInstance, scheduleCanvasPersist]
+  );
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -1199,7 +1267,13 @@ export function Canvas() {
 
   const handleNodeSelect = useCallback(
     (type: CanvasNodeType) => {
-      const newNodeId = addNode(type, flowPosition);
+      const createData =
+        pendingConnectStart
+          ? undefined
+          : type === CANVAS_NODE_TYPES.video || type === CANVAS_NODE_TYPES.audio
+            ? { autoOpenPicker: true }
+            : undefined;
+      const newNodeId = addNode(type, flowPosition, createData);
       if (pendingConnectStart) {
         if (pendingConnectStart.handleType === 'source') {
           connectNodes({
@@ -1796,6 +1870,12 @@ export function Canvas() {
         onNodeMouseEnter={(_, node) => setHoveredNode(node.id)}
         onNodeMouseLeave={() => setHoveredNode(null)}
         onPaneClick={handlePaneClick}
+        onDragOver={(event: ReactDragEvent<HTMLDivElement>) => {
+          handleCanvasMediaDragOver(event.nativeEvent);
+        }}
+        onDrop={(event: ReactDragEvent<HTMLDivElement>) => {
+          handleCanvasMediaDrop(event.nativeEvent);
+        }}
         onMove={handleMove}
         onMoveStart={handleMoveStart}
         onMoveEnd={handleMoveEnd}

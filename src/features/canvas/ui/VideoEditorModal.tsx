@@ -71,6 +71,26 @@ function sortTimelineClips(clips: VideoEditorTimelineClip[]): VideoEditorTimelin
   });
 }
 
+function normalizeTimelineClips(clips: VideoEditorTimelineClip[]): VideoEditorTimelineClip[] {
+  const sorted = sortTimelineClips(clips.map((clip) => ({
+    ...clip,
+    startSec: Math.max(0, clip.startSec),
+    durationSec: Math.max(MIN_CLIP_DURATION_SEC, clip.durationSec),
+  })));
+  const normalized: VideoEditorTimelineClip[] = [];
+  let cursor = 0;
+  for (const clip of sorted) {
+    const nextStart = Math.max(clip.startSec, cursor);
+    normalized.push({
+      ...clip,
+      startSec: nextStart,
+      durationSec: Math.max(MIN_CLIP_DURATION_SEC, clip.durationSec),
+    });
+    cursor = nextStart + Math.max(MIN_CLIP_DURATION_SEC, clip.durationSec);
+  }
+  return normalized;
+}
+
 export const VideoEditorModal = memo(({
   filePath,
   durationSec,
@@ -87,7 +107,7 @@ export const VideoEditorModal = memo(({
   const tickerRef = useRef<number | null>(null);
 
   const [timelineClips, setTimelineClips] = useState<VideoEditorTimelineClip[]>(
-    () => sortTimelineClips(initialTimelineClips)
+    () => normalizeTimelineClips(initialTimelineClips)
   );
   const [playheadSec, setPlayheadSec] = useState(initialPlayheadSec);
   const [isPlaying, setIsPlaying] = useState(false);
@@ -102,8 +122,8 @@ export const VideoEditorModal = memo(({
       (max, clip) => Math.max(max, clip.startSec + clip.durationSec),
       0
     );
-    return Math.max(2, durationSec || 0, timelineEnd);
-  }, [durationSec, timelineClips]);
+    return Math.max(2, timelineEnd);
+  }, [timelineClips]);
   const activeSequenceClip = useMemo(
     () =>
       timelineClips.find((clip) =>
@@ -114,7 +134,7 @@ export const VideoEditorModal = memo(({
   );
   const activeSourceClip = activeSequenceClip
     ? sourceClipMap.get(activeSequenceClip.sourceClipId) ?? null
-    : null;
+    : (timelineClips[0] ? sourceClipMap.get(timelineClips[0].sourceClipId) ?? null : null);
 
   const videoSrc = filePath ? resolveLocalAssetUrl(filePath) : null;
   const activePreviewUrl = activeSourceClip?.previewImageUrl
@@ -129,11 +149,11 @@ export const VideoEditorModal = memo(({
   }, []);
 
   const handleSave = useCallback(() => {
-    onSave(sortTimelineClips(timelineClips), playheadSec);
+    onSave(normalizeTimelineClips(timelineClips), playheadSec);
   }, [onSave, playheadSec, timelineClips]);
 
   useEffect(() => {
-    setTimelineClips(sortTimelineClips(initialTimelineClips));
+    setTimelineClips(normalizeTimelineClips(initialTimelineClips));
   }, [initialTimelineClips]);
 
   useEffect(() => {
@@ -165,26 +185,21 @@ export const VideoEditorModal = memo(({
       const deltaPx = event.clientX - dragState.originX;
       const deltaSec = (deltaPx / dragState.trackWidth) * dragState.timelineMaxSec;
       setTimelineClips((previous) =>
-        sortTimelineClips(previous.map((clip) => {
+        normalizeTimelineClips(previous.map((clip) => {
           if (clip.id !== dragState.clipId) {
             return clip;
           }
 
           if (dragState.mode === 'move') {
-            const maxStart = Math.max(0, dragState.timelineMaxSec - dragState.durationSec);
             return {
               ...clip,
-              startSec: clamp(dragState.startSec + deltaSec, 0, maxStart),
+              startSec: Math.max(0, dragState.startSec + deltaSec),
             };
           }
 
           if (dragState.mode === 'resize-left') {
             const clipEnd = dragState.startSec + dragState.durationSec;
-            const nextStart = clamp(
-              dragState.startSec + deltaSec,
-              0,
-              clipEnd - MIN_CLIP_DURATION_SEC
-            );
+            const nextStart = Math.max(0, Math.min(dragState.startSec + deltaSec, clipEnd - MIN_CLIP_DURATION_SEC));
             return {
               ...clip,
               startSec: nextStart,
@@ -192,13 +207,9 @@ export const VideoEditorModal = memo(({
             };
           }
 
-          const maxDuration = Math.max(
-            MIN_CLIP_DURATION_SEC,
-            dragState.timelineMaxSec - dragState.startSec
-          );
           return {
             ...clip,
-            durationSec: clamp(dragState.durationSec + deltaSec, MIN_CLIP_DURATION_SEC, maxDuration),
+            durationSec: Math.max(MIN_CLIP_DURATION_SEC, dragState.durationSec + deltaSec),
           };
         }))
       );
@@ -255,13 +266,12 @@ export const VideoEditorModal = memo(({
       startSec = ratio * timelineMaxSec;
     }
 
-    const maxStart = Math.max(0, timelineMaxSec - DEFAULT_CLIP_DURATION_SEC);
-    setTimelineClips((previous) => sortTimelineClips([
+    setTimelineClips((previous) => normalizeTimelineClips([
       ...previous,
       {
         id: createSequenceClipId(),
         sourceClipId: clipId,
-        startSec: clamp(startSec, 0, maxStart),
+        startSec: Math.max(0, startSec),
         durationSec: DEFAULT_CLIP_DURATION_SEC,
       },
     ]));
@@ -321,7 +331,7 @@ export const VideoEditorModal = memo(({
             type="button"
             className="inline-flex items-center gap-1 rounded-lg bg-accent px-3 py-1.5 text-xs font-medium text-white hover:bg-accent/80"
             onClick={() => {
-              const normalized = sortTimelineClips(timelineClips);
+              const normalized = normalizeTimelineClips(timelineClips);
               onSave(normalized, playheadSec);
               onGenerate(normalized);
               onClose();
@@ -364,7 +374,7 @@ export const VideoEditorModal = memo(({
               />
             ) : (
               <div className="flex h-full items-center justify-center text-sm text-text-muted">
-                {t('node.videoEditor.missingVideo', { defaultValue: '请先选择视频文件' })}
+                {t('node.videoEditor.noSequence', { defaultValue: '拖拽分镜到时间轴开始编排' })}
               </div>
             )}
           </div>

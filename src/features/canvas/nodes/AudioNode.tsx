@@ -84,6 +84,14 @@ export const AudioNode = memo(({ id, data, selected, width, height }: AudioNodeP
     });
   };
 
+  useEffect(() => {
+    if (!data.autoOpenPicker) {
+      return;
+    }
+    updateNodeData(id, { autoOpenPicker: false });
+    void handlePickAudio();
+  }, [data.autoOpenPicker, id, updateNodeData]);
+
   const handleRunTask = () => {
     if (!data.filePath) {
       updateNodeData(id, {
