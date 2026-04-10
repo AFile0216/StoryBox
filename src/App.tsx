@@ -41,6 +41,7 @@ function App() {
   const { theme } = useThemeStore();
   const uiRadiusPreset = useSettingsStore((state) => state.uiRadiusPreset);
   const themeTonePreset = useSettingsStore((state) => state.themeTonePreset);
+  const themeContrastPreset = useSettingsStore((state) => state.themeContrastPreset);
   const accentColor = useSettingsStore((state) => state.accentColor);
   const autoCheckAppUpdateOnLaunch = useSettingsStore((state) => state.autoCheckAppUpdateOnLaunch);
   const enableUpdateDialog = useSettingsStore((state) => state.enableUpdateDialog);
@@ -73,6 +74,11 @@ function App() {
     const root = document.documentElement;
     root.dataset.themeTone = themeTonePreset;
   }, [themeTonePreset]);
+
+  useEffect(() => {
+    const root = document.documentElement;
+    root.dataset.themeContrast = themeContrastPreset;
+  }, [themeContrastPreset]);
 
   useEffect(() => {
     const root = document.documentElement;

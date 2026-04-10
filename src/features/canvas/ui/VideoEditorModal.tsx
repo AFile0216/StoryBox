@@ -702,6 +702,7 @@ export const VideoEditorModal = memo(({
             <button
               type="button"
               className="inline-flex h-8 w-8 items-center justify-center rounded-md text-text-muted hover:bg-white/10 hover:text-text-dark"
+              aria-label={t('common.close', { defaultValue: '关闭' })}
               onClick={onClose}
             >
               <X className="h-4 w-4" />
@@ -766,6 +767,9 @@ export const VideoEditorModal = memo(({
                   <button
                     type="button"
                     className="inline-flex h-7 w-7 items-center justify-center rounded-md border border-white/15 bg-white/5 text-text-muted hover:bg-white/12 hover:text-white"
+                    aria-label={isPlaying
+                      ? t('node.videoEditor.pause', { defaultValue: '暂停播放' })
+                      : t('node.videoEditor.play', { defaultValue: '播放时间线' })}
                     onClick={() => {
                       if (isPlaying) {
                         setIsPlaying(false);
@@ -866,6 +870,7 @@ export const VideoEditorModal = memo(({
                           <button
                             type="button"
                             className="absolute -right-2 -top-2 inline-flex h-4 w-4 items-center justify-center rounded-full border border-white/20 bg-black/80 text-white hover:bg-red-500"
+                            aria-label={t('common.delete', { defaultValue: '删除' })}
                             onClick={(event) => {
                               event.stopPropagation();
                               handleRemoveVideoClip(clip.id);
@@ -920,6 +925,7 @@ export const VideoEditorModal = memo(({
                           <button
                             type="button"
                             className="absolute -right-2 -top-2 inline-flex h-4 w-4 items-center justify-center rounded-full border border-white/20 bg-black/80 text-white hover:bg-red-500"
+                            aria-label={t('common.delete', { defaultValue: '删除' })}
                             onClick={(event) => {
                               event.stopPropagation();
                               handleRemoveTextClip(clip.id);
@@ -970,6 +976,7 @@ export const VideoEditorModal = memo(({
                   step={0.1}
                   value={clamp(playheadSec, 0, timelineMaxSec)}
                   onChange={(event) => setPlayheadSec(Number(event.target.value))}
+                  aria-label={t('node.videoEditor.timeline', { defaultValue: '时间轴' })}
                   className="h-1.5 w-full cursor-pointer appearance-none rounded-full bg-white/15 accent-[rgb(var(--accent-rgb))]"
                 />
               </div>

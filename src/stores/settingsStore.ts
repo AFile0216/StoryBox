@@ -30,6 +30,7 @@ import {
 
 export type UiRadiusPreset = 'compact' | 'default' | 'large';
 export type ThemeTonePreset = 'neutral' | 'warm' | 'cool';
+export type ThemeContrastPreset = 'balanced' | 'high' | 'soft';
 export type CanvasEdgeRoutingMode = 'spline' | 'orthogonal' | 'smartOrthogonal';
 export type ProviderApiKeys = Record<string, string>;
 
@@ -51,6 +52,7 @@ interface SettingsState {
   showStoryboardGenAdvancedRatioControls: boolean;
   uiRadiusPreset: UiRadiusPreset;
   themeTonePreset: ThemeTonePreset;
+  themeContrastPreset: ThemeContrastPreset;
   accentColor: string;
   canvasEdgeRoutingMode: CanvasEdgeRoutingMode;
   autoCheckAppUpdateOnLaunch: boolean;
@@ -76,6 +78,7 @@ interface SettingsState {
   setShowStoryboardGenAdvancedRatioControls: (enabled: boolean) => void;
   setUiRadiusPreset: (preset: UiRadiusPreset) => void;
   setThemeTonePreset: (preset: ThemeTonePreset) => void;
+  setThemeContrastPreset: (preset: ThemeContrastPreset) => void;
   setAccentColor: (color: string) => void;
   setCanvasEdgeRoutingMode: (mode: CanvasEdgeRoutingMode) => void;
   setAutoCheckAppUpdateOnLaunch: (enabled: boolean) => void;
@@ -246,6 +249,7 @@ function applySettingsState(
       settings.showStoryboardGenAdvancedRatioControls ?? false,
     uiRadiusPreset: settings.uiRadiusPreset ?? 'default',
     themeTonePreset: settings.themeTonePreset ?? 'neutral',
+    themeContrastPreset: settings.themeContrastPreset ?? 'balanced',
     accentColor: normalizeHexColor(settings.accentColor ?? '#3B82F6'),
     canvasEdgeRoutingMode: normalizeCanvasEdgeRoutingMode(settings.canvasEdgeRoutingMode),
     promptEnhancement: settings.promptEnhancement ?? DEFAULT_PROMPT_ENHANCEMENT_CONFIG,
@@ -276,6 +280,7 @@ export const useSettingsStore = create<SettingsState>()(
       showStoryboardGenAdvancedRatioControls: false,
       uiRadiusPreset: 'default',
       themeTonePreset: 'neutral',
+      themeContrastPreset: 'balanced',
       accentColor: '#3B82F6',
       canvasEdgeRoutingMode: 'spline',
       autoCheckAppUpdateOnLaunch: true,
@@ -346,6 +351,7 @@ export const useSettingsStore = create<SettingsState>()(
         set({ showStoryboardGenAdvancedRatioControls: enabled }),
       setUiRadiusPreset: (uiRadiusPreset) => set({ uiRadiusPreset }),
       setThemeTonePreset: (themeTonePreset) => set({ themeTonePreset }),
+      setThemeContrastPreset: (themeContrastPreset) => set({ themeContrastPreset }),
       setAccentColor: (color) => set({ accentColor: normalizeHexColor(color) }),
       setCanvasEdgeRoutingMode: (canvasEdgeRoutingMode) =>
         set({ canvasEdgeRoutingMode: normalizeCanvasEdgeRoutingMode(canvasEdgeRoutingMode) }),
@@ -383,6 +389,7 @@ export const useSettingsStore = create<SettingsState>()(
             state.showStoryboardGenAdvancedRatioControls,
           uiRadiusPreset: state.uiRadiusPreset,
           themeTonePreset: state.themeTonePreset,
+          themeContrastPreset: state.themeContrastPreset,
           accentColor: state.accentColor,
           canvasEdgeRoutingMode: state.canvasEdgeRoutingMode,
           promptEnhancement: state.promptEnhancement,
@@ -392,7 +399,7 @@ export const useSettingsStore = create<SettingsState>()(
     }),
     {
       name: 'settings-storage',
-      version: 15,
+      version: 16,
       onRehydrateStorage: () => {
         return (_state, error) => {
           if (error) {
@@ -424,6 +431,7 @@ export const useSettingsStore = create<SettingsState>()(
           storyboardGenDisableTextInImage?: boolean;
           uiRadiusPreset?: UiRadiusPreset;
           themeTonePreset?: ThemeTonePreset;
+          themeContrastPreset?: ThemeContrastPreset;
           accentColor?: string;
         };
 
@@ -477,6 +485,7 @@ export const useSettingsStore = create<SettingsState>()(
           storyboardGenDisableTextInImage: state.storyboardGenDisableTextInImage ?? true,
           uiRadiusPreset: state.uiRadiusPreset ?? 'default',
           themeTonePreset: state.themeTonePreset ?? 'neutral',
+          themeContrastPreset: state.themeContrastPreset ?? 'balanced',
           accentColor: normalizeHexColor(state.accentColor ?? '#3B82F6'),
           promptEnhancement: (state as any).promptEnhancement ?? DEFAULT_PROMPT_ENHANCEMENT_CONFIG,
           promptTemplates: (state as any).promptTemplates ?? [],

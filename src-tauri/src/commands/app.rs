@@ -6,6 +6,10 @@ use reqwest::header;
 use serde::{Deserialize, Serialize};
 use tauri::{AppHandle, Manager};
 
+fn default_theme_contrast_preset() -> String {
+    "balanced".to_string()
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct PersistedAppSettings {
@@ -25,6 +29,8 @@ pub struct PersistedAppSettings {
     pub show_storyboard_gen_advanced_ratio_controls: bool,
     pub ui_radius_preset: String,
     pub theme_tone_preset: String,
+    #[serde(default = "default_theme_contrast_preset")]
+    pub theme_contrast_preset: String,
     pub accent_color: String,
     pub canvas_edge_routing_mode: String,
 }

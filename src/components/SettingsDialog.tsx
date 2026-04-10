@@ -99,6 +99,7 @@ function toPersistedSettings(input: {
   showStoryboardGenAdvancedRatioControls: boolean;
   uiRadiusPreset: 'compact' | 'default' | 'large';
   themeTonePreset: 'neutral' | 'warm' | 'cool';
+  themeContrastPreset: 'balanced' | 'high' | 'soft';
   accentColor: string;
   canvasEdgeRoutingMode: 'spline' | 'orthogonal' | 'smartOrthogonal';
   autoCheckAppUpdateOnLaunch: boolean;
@@ -122,6 +123,7 @@ function toPersistedSettings(input: {
     showStoryboardGenAdvancedRatioControls: input.showStoryboardGenAdvancedRatioControls,
     uiRadiusPreset: input.uiRadiusPreset,
     themeTonePreset: input.themeTonePreset,
+    themeContrastPreset: input.themeContrastPreset,
     accentColor: input.accentColor,
     canvasEdgeRoutingMode: input.canvasEdgeRoutingMode,
   };
@@ -155,6 +157,7 @@ export function SettingsDialog({
     showStoryboardGenAdvancedRatioControls,
     uiRadiusPreset,
     themeTonePreset,
+    themeContrastPreset,
     accentColor,
     canvasEdgeRoutingMode,
     autoCheckAppUpdateOnLaunch,
@@ -174,6 +177,7 @@ export function SettingsDialog({
     setShowStoryboardGenAdvancedRatioControls,
     setUiRadiusPreset,
     setThemeTonePreset,
+    setThemeContrastPreset,
     setAccentColor,
     setCanvasEdgeRoutingMode,
     setAutoCheckAppUpdateOnLaunch,
@@ -198,6 +202,7 @@ export function SettingsDialog({
   const [localShowStoryboardGenAdvancedRatioControls, setLocalShowStoryboardGenAdvancedRatioControls] = useState(showStoryboardGenAdvancedRatioControls);
   const [localUiRadiusPreset, setLocalUiRadiusPreset] = useState(uiRadiusPreset);
   const [localThemeTonePreset, setLocalThemeTonePreset] = useState(themeTonePreset);
+  const [localThemeContrastPreset, setLocalThemeContrastPreset] = useState(themeContrastPreset);
   const [localAccentColor, setLocalAccentColor] = useState(accentColor);
   const [localCanvasEdgeRoutingMode, setLocalCanvasEdgeRoutingMode] = useState(canvasEdgeRoutingMode);
   const [localAutoCheckAppUpdateOnLaunch, setLocalAutoCheckAppUpdateOnLaunch] = useState(autoCheckAppUpdateOnLaunch);
@@ -244,6 +249,7 @@ export function SettingsDialog({
     setLocalShowStoryboardGenAdvancedRatioControls(showStoryboardGenAdvancedRatioControls);
     setLocalUiRadiusPreset(uiRadiusPreset);
     setLocalThemeTonePreset(themeTonePreset);
+    setLocalThemeContrastPreset(themeContrastPreset);
     setLocalAccentColor(accentColor);
     setLocalCanvasEdgeRoutingMode(canvasEdgeRoutingMode);
     setLocalAutoCheckAppUpdateOnLaunch(autoCheckAppUpdateOnLaunch);
@@ -270,6 +276,7 @@ export function SettingsDialog({
     storyboardGenAutoInferEmptyFrame,
     storyboardGenDisableTextInImage,
     storyboardGenKeepStyleConsistent,
+    themeContrastPreset,
     themeTonePreset,
     uiRadiusPreset,
     useUploadFilenameAsNodeTitle,
@@ -291,6 +298,7 @@ export function SettingsDialog({
     setShowStoryboardGenAdvancedRatioControls(localShowStoryboardGenAdvancedRatioControls);
     setUiRadiusPreset(localUiRadiusPreset);
     setThemeTonePreset(localThemeTonePreset);
+    setThemeContrastPreset(localThemeContrastPreset);
     setAccentColor(localAccentColor);
     setCanvasEdgeRoutingMode(localCanvasEdgeRoutingMode);
     setAutoCheckAppUpdateOnLaunch(localAutoCheckAppUpdateOnLaunch);
@@ -313,6 +321,7 @@ export function SettingsDialog({
           showStoryboardGenAdvancedRatioControls: localShowStoryboardGenAdvancedRatioControls,
           uiRadiusPreset: localUiRadiusPreset,
           themeTonePreset: localThemeTonePreset,
+          themeContrastPreset: localThemeContrastPreset,
           accentColor: localAccentColor,
           canvasEdgeRoutingMode: localCanvasEdgeRoutingMode,
           autoCheckAppUpdateOnLaunch: localAutoCheckAppUpdateOnLaunch,
@@ -339,6 +348,7 @@ export function SettingsDialog({
     localStoryboardGenAutoInferEmptyFrame,
     localStoryboardGenDisableTextInImage,
     localStoryboardGenKeepStyleConsistent,
+    localThemeContrastPreset,
     localThemeTonePreset,
     localUiRadiusPreset,
     localUseUploadFilenameAsNodeTitle,
@@ -355,6 +365,7 @@ export function SettingsDialog({
     setIgnoreAtTagWhenCopyingAndGenerating,
     setProviderRoutes,
     setShowStoryboardGenAdvancedRatioControls,
+    setThemeContrastPreset,
     setStoryboardGenAutoInferEmptyFrame,
     setStoryboardGenDisableTextInImage,
     setStoryboardGenKeepStyleConsistent,
@@ -976,6 +987,21 @@ export function SettingsDialog({
                       <option value="neutral">{t('settings.toneNeutral')}</option>
                       <option value="warm">{t('settings.toneWarm')}</option>
                       <option value="cool">{t('settings.toneCool')}</option>
+                    </UiSelect>
+                  </div>
+                  <div className="rounded-lg border border-border-dark bg-bg-dark p-4">
+                    <h3 className="text-sm font-medium text-text-dark">{t('settings.themeContrast')}</h3>
+                    <p className="mt-1 text-xs text-text-muted">{t('settings.themeContrastDesc')}</p>
+                    <UiSelect
+                      value={localThemeContrastPreset}
+                      onChange={(event) =>
+                        setLocalThemeContrastPreset(event.target.value as typeof localThemeContrastPreset)
+                      }
+                      className="mt-3 h-9 text-sm"
+                    >
+                      <option value="balanced">{t('settings.contrastBalanced')}</option>
+                      <option value="high">{t('settings.contrastHigh')}</option>
+                      <option value="soft">{t('settings.contrastSoft')}</option>
                     </UiSelect>
                   </div>
                 </>

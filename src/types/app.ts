@@ -68,6 +68,7 @@ export interface PersistedAppSettings {
   showStoryboardGenAdvancedRatioControls: boolean;
   uiRadiusPreset: 'compact' | 'default' | 'large';
   themeTonePreset: 'neutral' | 'warm' | 'cool';
+  themeContrastPreset: 'balanced' | 'high' | 'soft';
   accentColor: string;
   canvasEdgeRoutingMode: 'spline' | 'orthogonal' | 'smartOrthogonal';
   promptEnhancement?: PromptEnhancementConfig;

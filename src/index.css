@@ -52,6 +52,9 @@
   --tapnow-node-button-bg: rgba(255, 255, 255, 0.85);
   --tapnow-node-button-bg-hover: rgba(255, 255, 255, 0.98);
   --tapnow-node-button-text: rgba(14, 25, 40, 0.9);
+  --app-bg-radial-a: rgba(255, 138, 31, 0.09);
+  --app-bg-radial-b: rgba(74, 155, 255, 0.09);
+  --app-bg-sheen: rgba(255, 255, 255, 0.03);
 }
 
 .dark {
@@ -99,6 +102,9 @@
   --tapnow-node-button-bg: rgba(255, 255, 255, 0.045);
   --tapnow-node-button-bg-hover: rgba(255, 255, 255, 0.08);
   --tapnow-node-button-text: rgba(235, 242, 249, 0.94);
+  --app-bg-radial-a: rgba(255, 138, 31, 0.08);
+  --app-bg-radial-b: rgba(67, 147, 255, 0.08);
+  --app-bg-sheen: rgba(255, 255, 255, 0.02);
 }
 
 :root[data-ui-radius='compact'] {
@@ -147,6 +153,72 @@
   --text-muted-rgb: 140 163 194;
 }
 
+:root[data-theme-contrast='high'] {
+  --text-rgb: 11 20 34;
+  --text-muted-rgb: 63 80 103;
+  --ui-surface-panel: rgba(255, 255, 255, 0.97);
+  --ui-surface-field: rgba(255, 255, 255, 0.98);
+  --ui-border-soft: rgba(15, 23, 42, 0.24);
+  --ui-border-strong: rgba(15, 23, 42, 0.4);
+  --tapnow-node-card-border: rgba(9, 22, 38, 0.24);
+  --tapnow-node-card-bg-top: rgba(255, 255, 255, 0.99);
+  --tapnow-node-card-bg-bottom: rgba(248, 251, 255, 0.96);
+  --tapnow-node-surface-border: rgba(9, 22, 38, 0.22);
+  --tapnow-node-panel-border: rgba(9, 22, 38, 0.2);
+  --tapnow-node-button-border: rgba(11, 25, 43, 0.28);
+  --app-bg-radial-a: rgba(249, 115, 22, 0.12);
+  --app-bg-radial-b: rgba(59, 130, 246, 0.12);
+}
+
+:root.dark[data-theme-contrast='high'] {
+  --text-rgb: 247 251 255;
+  --text-muted-rgb: 178 194 215;
+  --ui-surface-panel: rgba(18, 25, 36, 0.96);
+  --ui-surface-field: rgba(11, 18, 27, 0.96);
+  --ui-border-soft: rgba(214, 229, 248, 0.27);
+  --ui-border-strong: rgba(235, 243, 255, 0.42);
+  --tapnow-node-card-border: rgba(208, 224, 247, 0.28);
+  --tapnow-node-card-bg-top: rgba(255, 255, 255, 0.09);
+  --tapnow-node-card-bg-bottom: rgba(255, 255, 255, 0.028);
+  --tapnow-node-surface-border: rgba(208, 224, 247, 0.22);
+  --tapnow-node-panel-border: rgba(208, 224, 247, 0.2);
+  --tapnow-node-button-border: rgba(214, 229, 248, 0.28);
+  --app-bg-radial-a: rgba(255, 138, 31, 0.13);
+  --app-bg-radial-b: rgba(67, 147, 255, 0.12);
+}
+
+:root[data-theme-contrast='soft'] {
+  --text-rgb: 28 38 54;
+  --text-muted-rgb: 106 122 145;
+  --ui-surface-panel: rgba(251, 252, 255, 0.9);
+  --ui-surface-field: rgba(246, 249, 255, 0.9);
+  --ui-border-soft: rgba(15, 23, 42, 0.12);
+  --ui-border-strong: rgba(15, 23, 42, 0.22);
+  --tapnow-node-card-border: rgba(12, 25, 43, 0.11);
+  --tapnow-node-card-shadow: 0 14px 30px rgba(8, 18, 30, 0.11);
+  --tapnow-node-button-border: rgba(11, 25, 43, 0.13);
+  --app-bg-radial-a: rgba(255, 138, 31, 0.07);
+  --app-bg-radial-b: rgba(74, 155, 255, 0.07);
+}
+
+:root.dark[data-theme-contrast='soft'] {
+  --text-rgb: 228 236 246;
+  --text-muted-rgb: 130 149 174;
+  --ui-surface-panel: rgba(14, 21, 31, 0.88);
+  --ui-surface-field: rgba(11, 17, 26, 0.88);
+  --ui-border-soft: rgba(198, 214, 233, 0.12);
+  --ui-border-strong: rgba(227, 237, 248, 0.2);
+  --tapnow-node-card-border: rgba(188, 211, 236, 0.12);
+  --tapnow-node-card-bg-top: rgba(255, 255, 255, 0.05);
+  --tapnow-node-card-bg-bottom: rgba(255, 255, 255, 0.012);
+  --tapnow-node-card-shadow: 0 14px 34px rgba(2, 7, 13, 0.35);
+  --tapnow-node-surface-border: rgba(195, 212, 235, 0.1);
+  --tapnow-node-panel-border: rgba(191, 211, 236, 0.1);
+  --tapnow-node-button-border: rgba(207, 223, 243, 0.14);
+  --app-bg-radial-a: rgba(255, 138, 31, 0.07);
+  --app-bg-radial-b: rgba(67, 147, 255, 0.07);
+}
+
 * {
   margin: 0;
   padding: 0;
@@ -162,8 +234,9 @@ html, body, #root {
 body {
   font-family: var(--font-family-ui-default);
   background:
-    radial-gradient(circle at 0% 0%, rgba(255, 138, 31, 0.09), transparent 34%),
-    radial-gradient(circle at 100% 100%, rgba(74, 155, 255, 0.09), transparent 32%),
+    radial-gradient(circle at 0% 0%, var(--app-bg-radial-a), transparent 34%),
+    radial-gradient(circle at 100% 100%, var(--app-bg-radial-b), transparent 32%),
+    linear-gradient(180deg, var(--app-bg-sheen), rgba(255, 255, 255, 0)),
     rgb(var(--bg-rgb));
   color: var(--text);
   letter-spacing: 0.01em;
@@ -193,6 +266,10 @@ html[data-platform='macos'] #root {
   scrollbar-color: rgba(148, 163, 184, 0.56) transparent;
 }
 
+.dark .ui-scrollbar {
+  scrollbar-color: rgba(148, 163, 184, 0.42) transparent;
+}
+
 .ui-scrollbar::-webkit-scrollbar {
   width: 7px;
   height: 7px;
@@ -205,6 +282,10 @@ html[data-platform='macos'] #root {
 .ui-scrollbar::-webkit-scrollbar-thumb {
   border-radius: 9999px;
   background: rgba(148, 163, 184, 0.5);
+}
+
+.dark .ui-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(148, 163, 184, 0.36);
 }
 
 .ui-scrollbar:hover::-webkit-scrollbar-thumb {

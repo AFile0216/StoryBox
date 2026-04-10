@@ -293,6 +293,9 @@ export const VideoPreviewNode = memo(({ id, data, selected, width, height }: Vid
             <button
               type="button"
               className="inline-flex h-6 w-6 items-center justify-center rounded-md border border-white/15 bg-white/5 text-text-muted hover:bg-white/10 hover:text-text-dark"
+              aria-label={isPlaying
+                ? t('node.videoEditor.pause', { defaultValue: '暂停播放' })
+                : t('node.videoEditor.play', { defaultValue: '播放时间线' })}
               onClick={(event) => {
                 event.stopPropagation();
                 setIsPlaying((previous) => {
@@ -339,6 +342,7 @@ export const VideoPreviewNode = memo(({ id, data, selected, width, height }: Vid
               setPlayheadSec(next);
               updateNodeData(id, { currentTimeSec: next });
             }}
+            aria-label={t('node.videoEditor.timeline', { defaultValue: '时间轴' })}
             className="h-1.5 w-full cursor-pointer appearance-none rounded-full bg-white/15 accent-[rgb(var(--accent-rgb))]"
           />
         </div>
