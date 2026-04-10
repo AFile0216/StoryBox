@@ -66,14 +66,14 @@ interface UiModalProps {
 
 function resolveButtonVariant(variant: ButtonVariant): string {
   if (variant === 'primary') {
-    return 'bg-accent text-white hover:bg-accent/85';
+    return 'border border-[rgba(var(--accent-rgb),0.45)] bg-[rgba(var(--accent-rgb),0.2)] text-white hover:bg-[rgba(var(--accent-rgb),0.3)]';
   }
 
   if (variant === 'ghost') {
-    return 'bg-transparent text-text-dark hover:bg-[rgba(15,23,42,0.08)] dark:hover:bg-bg-dark/70';
+    return 'border border-transparent bg-transparent text-text-dark hover:border-[color:var(--ui-border-soft)] hover:bg-[rgba(15,23,42,0.08)] dark:hover:bg-white/[0.04]';
   }
 
-  return 'bg-[rgba(15,23,42,0.08)] text-text-dark hover:bg-[rgba(15,23,42,0.14)] dark:bg-bg-dark/80 dark:hover:bg-bg-dark';
+  return 'border border-[color:var(--ui-border-soft)] bg-[var(--ui-surface-field)] text-text-dark hover:border-[color:var(--ui-border-strong)] hover:bg-white/80 dark:hover:bg-white/[0.06]';
 }
 
 function resolveButtonSize(size: ButtonSize): string {
@@ -88,7 +88,7 @@ export function UiButton({
 }: UiButtonProps) {
   return (
     <button
-      className={`inline-flex items-center justify-center rounded-lg font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${resolveButtonVariant(variant)} ${resolveButtonSize(size)} ${className}`}
+      className={`inline-flex items-center justify-center rounded-[10px] font-medium tracking-[0.01em] transition-all disabled:cursor-not-allowed disabled:opacity-50 ${resolveButtonVariant(variant)} ${resolveButtonSize(size)} ${className}`}
       {...props}
     />
   );
@@ -97,7 +97,7 @@ export function UiButton({
 export function UiIconButton({ className = '', active = false, ...props }: UiIconButtonProps) {
   return (
     <button
-      className={`inline-flex h-10 w-10 items-center justify-center border ui-field transition-colors ${active ? 'border-accent/45 bg-accent/18 text-text-dark' : 'text-text-muted hover:bg-[rgba(15,23,42,0.08)] dark:hover:bg-bg-dark'} ${className}`}
+      className={`inline-flex h-10 w-10 items-center justify-center border ui-field transition-all ${active ? 'border-[rgba(var(--accent-rgb),0.5)] bg-[rgba(var(--accent-rgb),0.18)] text-text-dark' : 'text-text-muted hover:border-[color:var(--ui-border-strong)] hover:bg-[rgba(15,23,42,0.08)] dark:hover:bg-white/[0.05]'} ${className}`}
       {...props}
     />
   );
@@ -107,7 +107,7 @@ export const UiChipButton = forwardRef<HTMLButtonElement, UiChipButtonProps>(
   ({ className = '', active = false, ...props }, ref) => (
     <button
       ref={ref}
-      className={`inline-flex h-10 items-center gap-2 border ui-field px-3 text-sm transition-colors ${active ? 'border-accent/45 bg-accent/15 text-text-dark' : 'text-text-dark hover:bg-[rgba(15,23,42,0.08)] dark:hover:bg-bg-dark'} ${className}`}
+      className={`inline-flex h-10 items-center gap-2 border ui-field px-3 text-sm tracking-[0.01em] transition-all ${active ? 'border-[rgba(var(--accent-rgb),0.5)] bg-[rgba(var(--accent-rgb),0.14)] text-text-dark' : 'text-text-dark hover:border-[color:var(--ui-border-strong)] hover:bg-[rgba(15,23,42,0.08)] dark:hover:bg-white/[0.05]'} ${className}`}
       {...props}
     />
   )
@@ -118,7 +118,7 @@ UiChipButton.displayName = 'UiChipButton';
 export function UiPanel({ className = '', ...props }: HTMLAttributes<HTMLDivElement>) {
   return (
     <div
-      className={`border ui-panel ${className}`}
+      className={`border ui-panel backdrop-blur-md ${className}`}
       {...props}
     />
   );
@@ -127,7 +127,7 @@ export function UiPanel({ className = '', ...props }: HTMLAttributes<HTMLDivElem
 export function UiTextArea({ className = '', ...props }: TextareaHTMLAttributes<HTMLTextAreaElement>) {
   return (
     <textarea
-      className={`w-full resize-none border ui-field px-3 py-2.5 text-sm text-text-dark outline-none transition-colors placeholder:text-text-muted/70 focus:border-accent ${className}`}
+      className={`w-full resize-none border ui-field px-3 py-2.5 text-sm text-text-dark outline-none transition-colors placeholder:text-text-muted/70 focus:border-[rgba(var(--accent-rgb),0.56)] focus:shadow-[0_0_0_2px_rgba(var(--accent-rgb),0.12)] ${className}`}
       {...props}
     />
   );
@@ -137,7 +137,7 @@ export const UiTextAreaField = forwardRef<HTMLTextAreaElement, TextareaHTMLAttri
   ({ className = '', ...props }, ref) => (
     <textarea
       ref={ref}
-      className={`w-full resize-none border ui-field px-3 py-2.5 text-sm text-text-dark outline-none transition-colors placeholder:text-text-muted/70 focus:border-accent ${className}`}
+      className={`w-full resize-none border ui-field px-3 py-2.5 text-sm text-text-dark outline-none transition-colors placeholder:text-text-muted/70 focus:border-[rgba(var(--accent-rgb),0.56)] focus:shadow-[0_0_0_2px_rgba(var(--accent-rgb),0.12)] ${className}`}
       {...props}
     />
   )
@@ -149,7 +149,7 @@ export const UiInput = forwardRef<HTMLInputElement, InputHTMLAttributes<HTMLInpu
   ({ className = '', ...props }, ref) => (
     <input
       ref={ref}
-      className={`w-full border ui-field px-3 py-2 text-sm text-text-dark outline-none transition-colors placeholder:text-text-muted/70 focus:border-accent ${className}`}
+      className={`w-full border ui-field px-3 py-2 text-sm text-text-dark outline-none transition-colors placeholder:text-text-muted/70 focus:border-[rgba(var(--accent-rgb),0.56)] focus:shadow-[0_0_0_2px_rgba(var(--accent-rgb),0.12)] ${className}`}
       {...props}
     />
   )
@@ -166,8 +166,8 @@ export const UiCheckbox = forwardRef<HTMLButtonElement, UiCheckboxProps>(
       aria-checked={checked}
       className={`inline-flex h-5 w-5 items-center justify-center rounded border transition-colors ${
         checked
-          ? 'border-accent/60 bg-accent/20 text-accent'
-          : 'border-[rgba(255,255,255,0.2)] bg-bg-dark/60 text-transparent hover:border-[rgba(255,255,255,0.32)]'
+          ? 'border-[rgba(var(--accent-rgb),0.7)] bg-[rgba(var(--accent-rgb),0.24)] text-accent'
+          : 'border-[color:var(--ui-border-soft)] bg-[var(--ui-surface-field)] text-transparent hover:border-[color:var(--ui-border-strong)]'
       } ${className}`}
       onClick={(event) => {
         onClick?.(event);
@@ -383,7 +383,7 @@ export function UiSelect({ className = '', children, ...props }: UiSelectProps) 
         aria-expanded={isOpen}
         aria-controls={listboxIdRef.current}
         disabled={disabled}
-        className={`group inline-flex h-8 w-full items-center justify-between rounded-[6px] border border-[color:var(--ui-border-soft)] bg-[var(--ui-surface-field)] px-3 text-left text-xs font-medium text-text-dark outline-none transition-[border-color,background-color,box-shadow,color] hover:border-[color:var(--ui-border-strong)] focus-visible:border-accent focus-visible:shadow-[0_0_0_2px_rgba(var(--accent-rgb),0.12)] disabled:cursor-not-allowed disabled:opacity-55 ${className}`}
+        className={`group inline-flex h-8 w-full items-center justify-between rounded-[8px] border border-[color:var(--ui-border-soft)] bg-[var(--ui-surface-field)] px-3 text-left text-xs font-medium text-text-dark outline-none transition-[border-color,background-color,box-shadow,color] hover:border-[color:var(--ui-border-strong)] focus-visible:border-[rgba(var(--accent-rgb),0.62)] focus-visible:shadow-[0_0_0_2px_rgba(var(--accent-rgb),0.12)] disabled:cursor-not-allowed disabled:opacity-55 ${className}`}
         onClick={() => {
           if (!disabled && parsedOptions.length > 0) {
             setIsOpen((current) => !current);
@@ -432,8 +432,8 @@ export function UiSelect({ className = '', children, ...props }: UiSelectProps) 
                         option.disabled
                           ? 'cursor-not-allowed opacity-40'
                           : isSelected
-                            ? 'bg-accent text-white'
-                            : 'text-text-dark hover:bg-[rgba(255,255,255,0.08)] dark:hover:bg-white/[0.06]'
+                            ? 'bg-[rgba(var(--accent-rgb),0.84)] text-white'
+                            : 'text-text-dark hover:bg-[rgba(255,255,255,0.45)] dark:hover:bg-white/[0.08]'
                       }`}
                       onClick={() => {
                         if (option.disabled) {

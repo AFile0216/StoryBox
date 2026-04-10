@@ -1,8 +1,8 @@
-import { useCallback } from 'react';
+import { useCallback, type ReactNode } from 'react';
 import { getCurrentWindow } from '@tauri-apps/api/window';
-import { Minus, X, Maximize2, Settings, ArrowLeft, History } from 'lucide-react';
+import { ArrowLeft, History, Languages, Maximize2, Minus, Moon, Settings, Sun, X } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
-import { Moon, Sun, Languages } from 'lucide-react';
+
 import { useThemeStore } from '@/stores/themeStore';
 import { useProjectStore } from '@/stores/projectStore';
 import closeNormalIcon from '@/assets/macos-traffic-lights/1-close-1-normal.svg';
@@ -19,6 +19,30 @@ interface TitleBarProps {
   onBackClick?: () => void;
 }
 
+function TitlebarToolButton({
+  title,
+  onClick,
+  children,
+}: {
+  title: string;
+  onClick: () => void;
+  children: ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      data-no-drag="true"
+      onMouseDown={(event) => event.stopPropagation()}
+      onClick={onClick}
+      className="inline-flex h-8 w-8 items-center justify-center rounded-[8px] text-text-muted transition-all hover:bg-[var(--ui-surface-field)] hover:text-text-dark"
+      title={title}
+      aria-label={title}
+    >
+      {children}
+    </button>
+  );
+}
+
 export function TitleBar({ onSettingsClick, showBackButton, onBackClick, onHistoryClick }: TitleBarProps) {
   const { t, i18n } = useTranslation();
   const { theme, toggleTheme } = useThemeStore();
@@ -30,7 +54,7 @@ export function TitleBar({ onSettingsClick, showBackButton, onBackClick, onHisto
     typeof navigator !== 'undefined'
     && /(Mac|iPhone|iPad|iPod)/i.test(`${navigator.platform} ${navigator.userAgent}`);
   const appTitle = t('app.title');
-  const titleText = currentProjectName ? `${currentProjectName} - ${appTitle}` : appTitle;
+  const titleText = currentProjectName ? `${currentProjectName}` : appTitle;
 
   const handleMinimize = useCallback(async () => {
     await appWindow.minimize();
@@ -49,9 +73,11 @@ export function TitleBar({ onSettingsClick, showBackButton, onBackClick, onHisto
     await appWindow.close();
   }, [appWindow]);
 
-  const handleDragStart = useCallback(async (e: React.MouseEvent) => {
-    if (e.button !== 0) return;
-    const target = e.target as HTMLElement | null;
+  const handleDragStart = useCallback(async (event: React.MouseEvent) => {
+    if (event.button !== 0) {
+      return;
+    }
+    const target = event.target as HTMLElement | null;
     if (target?.closest('button') || target?.closest('[data-no-drag="true"]')) {
       return;
     }
@@ -59,155 +85,131 @@ export function TitleBar({ onSettingsClick, showBackButton, onBackClick, onHisto
   }, [appWindow]);
 
   const handleLanguageClick = useCallback(() => {
-    const newLang = i18n.language.startsWith('zh') ? 'en' : 'zh';
-    i18n.changeLanguage(newLang);
-  }, [i18n]);
+    const nextLanguage = isZh ? 'en' : 'zh';
+    void i18n.changeLanguage(nextLanguage);
+  }, [i18n, isZh]);
 
-  const handleThemeClick = useCallback(() => {
-    toggleTheme();
-  }, [toggleTheme]);
+  const subtitle = currentProjectName
+    ? t('titleBar.workspaceMode', { defaultValue: 'Storyboard Workspace' })
+    : t('app.subtitle');
 
   return (
-    <div className="h-10 flex items-center justify-between bg-surface-dark border-b border-border-dark select-none z-50 relative">
+    <div className="relative z-50 flex h-11 items-center justify-between border-b border-[var(--ui-border-soft)] bg-[linear-gradient(180deg,rgba(var(--bg-rgb),0.95),rgba(var(--bg-rgb),0.9))]">
       {isMac ? (
-        <div className="group flex items-center h-full pl-3 pr-2 gap-2" data-no-drag="true">
+        <div className="group flex h-full items-center gap-2 pl-3 pr-2" data-no-drag="true">
           <button
             type="button"
             onMouseDown={(event) => event.stopPropagation()}
-            onClick={handleClose}
+            onClick={() => void handleClose()}
             className="relative flex h-3 w-3 items-center justify-center"
             title={t('titleBar.close')}
             aria-label={t('titleBar.close')}
           >
-            <img src={closeNormalIcon} alt="" className="h-3 w-3 pointer-events-none opacity-100 transition-opacity group-hover:opacity-0" />
-            <img src={closeHoverIcon} alt="" className="absolute h-3 w-3 pointer-events-none opacity-0 transition-opacity group-hover:opacity-100" />
+            <img src={closeNormalIcon} alt="" className="pointer-events-none h-3 w-3 opacity-100 transition-opacity group-hover:opacity-0" />
+            <img src={closeHoverIcon} alt="" className="pointer-events-none absolute h-3 w-3 opacity-0 transition-opacity group-hover:opacity-100" />
           </button>
           <button
             type="button"
             onMouseDown={(event) => event.stopPropagation()}
-            onClick={handleMinimize}
+            onClick={() => void handleMinimize()}
             className="relative flex h-3 w-3 items-center justify-center"
             title={t('titleBar.minimize')}
             aria-label={t('titleBar.minimize')}
           >
-            <img src={minimizeNormalIcon} alt="" className="h-3 w-3 pointer-events-none opacity-100 transition-opacity group-hover:opacity-0" />
-            <img src={minimizeHoverIcon} alt="" className="absolute h-3 w-3 pointer-events-none opacity-0 transition-opacity group-hover:opacity-100" />
+            <img src={minimizeNormalIcon} alt="" className="pointer-events-none h-3 w-3 opacity-100 transition-opacity group-hover:opacity-0" />
+            <img src={minimizeHoverIcon} alt="" className="pointer-events-none absolute h-3 w-3 opacity-0 transition-opacity group-hover:opacity-100" />
           </button>
           <button
             type="button"
             onMouseDown={(event) => event.stopPropagation()}
-            onClick={handleMaximize}
+            onClick={() => void handleMaximize()}
             className="relative flex h-3 w-3 items-center justify-center"
             title={t('titleBar.maximize')}
             aria-label={t('titleBar.maximize')}
           >
-            <img src={maximizeNormalIcon} alt="" className="h-3 w-3 pointer-events-none opacity-100 transition-opacity group-hover:opacity-0" />
-            <img src={maximizeHoverIcon} alt="" className="absolute h-3 w-3 pointer-events-none opacity-0 transition-opacity group-hover:opacity-100" />
+            <img src={maximizeNormalIcon} alt="" className="pointer-events-none h-3 w-3 opacity-100 transition-opacity group-hover:opacity-0" />
+            <img src={maximizeHoverIcon} alt="" className="pointer-events-none absolute h-3 w-3 opacity-0 transition-opacity group-hover:opacity-100" />
           </button>
         </div>
       ) : null}
 
-      <div
-        className="flex-1 h-full flex items-center px-4 cursor-move"
-        onMouseDown={handleDragStart}
-      >
-        {showBackButton && onBackClick && (
+      <div className="flex h-full min-w-0 flex-1 items-center px-3" onMouseDown={handleDragStart}>
+        {showBackButton && onBackClick ? (
           <button
             type="button"
             data-no-drag="true"
             onMouseDown={(event) => event.stopPropagation()}
-            onClick={(event) => {
-              event.stopPropagation();
-              onBackClick();
-            }}
-            className="mr-3 p-1 hover:bg-bg-dark rounded transition-colors"
+            onClick={onBackClick}
+            className="mr-3 inline-flex h-8 w-8 items-center justify-center rounded-[8px] text-text-muted transition-colors hover:bg-[var(--ui-surface-field)] hover:text-text-dark"
             title={t('titleBar.back')}
+            aria-label={t('titleBar.back')}
           >
-            <ArrowLeft className="w-4 h-4 text-text-muted hover:text-text-dark" />
+            <ArrowLeft className="h-4 w-4" />
           </button>
-        )}
-        <span className="text-sm font-semibold text-text-dark">
-          {titleText}
-        </span>
-        {!isZh && !currentProjectName ? (
-          <span className="text-xs text-text-muted ml-2">{t('app.subtitle')}</span>
         ) : null}
+
+        <div className="min-w-0">
+          <div className="ui-display-title truncate text-[13px] uppercase leading-4 text-text-dark">
+            {titleText}
+          </div>
+          <div className="truncate text-[10px] text-text-muted">
+            {subtitle}
+          </div>
+        </div>
       </div>
 
-      {/* 右侧按钮区域 */}
-      <div className="flex items-center h-full">
-        <button
-          type="button"
-          onClick={handleLanguageClick}
-          className="h-full px-3 hover:bg-bg-dark transition-colors"
-          title={i18n.language.startsWith('zh') ? t('titleBar.switchToEnglish') : t('titleBar.switchToChinese')}
-        >
-          <Languages className="w-4 h-4 text-text-muted" />
-        </button>
-
-        <button
-          type="button"
-          onClick={handleThemeClick}
-          className="h-full px-3 hover:bg-bg-dark transition-colors"
-          title={theme === 'dark' ? t('theme.light') : t('theme.dark')}
-        >
-          {theme === 'dark' ? (
-            <Sun className="w-4 h-4 text-text-muted" />
-          ) : (
-            <Moon className="w-4 h-4 text-text-muted" />
-          )}
-        </button>
-
-        {onHistoryClick && (
-          <button
-            type="button"
-            onClick={onHistoryClick}
-            className="h-full px-3 hover:bg-bg-dark transition-colors"
-            title={t('app.history', { defaultValue: '历史记录' })}
+      <div className="flex h-full items-center gap-2 pr-2" data-no-drag="true">
+        <div className="flex items-center rounded-[10px] border border-[var(--ui-border-soft)] bg-[var(--ui-surface-panel)] px-1 shadow-[0_8px_18px_rgba(2,6,23,0.12)]">
+          <TitlebarToolButton
+            title={isZh ? t('titleBar.switchToEnglish') : t('titleBar.switchToChinese')}
+            onClick={handleLanguageClick}
           >
-            <History className="w-4 h-4 text-text-muted" />
-          </button>
-        )}
-        <button
-          type="button"
-          onClick={onSettingsClick}
-          className="h-full px-3 hover:bg-bg-dark transition-colors"
-          title={t('settings.title')}
-        >
-          <Settings className="w-4 h-4 text-text-muted" />
-        </button>
+            <Languages className="h-4 w-4" />
+          </TitlebarToolButton>
+
+          <TitlebarToolButton
+            title={theme === 'dark' ? t('theme.light') : t('theme.dark')}
+            onClick={toggleTheme}
+          >
+            {theme === 'dark' ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+          </TitlebarToolButton>
+
+          {onHistoryClick ? (
+            <TitlebarToolButton
+              title={t('app.history', { defaultValue: '历史记录' })}
+              onClick={onHistoryClick}
+            >
+              <History className="h-4 w-4" />
+            </TitlebarToolButton>
+          ) : null}
+
+          <TitlebarToolButton
+            title={t('settings.title')}
+            onClick={onSettingsClick}
+          >
+            <Settings className="h-4 w-4" />
+          </TitlebarToolButton>
+        </div>
 
         {!isMac ? (
-          <>
-            <div className="w-px h-4 bg-border-dark mx-1" />
-
+          <div className="flex items-center rounded-[10px] border border-[var(--ui-border-soft)] bg-[var(--ui-surface-panel)] p-1 shadow-[0_8px_18px_rgba(2,6,23,0.12)]">
+            <TitlebarToolButton title={t('titleBar.minimize')} onClick={() => void handleMinimize()}>
+              <Minus className="h-4 w-4" />
+            </TitlebarToolButton>
+            <TitlebarToolButton title={t('titleBar.maximize')} onClick={() => void handleMaximize()}>
+              <Maximize2 className="h-4 w-4" />
+            </TitlebarToolButton>
             <button
               type="button"
-              onClick={handleMinimize}
-              className="h-full px-3 hover:bg-bg-dark transition-colors"
-              title={t('titleBar.minimize')}
-            >
-              <Minus className="w-4 h-4 text-text-muted hover:text-text-dark" />
-            </button>
-
-            <button
-              type="button"
-              onClick={handleMaximize}
-              className="h-full px-3 hover:bg-bg-dark transition-colors"
-              title={t('titleBar.maximize')}
-            >
-              <Maximize2 className="w-4 h-4 text-text-muted hover:text-text-dark" />
-            </button>
-
-            <button
-              type="button"
-              onClick={handleClose}
-              className="h-full px-3 hover:bg-red-500 transition-colors group"
+              onMouseDown={(event) => event.stopPropagation()}
+              onClick={() => void handleClose()}
+              className="inline-flex h-8 w-8 items-center justify-center rounded-[8px] text-text-muted transition-all hover:bg-red-500 hover:text-white"
               title={t('titleBar.close')}
+              aria-label={t('titleBar.close')}
             >
-              <X className="w-4 h-4 text-text-muted group-hover:text-white" />
+              <X className="h-4 w-4" />
             </button>
-          </>
+          </div>
         ) : null}
       </div>
     </div>

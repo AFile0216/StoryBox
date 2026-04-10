@@ -33,7 +33,7 @@ export default {
         accent: withOpacity('--accent-rgb'),
       },
       fontFamily: {
-        sans: ['Inter', 'system-ui', 'sans-serif'],
+        sans: ['Source Han Sans SC', 'Noto Sans SC', 'Microsoft YaHei UI', 'PingFang SC', 'Segoe UI', 'sans-serif'],
       },
     },
   },

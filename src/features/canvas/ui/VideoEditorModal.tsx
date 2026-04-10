@@ -668,18 +668,18 @@ export const VideoEditorModal = memo(({
 
   return (
     <div
-      className="fixed inset-0 z-50 p-6"
+      className="fixed inset-0 z-50 p-5 lg:p-6"
       onMouseDown={(event) => event.stopPropagation()}
     >
-      <div className="flex h-full flex-col overflow-hidden rounded-[26px] border border-[rgba(255,255,255,0.18)] bg-bg-dark/95 shadow-[0_24px_80px_rgba(2,6,23,0.45)]">
+      <div className="flex h-full flex-col overflow-hidden rounded-[26px] border border-[var(--ui-border-soft)] bg-[linear-gradient(180deg,rgba(16,24,35,0.96),rgba(10,16,24,0.95))] shadow-[0_24px_80px_rgba(2,6,23,0.45)]">
         <div className="flex h-12 shrink-0 items-center justify-between border-b border-[rgba(255,255,255,0.08)] px-4">
-          <span className="text-sm font-medium text-text-dark">
+          <span className="ui-display-title text-sm font-medium uppercase tracking-[0.08em] text-text-dark">
             {t('node.videoEditor.editorTitle', { defaultValue: '视频编辑器' })}
           </span>
           <div className="flex items-center gap-2">
             <button
               type="button"
-              className="inline-flex items-center gap-1 rounded-lg border border-[rgba(255,255,255,0.15)] px-3 py-1.5 text-xs text-text-dark hover:bg-white/5"
+              className="inline-flex items-center gap-1 rounded-lg border border-[var(--ui-border-soft)] bg-[rgba(255,255,255,0.03)] px-3 py-1.5 text-xs text-text-dark hover:bg-white/10"
               onClick={handleSave}
             >
               <Save className="h-3.5 w-3.5" />
@@ -701,7 +701,7 @@ export const VideoEditorModal = memo(({
             </button>
             <button
               type="button"
-              className="inline-flex h-8 w-8 items-center justify-center rounded-md text-text-muted hover:bg-white/5 hover:text-text-dark"
+              className="inline-flex h-8 w-8 items-center justify-center rounded-md text-text-muted hover:bg-white/10 hover:text-text-dark"
               onClick={onClose}
             >
               <X className="h-4 w-4" />
@@ -711,7 +711,7 @@ export const VideoEditorModal = memo(({
 
         <div className="flex min-h-0 flex-1">
           <div className="flex min-w-0 flex-1 flex-col border-r border-[rgba(255,255,255,0.08)] p-5">
-            <div className="relative min-h-0 flex-1 overflow-hidden rounded-[24px] border border-[rgba(255,255,255,0.2)] bg-black">
+            <div className="relative min-h-0 flex-1 overflow-hidden rounded-[24px] border border-[rgba(255,255,255,0.22)] bg-black">
               {activePreviewUrl ? (
                 <img
                   src={resolveImageDisplayUrl(activePreviewUrl)}
@@ -719,6 +719,14 @@ export const VideoEditorModal = memo(({
                   className="h-full w-full object-contain"
                   draggable={false}
                 />
+              ) : null}
+
+              {!activePreviewUrl ? (
+                <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
+                  <div className="ui-timecode rounded-md border border-white/20 bg-black/55 px-3 py-1 text-xs text-white/75">
+                    {t('node.videoEditor.blackFrame', { defaultValue: '黑场（无分镜）' })}
+                  </div>
+                </div>
               ) : null}
 
               {activeTextOverlays.length > 0 ? (
@@ -739,25 +747,25 @@ export const VideoEditorModal = memo(({
               ) : null}
 
               <div className="absolute left-4 top-4 flex items-center gap-2">
-                <span className="rounded bg-black/55 px-2 py-1 text-[11px] text-white/85">
+                <span className="rounded border border-white/20 bg-black/55 px-2 py-1 text-[11px] text-white/85">
                   {activePreviewUrl
                     ? (activeSourceClip?.label || t('node.videoEditor.previewFrame', { defaultValue: '当前分镜' }))
                     : t('node.videoEditor.blackFrame', { defaultValue: '黑场（无分镜）' })}
                 </span>
                 {hasReferenceVideo ? (
-                  <span className="rounded bg-black/45 px-2 py-1 text-[10px] text-white/65">
+                  <span className="rounded border border-white/15 bg-black/45 px-2 py-1 text-[10px] text-white/65">
                     {t('node.videoEditor.referenceVideoConnected', { defaultValue: '已连接参考视频' })}
                   </span>
                 ) : null}
               </div>
             </div>
 
-            <div className="mt-4 rounded-[16px] border border-[rgba(255,255,255,0.14)] bg-bg-dark/50 p-3">
+            <div className="mt-4 rounded-[16px] border border-[var(--ui-border-soft)] bg-[rgba(9,15,23,0.8)] p-3">
               <div className="mb-2 flex items-center justify-between text-xs text-text-muted">
                 <div className="flex items-center gap-2">
                   <button
                     type="button"
-                    className="inline-flex h-6 w-6 items-center justify-center rounded hover:bg-white/10 hover:text-white"
+                    className="inline-flex h-7 w-7 items-center justify-center rounded-md border border-white/15 bg-white/5 text-text-muted hover:bg-white/12 hover:text-white"
                     onClick={() => {
                       if (isPlaying) {
                         setIsPlaying(false);
@@ -769,14 +777,14 @@ export const VideoEditorModal = memo(({
                   >
                     {isPlaying ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
                   </button>
-                  <span className="font-medium text-sky-300">
+                  <span className="ui-display-title text-[11px] font-medium uppercase tracking-[0.12em] text-sky-300">
                     {t('node.videoEditor.timeline', { defaultValue: '时间轴' })}
                   </span>
                   <button
                     type="button"
                     className={`inline-flex items-center gap-1 rounded border px-2 py-0.5 text-[10px] transition-colors ${
                       snapEnabled
-                        ? 'border-sky-300/55 bg-sky-400/15 text-sky-200'
+                        ? 'border-sky-300/55 bg-sky-400/18 text-sky-100'
                         : 'border-white/20 bg-white/5 text-text-muted hover:bg-white/10'
                     }`}
                     onClick={() => setSnapEnabled((previous) => !previous)}
@@ -787,15 +795,17 @@ export const VideoEditorModal = memo(({
                       : t('node.videoEditor.snapOff', { defaultValue: '吸附：关' })}
                   </button>
                 </div>
-                <span>{formatSeconds(playheadSec)} / {formatSeconds(timelineMaxSec)}</span>
+                <span className="ui-timecode text-[11px] text-white/85">{formatSeconds(playheadSec)} / {formatSeconds(timelineMaxSec)}</span>
               </div>
 
               <div
                 ref={timelineTrackRef}
-                className="relative overflow-hidden rounded-md border border-[rgba(255,255,255,0.12)] bg-white/5"
+                className="relative overflow-hidden rounded-xl border border-[rgba(255,255,255,0.14)] bg-black/35"
                 onMouseDown={handleTrackMouseDown}
               >
-                <div className="relative h-7 border-b border-[rgba(255,255,255,0.08)]">
+                <div className="pointer-events-none absolute inset-0 bg-[repeating-linear-gradient(90deg,rgba(255,255,255,0.06)_0,rgba(255,255,255,0.06)_1px,transparent_1px,transparent_56px)] opacity-25" />
+
+                <div className="relative h-7 border-b border-[rgba(255,255,255,0.08)] bg-black/30">
                   {rulerMarks.map((sec) => {
                     const left = timelineMaxSec > 0 ? (sec / timelineMaxSec) * 100 : 0;
                     return (
@@ -804,8 +814,8 @@ export const VideoEditorModal = memo(({
                         className="pointer-events-none absolute bottom-0 top-0"
                         style={{ left: `${left}%` }}
                       >
-                        <div className="h-2 w-px bg-white/35" />
-                        <span className="absolute top-2 -translate-x-1/2 text-[10px] text-white/65">
+                        <div className="h-2 w-px bg-white/40" />
+                        <span className="ui-timecode absolute top-2 -translate-x-1/2 text-[10px] text-white/70">
                           {formatSeconds(sec)}
                         </span>
                       </div>
@@ -814,13 +824,24 @@ export const VideoEditorModal = memo(({
                 </div>
 
                 <div className="relative h-[120px]">
+                  {rulerMarks.map((sec) => {
+                    const left = timelineMaxSec > 0 ? (sec / timelineMaxSec) * 100 : 0;
+                    return (
+                      <div
+                        key={`grid-${sec}`}
+                        className="pointer-events-none absolute bottom-0 top-0 w-px bg-white/10"
+                        style={{ left: `${left}%` }}
+                      />
+                    );
+                  })}
+
                   <div
                     ref={videoTrackRef}
-                    className="absolute left-0 right-0 top-0 h-[60px] border-b border-[rgba(255,255,255,0.08)]"
+                    className="absolute left-0 right-0 top-0 h-[60px] border-b border-[rgba(255,255,255,0.08)] bg-[linear-gradient(180deg,rgba(56,189,248,0.08),rgba(15,23,42,0.15))]"
                     onDragOver={handleTimelineDragOver}
                     onDrop={handleTimelineDrop}
                   >
-                    <div className="absolute left-2 top-1 rounded bg-black/45 px-1.5 py-0.5 text-[10px] text-white/70">
+                    <div className="ui-timecode absolute left-2 top-1 rounded border border-cyan-300/30 bg-cyan-500/15 px-1.5 py-0.5 text-[10px] uppercase tracking-[0.08em] text-cyan-100/90">
                       {t('node.videoEditor.videoTrack', { defaultValue: '视频轨' })}
                     </div>
 
@@ -833,8 +854,8 @@ export const VideoEditorModal = memo(({
                       return (
                         <div
                           key={clip.id}
-                          className={`absolute bottom-2 top-6 rounded border border-sky-400/55 bg-sky-500/35 ${
-                            isSelected ? 'ring-2 ring-sky-200/90' : isPlayheadActive ? 'ring-1 ring-sky-300/80' : ''
+                          className={`absolute bottom-2 top-6 rounded-md border border-cyan-300/60 bg-gradient-to-r from-cyan-500/45 to-sky-500/45 shadow-[0_8px_18px_rgba(6,182,212,0.22)] ${
+                            isSelected ? 'ring-2 ring-cyan-100/90' : isPlayheadActive ? 'ring-1 ring-cyan-200/80' : ''
                           }`}
                           style={{ left, width }}
                           onMouseDown={(event) => {
@@ -844,7 +865,7 @@ export const VideoEditorModal = memo(({
                         >
                           <button
                             type="button"
-                            className="absolute -right-2 -top-2 inline-flex h-4 w-4 items-center justify-center rounded-full bg-black/80 text-white hover:bg-red-500"
+                            className="absolute -right-2 -top-2 inline-flex h-4 w-4 items-center justify-center rounded-full border border-white/20 bg-black/80 text-white hover:bg-red-500"
                             onClick={(event) => {
                               event.stopPropagation();
                               handleRemoveVideoClip(clip.id);
@@ -859,8 +880,8 @@ export const VideoEditorModal = memo(({
                               handleClipMouseDown(event, clip, 'resize-left', 'video');
                             }}
                           />
-                          <div className="mx-2 mt-1 truncate text-[10px] text-white">{source?.label ?? 'Clip'}</div>
-                          <div className="mx-2 truncate text-[10px] text-white/85">
+                          <div className="mx-2 mt-1 truncate text-[10px] font-medium text-white">{source?.label ?? 'Clip'}</div>
+                          <div className="ui-timecode mx-2 truncate text-[10px] text-white/90">
                             {formatSeconds(clip.startSec)}-{formatSeconds(clip.startSec + clip.durationSec)}
                           </div>
                           <div
@@ -875,8 +896,8 @@ export const VideoEditorModal = memo(({
                     })}
                   </div>
 
-                  <div className="absolute left-0 right-0 top-[60px] h-[60px]">
-                    <div className="absolute left-2 top-1 rounded bg-black/45 px-1.5 py-0.5 text-[10px] text-white/70">
+                  <div className="absolute left-0 right-0 top-[60px] h-[60px] bg-[linear-gradient(180deg,rgba(245,158,11,0.08),rgba(15,23,42,0.15))]">
+                    <div className="ui-timecode absolute left-2 top-1 rounded border border-amber-300/30 bg-amber-500/15 px-1.5 py-0.5 text-[10px] uppercase tracking-[0.08em] text-amber-100/90">
                       {t('node.videoEditor.textTrack', { defaultValue: '文字轨' })}
                     </div>
 
@@ -887,8 +908,8 @@ export const VideoEditorModal = memo(({
                       return (
                         <div
                           key={clip.id}
-                          className={`absolute bottom-2 top-6 rounded border border-amber-400/55 bg-amber-500/35 ${
-                            isActive ? 'ring-1 ring-amber-300/85' : ''
+                          className={`absolute bottom-2 top-6 rounded-md border border-amber-300/60 bg-gradient-to-r from-amber-500/50 to-orange-500/45 shadow-[0_8px_16px_rgba(251,146,60,0.2)] ${
+                            isActive ? 'ring-1 ring-amber-100/85' : ''
                           }`}
                           style={{ left, width }}
                           onMouseDown={(event) => {
@@ -898,7 +919,7 @@ export const VideoEditorModal = memo(({
                         >
                           <button
                             type="button"
-                            className="absolute -right-2 -top-2 inline-flex h-4 w-4 items-center justify-center rounded-full bg-black/80 text-white hover:bg-red-500"
+                            className="absolute -right-2 -top-2 inline-flex h-4 w-4 items-center justify-center rounded-full border border-white/20 bg-black/80 text-white hover:bg-red-500"
                             onClick={(event) => {
                               event.stopPropagation();
                               handleRemoveTextClip(clip.id);
@@ -913,8 +934,8 @@ export const VideoEditorModal = memo(({
                               handleClipMouseDown(event, clip, 'resize-left', 'text');
                             }}
                           />
-                          <div className="mx-2 mt-1 truncate text-[10px] text-white">{clip.text || 'Text'}</div>
-                          <div className="mx-2 truncate text-[10px] text-white/85">
+                          <div className="mx-2 mt-1 truncate text-[10px] font-medium text-white">{clip.text || 'Text'}</div>
+                          <div className="ui-timecode mx-2 truncate text-[10px] text-white/90">
                             {formatSeconds(clip.startSec)}-{formatSeconds(clip.startSec + clip.durationSec)}
                           </div>
                           <div
@@ -930,9 +951,14 @@ export const VideoEditorModal = memo(({
                   </div>
 
                   <div
-                    className="pointer-events-none absolute bottom-0 top-0 w-0.5 bg-red-300/95"
+                    className="pointer-events-none absolute bottom-0 top-0 z-20 w-0.5 bg-accent/95 shadow-[0_0_8px_rgba(249,115,22,0.9)]"
                     style={{ left: `${playheadPercent}%` }}
-                  />
+                  >
+                    <div className="absolute -top-6 left-1/2 -translate-x-1/2 rounded border border-white/25 bg-black/65 px-1.5 py-0.5 ui-timecode text-[10px] text-white">
+                      {formatSeconds(playheadSec)}
+                    </div>
+                    <div className="absolute -top-1 left-1/2 h-2 w-2 -translate-x-1/2 rotate-45 border border-black/40 bg-accent" />
+                  </div>
                 </div>
               </div>
 
@@ -944,7 +970,7 @@ export const VideoEditorModal = memo(({
                   step={0.1}
                   value={clamp(playheadSec, 0, timelineMaxSec)}
                   onChange={(event) => setPlayheadSec(Number(event.target.value))}
-                  className="w-full"
+                  className="h-1.5 w-full cursor-pointer appearance-none rounded-full bg-white/15 accent-[rgb(var(--accent-rgb))]"
                 />
               </div>
             </div>
@@ -952,10 +978,10 @@ export const VideoEditorModal = memo(({
 
           <div className="flex w-[620px] shrink-0 gap-4 p-5">
             <div className="flex min-w-0 flex-1 flex-col">
-              <div className="mb-2 text-sm font-medium text-text-dark">
+              <div className="mb-2 ui-display-title text-sm font-medium uppercase tracking-[0.08em] text-text-dark">
                 {t('node.videoEditor.sourceClips', { defaultValue: '分镜栏' })}
               </div>
-              <div className="ui-scrollbar flex-1 space-y-2 overflow-y-auto rounded-[16px] border border-[rgba(255,255,255,0.14)] bg-bg-dark/30 p-3 pr-2">
+              <div className="ui-scrollbar flex-1 space-y-2 overflow-y-auto rounded-[16px] border border-[var(--ui-border-soft)] bg-[rgba(8,14,22,0.6)] p-3 pr-2">
                 {sourceClips.length === 0 ? (
                   <div className="rounded-lg border border-[rgba(255,255,255,0.08)] bg-bg-dark/30 px-3 py-4 text-xs text-text-muted">
                     {t('node.videoEditor.noSourceClips', { defaultValue: '未检测到分镜图片，请连接分镜节点' })}
@@ -971,7 +997,7 @@ export const VideoEditorModal = memo(({
                           event.dataTransfer.setData('storybox/source-clip-id', clip.id);
                           event.dataTransfer.effectAllowed = 'copy';
                         }}
-                        className="cursor-grab rounded-xl border border-[rgba(255,255,255,0.1)] bg-bg-dark/40 p-2 transition-colors hover:border-[rgba(255,255,255,0.22)] active:cursor-grabbing"
+                        className="cursor-grab rounded-xl border border-[rgba(255,255,255,0.14)] bg-[rgba(255,255,255,0.03)] p-2 transition-colors hover:border-[rgba(255,255,255,0.28)] hover:bg-[rgba(255,255,255,0.05)] active:cursor-grabbing"
                       >
                         {previewUrl ? (
                           <img
@@ -985,18 +1011,19 @@ export const VideoEditorModal = memo(({
                             {clip.label}
                           </div>
                         )}
-                        <div className="truncate text-xs text-text-dark">{clip.label}</div>
+                        <div className="truncate text-xs font-medium text-text-dark">{clip.label}</div>
+                        <div className="ui-timecode mt-1 text-[10px] text-text-muted">{formatSeconds(DEFAULT_CLIP_DURATION_SEC)} default</div>
                       </div>
                     );
                   })
                 )}
               </div>
 
-              <div className="mt-3 rounded-[16px] border border-[rgba(255,255,255,0.14)] bg-bg-dark/30 p-3">
+              <div className="mt-3 rounded-[16px] border border-[var(--ui-border-soft)] bg-[rgba(8,14,22,0.6)] p-3">
                 <div className="text-[11px] text-text-muted">
                   {t('node.videoEditor.currentRange', { defaultValue: '当前时间线范围' })}
                 </div>
-                <div className="mt-1 text-xs font-medium text-text-dark">
+                <div className="ui-timecode mt-1 text-xs font-medium text-text-dark">
                   {selectedVideoClip
                     ? `${formatSeconds(selectedVideoClip.startSec)}-${formatSeconds(selectedVideoClip.startSec + selectedVideoClip.durationSec)}`
                     : `${formatSeconds(playheadSec)}-${formatSeconds(playheadSec)}`}
@@ -1022,12 +1049,12 @@ export const VideoEditorModal = memo(({
             </div>
 
             <div className="flex min-w-0 flex-1 flex-col">
-              <div className="mb-2 text-sm font-medium text-text-dark">
+              <div className="mb-2 ui-display-title text-sm font-medium uppercase tracking-[0.08em] text-text-dark">
                 {t('node.videoEditor.textTrack', { defaultValue: '文字轨' })}
               </div>
-              <div className="flex flex-1 flex-col rounded-[16px] border border-[rgba(255,255,255,0.14)] bg-bg-dark/30 p-3">
+              <div className="flex flex-1 flex-col rounded-[16px] border border-[var(--ui-border-soft)] bg-[rgba(8,14,22,0.6)] p-3">
                 <div className="flex items-center gap-2">
-                  <div className="flex min-w-0 flex-1 items-center gap-2 rounded-md border border-[rgba(255,255,255,0.14)] bg-black/30 px-2 py-1">
+                  <div className="flex min-w-0 flex-1 items-center gap-2 rounded-md border border-[rgba(255,255,255,0.14)] bg-black/35 px-2 py-1">
                     <Type className="h-3.5 w-3.5 shrink-0 text-text-muted" />
                     <input
                       type="text"
@@ -1045,7 +1072,7 @@ export const VideoEditorModal = memo(({
                   </div>
                   <button
                     type="button"
-                    className="rounded-md bg-amber-500/80 px-2 py-1 text-xs font-medium text-white hover:bg-amber-500"
+                    className="rounded-md border border-amber-300/40 bg-amber-500/75 px-2 py-1 text-xs font-medium text-white hover:bg-amber-500"
                     onClick={handleAddTextClip}
                   >
                     {t('node.videoEditor.addTextClip', { defaultValue: '添加' })}
@@ -1063,8 +1090,8 @@ export const VideoEditorModal = memo(({
                         key={clip.id}
                         className={`rounded-lg border p-2 ${
                           activeTextClipId === clip.id
-                            ? 'border-amber-300/60 bg-amber-500/15'
-                            : 'border-[rgba(255,255,255,0.12)] bg-black/25'
+                            ? 'border-amber-300/70 bg-amber-500/16'
+                            : 'border-[rgba(255,255,255,0.14)] bg-black/30'
                         }`}
                         onMouseDown={() => setActiveTextClipId(clip.id)}
                       >
@@ -1076,7 +1103,7 @@ export const VideoEditorModal = memo(({
                           className="w-full rounded border border-[rgba(255,255,255,0.14)] bg-black/30 px-2 py-1 text-xs text-text-dark outline-none"
                         />
                         <div className="mt-1 flex items-center justify-between text-[10px] text-text-muted">
-                          <span>
+                          <span className="ui-timecode">
                             {formatSeconds(clip.startSec)}-{formatSeconds(clip.startSec + clip.durationSec)}
                           </span>
                           <button

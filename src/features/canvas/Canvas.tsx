@@ -1239,10 +1239,10 @@ export function Canvas() {
       >
         <Background variant={BackgroundVariant.Dots} gap={24} size={1.2} color="rgba(148,163,184,0.14)" />
         <MiniMap
-          className="canvas-minimap nopan nowheel !border-white/10 !bg-[rgba(15,23,42,0.82)]"
+          className="canvas-minimap nopan nowheel !border-[var(--ui-border-soft)] !bg-[var(--ui-surface-panel)]"
           style={{ pointerEvents: 'all', zIndex: 10000 }}
-          nodeColor="rgba(226, 232, 240, 0.82)"
-          maskColor="rgba(2, 6, 23, 0.72)"
+          nodeColor="rgba(var(--accent-rgb), 0.72)"
+          maskColor="rgba(2, 6, 23, 0.44)"
           pannable
           zoomable
         />
@@ -1251,8 +1251,8 @@ export function Canvas() {
       </ReactFlow>
 
       <div className="pointer-events-none absolute bottom-4 left-1/2 z-30 -translate-x-1/2">
-        <div className="flex items-center gap-3 rounded-full border border-white/10 bg-[rgba(15,23,42,0.72)] px-4 py-2 text-[11px] text-white/70 shadow-[0_16px_40px_rgba(2,6,23,0.28)] backdrop-blur-xl">
-          <span className="font-medium text-white/82">
+        <div className="flex items-center gap-3 rounded-full border border-[var(--ui-border-soft)] bg-[var(--ui-surface-panel)] px-4 py-2 text-[11px] text-text-muted shadow-[0_16px_40px_rgba(2,6,23,0.24)] backdrop-blur-xl">
+          <span className="ui-timecode font-medium text-text-dark">
             {Math.round((reactFlowInstance.getViewport().zoom ?? 1) * 100)}%
           </span>
           <span>{t('canvas.hud.doubleClickCreate', { defaultValue: 'Double-click to create' })}</span>

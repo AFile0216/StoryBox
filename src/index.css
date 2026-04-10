@@ -3,100 +3,102 @@
 @tailwind utilities;
 
 :root {
-  --font-family-ui-default: "Noto Sans SC", "Noto Sans CJK SC", "Noto Sans CJK JP", "Microsoft YaHei", "PingFang SC", "Helvetica Neue", Arial, "Segoe UI", sans-serif;
-  --font-family-ui-macos: "PingFang SC", "PingFang TC", "Hiragino Sans GB", "Helvetica Neue", Arial, sans-serif;
-  --bg: #ffffff;
-  --bg-rgb: 255 255 255;
-  --surface: #f5f5f5;
-  --surface-rgb: 245 245 245;
-  --border: #e0e0e0;
-  --border-rgb: 224 224 224;
-  --text: #000000;
-  --text-rgb: 0 0 0;
-  --text-muted: #666666;
-  --text-muted-rgb: 102 102 102;
-  --accent: #3B82F6;
-  --accent-rgb: 59 130 246;
-  --ui-surface-panel: rgba(255, 255, 255, 0.96);
-  --ui-surface-field: rgba(248, 250, 252, 0.95);
-  --ui-border-soft: rgba(15, 23, 42, 0.12);
-  --ui-border-strong: rgba(15, 23, 42, 0.2);
-  --ui-shadow-panel: 0 14px 34px rgba(15, 23, 42, 0.18);
-  --group-node-bg: color-mix(in srgb, rgb(var(--accent-rgb) / 0.2) 26%, rgb(var(--surface-rgb)));
-  --ui-radius-lg: 12px;
-  --ui-radius-xl: 16px;
-  --ui-radius-2xl: 20px;
+  --font-family-ui-default: "Source Han Sans SC", "Noto Sans SC", "Microsoft YaHei UI", "PingFang SC", "Segoe UI", sans-serif;
+  --font-family-ui-macos: "PingFang SC", "Hiragino Sans GB", "Source Han Sans SC", sans-serif;
+  --font-family-ui-display: "Bahnschrift SemiCondensed", "DIN Condensed", "Oswald", "Source Han Sans SC", sans-serif;
+  --font-family-ui-mono: "JetBrains Mono", "Cascadia Mono", "SF Mono", "Consolas", monospace;
+  --bg: #edf1f6;
+  --bg-rgb: 237 241 246;
+  --surface: #ffffff;
+  --surface-rgb: 255 255 255;
+  --border: #ced7e1;
+  --border-rgb: 206 215 225;
+  --text: #0f1722;
+  --text-rgb: 15 23 34;
+  --text-muted: #5d6b7f;
+  --text-muted-rgb: 93 107 127;
+  --accent: #f97316;
+  --accent-rgb: 249 115 22;
+  --ui-surface-panel: rgba(255, 255, 255, 0.92);
+  --ui-surface-field: rgba(248, 251, 255, 0.94);
+  --ui-border-soft: rgba(15, 23, 42, 0.16);
+  --ui-border-strong: rgba(15, 23, 42, 0.28);
+  --ui-shadow-panel: 0 16px 38px rgba(15, 23, 42, 0.16);
+  --group-node-bg: color-mix(in srgb, rgb(var(--accent-rgb) / 0.18) 24%, rgb(var(--surface-rgb)));
+  --ui-radius-lg: 10px;
+  --ui-radius-xl: 14px;
+  --ui-radius-2xl: 18px;
   --node-radius: 12px;
   --node-inner-radius: var(--node-radius);
-  --tapnow-canvas-radial-a: rgba(148, 163, 184, 0.08);
-  --tapnow-canvas-radial-b: rgba(96, 165, 250, 0.06);
-  --tapnow-node-card-border: rgba(15, 23, 42, 0.1);
-  --tapnow-node-card-bg-top: rgba(255,255,255,0.86);
-  --tapnow-node-card-bg-bottom: rgba(248,250,252,0.82);
-  --tapnow-node-card-bg-solid: rgba(255,255,255,0.82);
-  --tapnow-node-card-shadow: 0 16px 40px rgba(15, 23, 42, 0.12);
-  --tapnow-node-card-inset: inset 0 1px 0 rgba(255,255,255,0.72);
-  --tapnow-node-surface-border: rgba(15, 23, 42, 0.08);
-  --tapnow-node-surface-bg-top: rgba(255,255,255,0.82);
-  --tapnow-node-surface-bg-bottom: rgba(248,250,252,0.65);
-  --tapnow-node-panel-border: rgba(15, 23, 42, 0.08);
-  --tapnow-node-panel-bg: rgba(248,250,252,0.72);
-  --tapnow-node-field-border: rgba(15, 23, 42, 0.08);
-  --tapnow-node-field-bg: rgba(241,245,249,0.92);
-  --tapnow-node-pill-border: rgba(15,23,42,0.08);
-  --tapnow-node-pill-bg: rgba(255,255,255,0.72);
-  --tapnow-node-pill-text: rgba(15,23,42,0.62);
-  --tapnow-node-button-border: rgba(15,23,42,0.1);
-  --tapnow-node-button-bg: rgba(255,255,255,0.72);
-  --tapnow-node-button-bg-hover: rgba(255,255,255,0.96);
-  --tapnow-node-button-text: rgba(15,23,42,0.88);
+  --tapnow-canvas-radial-a: rgba(255, 122, 26, 0.09);
+  --tapnow-canvas-radial-b: rgba(38, 143, 255, 0.08);
+  --tapnow-node-card-border: rgba(12, 25, 43, 0.14);
+  --tapnow-node-card-bg-top: rgba(255, 255, 255, 0.96);
+  --tapnow-node-card-bg-bottom: rgba(245, 248, 252, 0.9);
+  --tapnow-node-card-bg-solid: rgba(250, 252, 255, 0.9);
+  --tapnow-node-card-shadow: 0 16px 36px rgba(8, 18, 30, 0.14);
+  --tapnow-node-card-inset: inset 0 1px 0 rgba(255, 255, 255, 0.78);
+  --tapnow-node-surface-border: rgba(9, 22, 38, 0.14);
+  --tapnow-node-surface-bg-top: rgba(255, 255, 255, 0.94);
+  --tapnow-node-surface-bg-bottom: rgba(245, 249, 255, 0.84);
+  --tapnow-node-panel-border: rgba(10, 22, 38, 0.14);
+  --tapnow-node-panel-bg: rgba(247, 250, 255, 0.86);
+  --tapnow-node-field-border: rgba(10, 22, 38, 0.16);
+  --tapnow-node-field-bg: rgba(243, 247, 253, 0.96);
+  --tapnow-node-pill-border: rgba(11, 25, 43, 0.12);
+  --tapnow-node-pill-bg: rgba(255, 255, 255, 0.86);
+  --tapnow-node-pill-text: rgba(18, 31, 49, 0.72);
+  --tapnow-node-button-border: rgba(11, 25, 43, 0.16);
+  --tapnow-node-button-bg: rgba(255, 255, 255, 0.85);
+  --tapnow-node-button-bg-hover: rgba(255, 255, 255, 0.98);
+  --tapnow-node-button-text: rgba(14, 25, 40, 0.9);
 }
 
 .dark {
-  --bg: #0f0f0f;
-  --bg-rgb: 15 15 15;
-  --surface: #1a1a1a;
-  --surface-rgb: 26 26 26;
-  --border: #2a2a2a;
-  --border-rgb: 42 42 42;
-  --text: #ffffff;
-  --text-rgb: 255 255 255;
-  --text-muted: #888888;
-  --text-muted-rgb: 136 136 136;
-  --accent-rgb: 59 130 246;
-  --ui-surface-panel: rgb(26, 26, 26);
-  --ui-surface-field: rgba(10, 10, 12, 0.92);
-  --ui-border-soft: rgba(255, 255, 255, 0.14);
-  --ui-border-strong: rgba(255, 255, 255, 0.24);
-  --ui-shadow-panel: 0 14px 34px rgba(0, 0, 0, 0.38);
-  --group-node-bg: color-mix(in srgb, rgb(var(--accent-rgb) / 0.3) 30%, black);
-  --ui-radius-lg: 12px;
-  --ui-radius-xl: 16px;
-  --ui-radius-2xl: 20px;
+  --bg: #090c11;
+  --bg-rgb: 9 12 17;
+  --surface: #111720;
+  --surface-rgb: 17 23 32;
+  --border: #243245;
+  --border-rgb: 36 50 69;
+  --text: #edf2f8;
+  --text-rgb: 237 242 248;
+  --text-muted: #8fa2bb;
+  --text-muted-rgb: 143 162 187;
+  --accent-rgb: 255 138 31;
+  --ui-surface-panel: rgba(16, 23, 32, 0.9);
+  --ui-surface-field: rgba(12, 19, 28, 0.92);
+  --ui-border-soft: rgba(198, 214, 233, 0.16);
+  --ui-border-strong: rgba(227, 237, 248, 0.28);
+  --ui-shadow-panel: 0 18px 44px rgba(2, 7, 13, 0.44);
+  --group-node-bg: color-mix(in srgb, rgb(var(--accent-rgb) / 0.25) 36%, rgb(var(--surface-rgb)));
+  --ui-radius-lg: 10px;
+  --ui-radius-xl: 14px;
+  --ui-radius-2xl: 18px;
   --node-radius: 12px;
   --node-inner-radius: var(--node-radius);
-  --tapnow-canvas-radial-a: rgba(148, 163, 184, 0.08);
-  --tapnow-canvas-radial-b: rgba(96, 165, 250, 0.06);
-  --tapnow-node-card-border: rgba(255, 255, 255, 0.1);
-  --tapnow-node-card-bg-top: rgba(255,255,255,0.08);
-  --tapnow-node-card-bg-bottom: rgba(255,255,255,0.02);
-  --tapnow-node-card-bg-solid: rgba(15, 23, 42, 0.88);
-  --tapnow-node-card-shadow: 0 16px 40px rgba(2, 6, 23, 0.22);
-  --tapnow-node-card-inset: inset 0 1px 0 rgba(255,255,255,0.06);
-  --tapnow-node-surface-border: rgba(255, 255, 255, 0.08);
-  --tapnow-node-surface-bg-top: rgba(255,255,255,0.045);
-  --tapnow-node-surface-bg-bottom: rgba(255,255,255,0.02);
-  --tapnow-node-panel-border: rgba(255, 255, 255, 0.08);
-  --tapnow-node-panel-bg: rgba(255, 255, 255, 0.035);
-  --tapnow-node-field-border: rgba(255, 255, 255, 0.08);
-  --tapnow-node-field-bg: rgba(2, 6, 23, 0.24);
-  --tapnow-node-pill-border: rgba(255,255,255,0.12);
-  --tapnow-node-pill-bg: rgba(255,255,255,0.05);
-  --tapnow-node-pill-text: rgba(241,245,249,0.72);
-  --tapnow-node-button-border: rgba(255,255,255,0.12);
-  --tapnow-node-button-bg: rgba(255,255,255,0.04);
-  --tapnow-node-button-bg-hover: rgba(255,255,255,0.08);
-  --tapnow-node-button-text: rgba(241,245,249,0.92);
+  --tapnow-canvas-radial-a: rgba(255, 138, 31, 0.09);
+  --tapnow-canvas-radial-b: rgba(67, 147, 255, 0.08);
+  --tapnow-node-card-border: rgba(188, 211, 236, 0.16);
+  --tapnow-node-card-bg-top: rgba(255, 255, 255, 0.06);
+  --tapnow-node-card-bg-bottom: rgba(255, 255, 255, 0.015);
+  --tapnow-node-card-bg-solid: rgba(9, 13, 19, 0.9);
+  --tapnow-node-card-shadow: 0 18px 44px rgba(2, 7, 13, 0.42);
+  --tapnow-node-card-inset: inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  --tapnow-node-surface-border: rgba(195, 212, 235, 0.13);
+  --tapnow-node-surface-bg-top: rgba(255, 255, 255, 0.04);
+  --tapnow-node-surface-bg-bottom: rgba(255, 255, 255, 0.015);
+  --tapnow-node-panel-border: rgba(191, 211, 236, 0.12);
+  --tapnow-node-panel-bg: rgba(255, 255, 255, 0.03);
+  --tapnow-node-field-border: rgba(195, 212, 235, 0.16);
+  --tapnow-node-field-bg: rgba(5, 11, 18, 0.46);
+  --tapnow-node-pill-border: rgba(209, 224, 243, 0.18);
+  --tapnow-node-pill-bg: rgba(255, 255, 255, 0.05);
+  --tapnow-node-pill-text: rgba(229, 238, 249, 0.74);
+  --tapnow-node-button-border: rgba(207, 223, 243, 0.18);
+  --tapnow-node-button-bg: rgba(255, 255, 255, 0.045);
+  --tapnow-node-button-bg-hover: rgba(255, 255, 255, 0.08);
+  --tapnow-node-button-text: rgba(235, 242, 249, 0.94);
 }
 
 :root[data-ui-radius='compact'] {
@@ -159,8 +161,12 @@ html, body, #root {
 
 body {
   font-family: var(--font-family-ui-default);
-  background-color: var(--bg);
+  background:
+    radial-gradient(circle at 0% 0%, rgba(255, 138, 31, 0.09), transparent 34%),
+    radial-gradient(circle at 100% 100%, rgba(74, 155, 255, 0.09), transparent 32%),
+    rgb(var(--bg-rgb));
   color: var(--text);
+  letter-spacing: 0.01em;
 }
 
 #boot-screen {
@@ -292,9 +298,16 @@ html[data-platform='macos'] #root {
 
 .tapnow-canvas {
   background:
-    radial-gradient(circle at top left, var(--tapnow-canvas-radial-a), transparent 28%),
-    radial-gradient(circle at bottom right, var(--tapnow-canvas-radial-b), transparent 24%),
-    linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0)),
+    radial-gradient(circle at 8% 10%, var(--tapnow-canvas-radial-a), transparent 32%),
+    radial-gradient(circle at 92% 92%, var(--tapnow-canvas-radial-b), transparent 30%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.025), rgba(255, 255, 255, 0)),
+    repeating-linear-gradient(
+      0deg,
+      rgba(255, 255, 255, 0.014) 0,
+      rgba(255, 255, 255, 0.014) 1px,
+      transparent 1px,
+      transparent 22px
+    ),
     rgb(var(--bg-rgb));
 }
 
@@ -303,11 +316,11 @@ html[data-platform='macos'] #root {
 }
 
 .tapnow-canvas .react-flow__node {
-  filter: drop-shadow(0 12px 24px rgba(2, 6, 23, 0.12));
+  filter: drop-shadow(0 10px 26px rgba(2, 6, 23, 0.18));
 }
 
 .tapnow-canvas .react-flow__node.selected {
-  filter: drop-shadow(0 20px 34px rgba(2, 6, 23, 0.2));
+  filter: drop-shadow(0 16px 34px rgba(2, 6, 23, 0.3));
 }
 
 .tapnow-node-card {
@@ -317,19 +330,19 @@ html[data-platform='macos'] #root {
     linear-gradient(180deg, var(--tapnow-node-card-bg-top), var(--tapnow-node-card-bg-bottom)),
     var(--tapnow-node-card-bg-solid);
   box-shadow: var(--tapnow-node-card-shadow), var(--tapnow-node-card-inset);
-  backdrop-filter: blur(18px);
+  backdrop-filter: blur(12px);
 }
 
 .tapnow-node-card--selected {
-  border-color: rgba(96, 165, 250, 0.74);
+  border-color: rgba(var(--accent-rgb), 0.76);
   box-shadow:
-    0 22px 52px rgba(2, 6, 23, 0.28),
-    0 0 0 1px rgba(59,130,246,0.34),
-    inset 0 1px 0 rgba(255,255,255,0.08);
+    0 20px 48px rgba(2, 6, 23, 0.34),
+    0 0 0 1px rgba(var(--accent-rgb), 0.36),
+    inset 0 1px 0 rgba(255, 255, 255, 0.07);
 }
 
 .tapnow-node-card--default {
-  border-color: rgba(255,255,255,0.12);
+  border-color: var(--tapnow-node-card-border);
 }
 
 .tapnow-node-surface {
@@ -369,14 +382,29 @@ html[data-platform='macos'] #root {
 }
 
 .tapnow-node-button:hover {
-  border-color: color-mix(in srgb, var(--tapnow-node-button-border) 55%, white);
+  border-color: color-mix(in srgb, var(--tapnow-node-button-border) 62%, white);
   background: var(--tapnow-node-button-bg-hover);
   transform: translateY(-1px);
 }
 
 .tapnow-node-button--primary {
-  border-color: rgba(96, 165, 250, 0.42);
-  background: linear-gradient(135deg, rgba(59,130,246,0.22), rgba(14,165,233,0.14));
+  border-color: rgba(var(--accent-rgb), 0.52);
+  background: linear-gradient(
+    135deg,
+    rgba(var(--accent-rgb), 0.24),
+    rgba(var(--accent-rgb), 0.14)
+  );
+}
+
+.ui-timecode {
+  font-family: var(--font-family-ui-mono);
+  font-feature-settings: "tnum" on, "ss01" on;
+  letter-spacing: 0.02em;
+}
+
+.ui-display-title {
+  font-family: var(--font-family-ui-display);
+  letter-spacing: 0.04em;
 }
 
 @keyframes canvas-edge-flow {

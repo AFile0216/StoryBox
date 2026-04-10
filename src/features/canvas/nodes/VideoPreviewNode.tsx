@@ -98,6 +98,29 @@ export const VideoPreviewNode = memo(({ id, data, selected, width, height }: Vid
     () => Math.max(1, data.durationSec ?? 0, sequenceDurationSec),
     [data.durationSec, sequenceDurationSec]
   );
+  const playheadPercent = useMemo(
+    () => (timelineMaxSec > 0 ? clamp((playheadSec / timelineMaxSec) * 100, 0, 100) : 0),
+    [playheadSec, timelineMaxSec]
+  );
+  const rulerStepSec = useMemo(() => {
+    if (timelineMaxSec <= 12) {
+      return 1;
+    }
+    if (timelineMaxSec <= 40) {
+      return 2;
+    }
+    return 5;
+  }, [timelineMaxSec]);
+  const rulerMarks = useMemo(() => {
+    const marks: number[] = [];
+    for (let sec = 0; sec <= timelineMaxSec + 0.0001; sec += rulerStepSec) {
+      marks.push(Number(sec.toFixed(3)));
+    }
+    if (marks[marks.length - 1] < timelineMaxSec) {
+      marks.push(timelineMaxSec);
+    }
+    return marks;
+  }, [rulerStepSec, timelineMaxSec]);
   const activeFrame = useMemo(
     () => findActiveFrame(sequenceFrames, playheadSec),
     [playheadSec, sequenceFrames]
@@ -234,6 +257,13 @@ export const VideoPreviewNode = memo(({ id, data, selected, width, height }: Vid
                 ))}
               </div>
             ) : null}
+            {!activeFramePreview ? (
+              <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
+                <div className="ui-timecode rounded border border-white/20 bg-black/55 px-2 py-1 text-[11px] text-white/75">
+                  {t('node.videoEditor.blackFrame', { defaultValue: '黑场（无分镜）' })}
+                </div>
+              </div>
+            ) : null}
           </div>
         ) : videoSrc ? (
           <video
@@ -258,11 +288,11 @@ export const VideoPreviewNode = memo(({ id, data, selected, width, height }: Vid
       </div>
 
       {hasSequencePreview ? (
-        <div className="mt-2 rounded-lg border border-[var(--ui-border-soft)] bg-[var(--ui-surface-field)] p-2">
+        <div className="mt-2 rounded-lg border border-[var(--ui-border-soft)] bg-[rgba(8,14,22,0.7)] p-2">
           <div className="mb-1 flex items-center justify-between text-[11px] text-text-muted">
             <button
               type="button"
-              className="inline-flex items-center justify-center rounded px-1 text-text-muted hover:text-text-dark"
+              className="inline-flex h-6 w-6 items-center justify-center rounded-md border border-white/15 bg-white/5 text-text-muted hover:bg-white/10 hover:text-text-dark"
               onClick={(event) => {
                 event.stopPropagation();
                 setIsPlaying((previous) => {
@@ -275,7 +305,28 @@ export const VideoPreviewNode = memo(({ id, data, selected, width, height }: Vid
             >
               {isPlaying ? <Pause className="h-3.5 w-3.5" /> : <Play className="h-3.5 w-3.5" />}
             </button>
-            <span>{formatSeconds(playheadSec)} / {formatSeconds(timelineMaxSec)}</span>
+            <span className="ui-timecode">{formatSeconds(playheadSec)} / {formatSeconds(timelineMaxSec)}</span>
+          </div>
+          <div className="relative mb-2 h-10 overflow-hidden rounded-md border border-white/12 bg-black/35">
+            <div className="pointer-events-none absolute inset-0 bg-[repeating-linear-gradient(90deg,rgba(255,255,255,0.06)_0,rgba(255,255,255,0.06)_1px,transparent_1px,transparent_46px)] opacity-30" />
+            {rulerMarks.map((sec) => {
+              const left = timelineMaxSec > 0 ? (sec / timelineMaxSec) * 100 : 0;
+              return (
+                <div
+                  key={sec}
+                  className="pointer-events-none absolute bottom-0 top-0 w-px bg-white/20"
+                  style={{ left: `${left}%` }}
+                >
+                  <span className="ui-timecode absolute left-1 top-0 text-[9px] text-white/65">
+                    {formatSeconds(sec)}
+                  </span>
+                </div>
+              );
+            })}
+            <div
+              className="pointer-events-none absolute bottom-0 top-0 z-10 w-0.5 bg-accent/95 shadow-[0_0_8px_rgba(249,115,22,0.9)]"
+              style={{ left: `${playheadPercent}%` }}
+            />
           </div>
           <input
             type="range"
@@ -288,7 +339,7 @@ export const VideoPreviewNode = memo(({ id, data, selected, width, height }: Vid
               setPlayheadSec(next);
               updateNodeData(id, { currentTimeSec: next });
             }}
-            className="w-full"
+            className="h-1.5 w-full cursor-pointer appearance-none rounded-full bg-white/15 accent-[rgb(var(--accent-rgb))]"
           />
         </div>
       ) : null}
@@ -306,7 +357,7 @@ export const VideoPreviewNode = memo(({ id, data, selected, width, height }: Vid
           <div className="text-[10px] uppercase tracking-[0.12em] text-text-muted">
             {t('node.video.duration', { defaultValue: '时长' })}
           </div>
-          <div className="mt-1 text-sm text-text-dark">{formatSeconds(timelineMaxSec)}</div>
+          <div className="ui-timecode mt-1 text-sm text-text-dark">{formatSeconds(timelineMaxSec)}</div>
         </div>
       </div>
 
