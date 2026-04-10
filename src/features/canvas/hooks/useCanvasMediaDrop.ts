@@ -165,6 +165,29 @@ function resolveDroppedMediaPayloads(dataTransfer: DataTransfer | null): Dropped
   return payloads;
 }
 
+function hasPotentialFileDrop(dataTransfer: DataTransfer | null): boolean {
+  if (!dataTransfer) {
+    return false;
+  }
+
+  if ((dataTransfer.files?.length ?? 0) > 0) {
+    return true;
+  }
+
+  if (Array.from(dataTransfer.items ?? []).some((item) => item.kind === 'file')) {
+    return true;
+  }
+
+  const types = Array.from(dataTransfer.types ?? []).map((item) => item.toLowerCase());
+  if (types.includes('files') || types.includes('text/uri-list')) {
+    return true;
+  }
+
+  const uriListText = dataTransfer.getData('text/uri-list') || '';
+  const plainText = dataTransfer.getData('text/plain') || '';
+  return /file:\/\//iu.test(uriListText) || /file:\/\//iu.test(plainText);
+}
+
 export function useCanvasMediaDrop({
   addNode,
   reactFlowInstance,
@@ -172,7 +195,7 @@ export function useCanvasMediaDrop({
 }: UseCanvasMediaDropOptions) {
   const handleCanvasMediaDragOver = useCallback((event: Pick<DragEvent, 'preventDefault' | 'dataTransfer'>) => {
     const mediaPayloads = resolveDroppedMediaPayloads(event.dataTransfer);
-    if (mediaPayloads.length === 0) {
+    if (mediaPayloads.length === 0 && !hasPotentialFileDrop(event.dataTransfer)) {
       return;
     }
     event.preventDefault();
@@ -278,4 +301,3 @@ export function useCanvasMediaDrop({
     handleCanvasMediaDrop,
   };
 }
-
