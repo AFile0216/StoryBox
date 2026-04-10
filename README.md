@@ -118,6 +118,7 @@ docs/development-guides/    # 开发文档
 - 新工具：`tools/types.ts` -> `tools/builtInTools.ts` -> `ui/tool-editors/*` -> `application/toolProcessor.ts`
 - 新节点：`domain/canvasNodes.ts` + `domain/nodeRegistry.ts` + `nodes/index.ts`
 
+### 感谢 [痕继痕迹](https://space.bilibili.com/39337803?spm_id_from=333.337.search-card.all.click)
 详见：
 - [项目开发环境与注意事项](./docs/development-guides/project-development-setup.md)
 - [供应商与模型扩展指南](./docs/development-guides/provider-and-model-extension.md)
