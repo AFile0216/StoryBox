@@ -44,7 +44,7 @@ jobs:
           arch: amd64
 
       - name: Auto bump patch version
-        if: github.event_name == 'push' && github.actor != 'github-actions[bot]' && !contains(github.event.head_commit.message, 'chore(ci): auto bump version')
+        if: "${{ github.event_name == 'push' && github.actor != 'github-actions[bot]' && !contains(github.event.head_commit.message, 'chore(ci): auto bump version') }}"
         shell: pwsh
         run: |
           node scripts/auto-bump-version.mjs patch
