@@ -9,6 +9,7 @@
     "preview": "vite preview",
     "tauri": "tauri",
     "sync:version": "node scripts/sync-version.mjs",
+    "bump:version": "node scripts/auto-bump-version.mjs",
     "release": "node scripts/release.mjs"
   },
   "dependencies": {

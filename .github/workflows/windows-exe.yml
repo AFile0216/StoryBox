@@ -3,11 +3,15 @@ name: Build Windows EXE
 on:
   push:
     branches:
+      - master
       - main
   workflow_dispatch:
 
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+permissions:
+  contents: write
 
 jobs:
   build-windows-exe:
@@ -16,6 +20,9 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ github.ref_name }}
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -35,6 +42,23 @@ jobs:
         uses: ilammy/msvc-dev-cmd@v1
         with:
           arch: amd64
+
+      - name: Auto bump patch version
+        if: github.event_name == 'push' && github.actor != 'github-actions[bot]' && !contains(github.event.head_commit.message, 'chore(ci): auto bump version')
+        shell: pwsh
+        run: |
+          node scripts/auto-bump-version.mjs patch
+          $version = node -p "require('./package.json').version"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add package.json package-lock.json src-tauri/Cargo.toml src-tauri/Cargo.lock src-tauri/tauri.conf.json
+          git diff --cached --quiet
+          if ($LASTEXITCODE -ne 0) {
+            git commit -m "chore(ci): auto bump version to v$version [skip ci]"
+            git push origin $env:GITHUB_REF_NAME
+          } else {
+            Write-Host "No version changes detected."
+          }
 
       - name: Install dependencies
         run: npm ci
