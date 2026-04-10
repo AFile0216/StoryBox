@@ -135,6 +135,8 @@ export const VideoEditorNode = memo(({ id, data, selected, width, height }: Vide
     () => resolveAdaptiveHandleStyle(resolvedWidth, resolvedHeight, 'right'),
     [resolvedHeight, resolvedWidth]
   );
+  const actionGridClass = resolvedWidth < 620 ? 'grid-cols-1' : 'grid-cols-2';
+  const summaryGridClass = resolvedWidth < 620 ? 'grid-cols-1' : resolvedWidth < 900 ? 'grid-cols-2' : 'grid-cols-3';
 
   const incomingVideos = useMemo(
     () => graphImageResolver.collectInputVideos(id, nodes, edges),
@@ -248,88 +250,92 @@ export const VideoEditorNode = memo(({ id, data, selected, width, height }: Vide
           onTitleChange={(nextTitle) => updateNodeData(id, { displayName: nextTitle })}
         />
 
-        <div className="mb-2 mt-6 flex items-center justify-between gap-2">
-          <div className={`tapnow-node-pill ui-display-title px-2 py-1 uppercase tracking-[0.12em] ${uiDensity.metaText}`}>
-            {t('node.videoEditor.title', { defaultValue: '视频编辑' })}
+        <div className={`mt-6 flex min-h-0 flex-1 flex-col ${uiDensity.stackGap}`}>
+          <div className="flex items-center justify-between gap-2">
+            <div className={`tapnow-node-pill ui-display-title px-2 py-1 uppercase tracking-[0.12em] ${uiDensity.metaText}`}>
+              {t('node.videoEditor.title', { defaultValue: '视频编辑' })}
+            </div>
+            <span
+              className={`ui-timecode rounded-md border border-[var(--ui-border-soft)] bg-[var(--ui-surface-field)] px-2 py-1 text-text-dark ${uiDensity.metaText}`}
+            >
+              TIMELINE
+            </span>
           </div>
-          <span className={`ui-timecode rounded-md border border-cyan-300/30 bg-cyan-500/12 px-2 py-1 text-cyan-100 ${uiDensity.metaText}`}>
-            TIMELINE
-          </span>
-        </div>
 
-        <div className="mb-2 grid grid-cols-2 gap-2">
-          <button
-            type="button"
-            className={`tapnow-node-button inline-flex items-center justify-center gap-1 px-3 py-1.5 ${uiDensity.metaText}`}
-            onClick={(event) => {
-              event.stopPropagation();
-              setEditorOpen(true);
-            }}
-          >
-            <Clapperboard className="h-3.5 w-3.5" />
-            {t('node.videoEditor.openEditor', { defaultValue: '打开编辑器' })}
-          </button>
-          <button
-            type="button"
-            className="inline-flex items-center justify-center gap-1 rounded-lg bg-accent px-3 py-1.5 text-xs font-medium text-white shadow-[0_8px_20px_rgba(249,115,22,0.35)] hover:bg-accent/80"
-            onClick={(event) => {
-              event.stopPropagation();
-              handleGenerateTextNode(data.timelineClips ?? [], data.textClips ?? []);
-            }}
-          >
-            <Sparkles className="h-3.5 w-3.5" />
-            {t('node.videoEditor.generateTextNode', { defaultValue: '生成文本节点' })}
-          </button>
-        </div>
+          <div className={`grid ${actionGridClass} ${uiDensity.sectionGap}`}>
+            <button
+              type="button"
+              className={`tapnow-node-button inline-flex items-center justify-center gap-1 px-3 py-1.5 ${uiDensity.metaText}`}
+              onClick={(event) => {
+                event.stopPropagation();
+                setEditorOpen(true);
+              }}
+            >
+              <Clapperboard className="h-3.5 w-3.5" />
+              {t('node.videoEditor.openEditor', { defaultValue: '打开编辑器' })}
+            </button>
+            <button
+              type="button"
+              className="inline-flex items-center justify-center gap-1 rounded-lg bg-accent px-3 py-1.5 text-xs font-medium text-white shadow-[0_8px_20px_rgba(249,115,22,0.35)] hover:bg-accent/80"
+              onClick={(event) => {
+                event.stopPropagation();
+                handleGenerateTextNode(data.timelineClips ?? [], data.textClips ?? []);
+              }}
+            >
+              <Sparkles className="h-3.5 w-3.5" />
+              {t('node.videoEditor.generateTextNode', { defaultValue: '生成文本节点' })}
+            </button>
+          </div>
 
-        <div className="tapnow-node-surface relative flex min-h-[160px] flex-1 items-center justify-center overflow-hidden p-2">
-          {incomingStoryboardClips[0]?.previewImageUrl || incomingStoryboardClips[0]?.imageUrl ? (
-            <>
-              <img
-                src={resolveImageDisplayUrl(incomingStoryboardClips[0].previewImageUrl ?? incomingStoryboardClips[0].imageUrl ?? '')}
-                alt="storyboard-cover"
-                className="h-full w-full rounded-lg object-cover"
-                draggable={false}
-              />
-              <div className="pointer-events-none absolute left-3 top-3 rounded border border-white/20 bg-black/55 px-2 py-1 ui-timecode text-[10px] text-white/85">
-                SOURCE CLIP
+          <div className="tapnow-node-surface relative flex min-h-[152px] flex-1 items-center justify-center overflow-hidden p-2">
+            {incomingStoryboardClips[0]?.previewImageUrl || incomingStoryboardClips[0]?.imageUrl ? (
+              <>
+                <img
+                  src={resolveImageDisplayUrl(incomingStoryboardClips[0].previewImageUrl ?? incomingStoryboardClips[0].imageUrl ?? '')}
+                  alt="storyboard-cover"
+                  className="h-full w-full rounded-lg object-cover"
+                  draggable={false}
+                />
+                <div className="pointer-events-none absolute left-3 top-3 rounded border border-[var(--ui-border-soft)] bg-black/50 px-2 py-1 ui-timecode text-[10px] text-white/85">
+                  SOURCE CLIP
+                </div>
+              </>
+            ) : (
+              <div className="px-4 text-center text-sm text-text-muted">
+                {t('node.videoEditor.noSourceClips', { defaultValue: '未检测到分镜图片，请连接分镜节点' })}
               </div>
-            </>
-          ) : (
-            <div className="px-4 text-center text-sm text-text-muted">
-              {t('node.videoEditor.noSourceClips', { defaultValue: '未检测到分镜图片，请连接分镜节点' })}
-            </div>
-          )}
-        </div>
+            )}
+          </div>
 
-        <div className="mt-2 grid gap-2 md:grid-cols-3">
-          <div className={`tapnow-node-panel ${uiDensity.panelPadding}`}>
-            <div className="text-[10px] uppercase tracking-[0.12em] text-text-muted">
-              {t('node.video.duration', { defaultValue: '时长' })}
+          <div className={`grid ${uiDensity.sectionGap} ${summaryGridClass}`}>
+            <div className={`tapnow-node-panel ${uiDensity.panelPadding}`}>
+              <div className="text-[10px] uppercase tracking-[0.12em] text-text-muted">
+                {t('node.video.duration', { defaultValue: '时长' })}
+              </div>
+              <div className="ui-timecode mt-1 text-sm text-text-dark">{formatSeconds(timelineDurationSec || data.durationSec)}</div>
             </div>
-            <div className="ui-timecode mt-1 text-sm text-text-dark">{formatSeconds(timelineDurationSec || data.durationSec)}</div>
+            <div className={`tapnow-node-panel ${uiDensity.panelPadding}`}>
+              <div className="text-[10px] uppercase tracking-[0.12em] text-text-muted">
+                {t('node.videoEditor.sourceClips', { defaultValue: '分镜栏' })}
+              </div>
+              <div className="ui-timecode mt-1 text-sm text-text-dark">{incomingStoryboardClips.length}</div>
+            </div>
+            <div className={`tapnow-node-panel ${uiDensity.panelPadding}`}>
+              <div className="text-[10px] uppercase tracking-[0.12em] text-text-muted">
+                {t('node.videoEditor.timeline', { defaultValue: '时间轴' })}
+              </div>
+              <div className="ui-timecode mt-1 text-sm text-text-dark">
+                {(data.timelineClips?.length ?? 0)} / {(data.textClips?.length ?? 0)}
+              </div>
+            </div>
           </div>
-          <div className={`tapnow-node-panel ${uiDensity.panelPadding}`}>
-            <div className="text-[10px] uppercase tracking-[0.12em] text-text-muted">
-              {t('node.videoEditor.sourceClips', { defaultValue: '分镜栏' })}
-            </div>
-            <div className="ui-timecode mt-1 text-sm text-text-dark">{incomingStoryboardClips.length}</div>
-          </div>
-          <div className={`tapnow-node-panel ${uiDensity.panelPadding}`}>
-            <div className="text-[10px] uppercase tracking-[0.12em] text-text-muted">
-              {t('node.videoEditor.timeline', { defaultValue: '时间轴' })}
-            </div>
-            <div className="ui-timecode mt-1 text-sm text-text-dark">
-              {(data.timelineClips?.length ?? 0)} / {(data.textClips?.length ?? 0)}
-            </div>
-          </div>
-        </div>
 
-        {data.taskMessage ? (
-          <div className={`mt-2 rounded-lg border border-[var(--ui-border-soft)] bg-[var(--ui-surface-field)] px-2 py-1 ${uiDensity.metaText} text-text-muted`}>
-            {data.taskMessage}
-          </div>
-        ) : null}
+          {data.taskMessage ? (
+            <div className={`rounded-lg border border-[var(--ui-border-soft)] bg-[var(--ui-surface-field)] px-2 py-1 ${uiDensity.metaText} text-text-muted`}>
+              {data.taskMessage}
+            </div>
+          ) : null}
+        </div>
 
         <Handle
           type="target"

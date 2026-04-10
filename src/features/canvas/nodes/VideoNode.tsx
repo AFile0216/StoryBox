@@ -122,6 +122,13 @@ export const VideoNode = memo(({ id, data, selected, width, height }: VideoNodeP
     [resolvedHeight, resolvedWidth]
   );
 
+  const compactModeCards = resolvedWidth < 520 || resolvedHeight < 500;
+  const modeGridClass = resolvedWidth < 520 ? 'grid-cols-1' : resolvedWidth < 760 ? 'grid-cols-2' : 'grid-cols-3';
+  const providerGridClass = resolvedWidth < 560 ? 'grid-cols-1' : 'grid-cols-2';
+  const controlSelectGridClass =
+    resolvedWidth < 620 ? 'grid-cols-1' : resolvedWidth < 900 ? 'grid-cols-2' : 'grid-cols-3';
+  const actionGridClass = resolvedWidth < 620 ? 'grid-cols-1' : 'grid-cols-3';
+
   const selectedInterface = useMemo(() => {
     const byId = customApiInterfaces.find((item) => item.id === data.interfaceId);
     return byId ?? customApiInterfaces[0] ?? null;
@@ -136,6 +143,8 @@ export const VideoNode = memo(({ id, data, selected, width, height }: VideoNodeP
   const selectedDuration = Number.isFinite(data.generationSeconds)
     ? Number(data.generationSeconds)
     : 5;
+  const getModeLabel = (mode: VideoNodeTaskMode) =>
+    t(`node.video.mode.${mode}`, { defaultValue: MODE_LABELS[mode] });
 
   useEffect(() => {
     if (!data.interfaceId && selectedInterface) {
@@ -154,9 +163,7 @@ export const VideoNode = memo(({ id, data, selected, width, height }: VideoNodeP
     };
   }, []);
 
-  const handlePickFile = async (
-    type: 'video' | 'audio'
-  ) => {
+  const handlePickFile = async (type: 'video' | 'audio') => {
     const isVideo = type === 'video';
     const selectedPath = await open({
       multiple: false,
@@ -277,15 +284,8 @@ export const VideoNode = memo(({ id, data, selected, width, height }: VideoNodeP
     timerRef.current = window.setTimeout(() => {
       const outputPath =
         activeMode === 'audio-to-video'
-          ? data.outputFilePath
-            || data.filePath
-            || filteredReferencedVideos[0]
-            || data.audioFilePath
-            || null
-          : data.outputFilePath
-            || data.filePath
-            || filteredReferencedVideos[0]
-            || null;
+          ? data.outputFilePath || data.filePath || filteredReferencedVideos[0] || data.audioFilePath || null
+          : data.outputFilePath || data.filePath || filteredReferencedVideos[0] || null;
       if (!outputPath) {
         updateNodeData(id, {
           taskStatus: 'error',
@@ -299,7 +299,7 @@ export const VideoNode = memo(({ id, data, selected, width, height }: VideoNodeP
         taskStatus: 'success',
         taskMessage: t('node.media.ready', { defaultValue: '任务完成' }),
         taskOutputSummary: t('node.video.mockResult', {
-          mode: MODE_LABELS[activeMode],
+          mode: getModeLabel(activeMode),
           duration: formatSeconds(data.durationSec),
         }),
         outputFilePath: outputPath,
@@ -318,9 +318,9 @@ export const VideoNode = memo(({ id, data, selected, width, height }: VideoNodeP
     }, 900);
   };
 
-  const imageSlots = [{ key: 'img1', label: '图1', active: false }];
-  const videoSlots = [{ key: 'v1', label: '视频1', active: Boolean(data.filePath) }];
-  const audioSlots = [{ key: 'a1', label: '音频1', active: Boolean(data.audioFilePath) }];
+  const imageSlots = [{ key: 'img1', label: '图像', active: false }];
+  const videoSlots = [{ key: 'v1', label: '视频', active: Boolean(data.filePath) }];
+  const audioSlots = [{ key: 'a1', label: '音频', active: Boolean(data.audioFilePath) }];
 
   return (
     <div
@@ -338,245 +338,254 @@ export const VideoNode = memo(({ id, data, selected, width, height }: VideoNodeP
         onTitleChange={(value) => updateNodeData(id, { displayName: value })}
       />
 
-      <div className="mb-2 mt-7 grid grid-cols-2 gap-2">
-        {MODE_OPTIONS.map((mode) => {
-          const Icon = MODE_ICONS[mode] ?? Film;
-          const active = activeMode === mode;
-          return (
-            <button
-              key={mode}
-              type="button"
-              onClick={(event) => {
-                event.stopPropagation();
-                updateNodeData(id, { taskMode: mode });
-              }}
-              className={`flex flex-col items-center justify-center gap-2 rounded-xl border px-3 py-3 transition-all ${
-                active
-                  ? 'border-accent/50 bg-accent/12 text-accent'
-                  : 'border-[var(--ui-border-soft)] bg-[var(--ui-surface-field)] text-text-muted hover:border-accent/30 hover:text-text-dark'
-              }`}
-            >
-              <Icon className="h-6 w-6" />
-              <span className={`text-xs font-medium ${uiDensity.metaText}`}>{MODE_LABELS[mode]}</span>
-            </button>
-          );
-        })}
-      </div>
-
-      <div className="mb-2 rounded-xl border border-[var(--ui-border-soft)] bg-[var(--ui-surface-field)] p-2">
-        <div className={`mb-1.5 text-[10px] uppercase tracking-[0.12em] text-text-muted ${uiDensity.metaText}`}>素材栏</div>
-        <div className="flex flex-wrap gap-1.5">
-          {imageSlots.map((slot) => (
-            <button
-              key={slot.key}
-              type="button"
-              onClick={(event) => event.stopPropagation()}
-              className={`flex h-10 min-w-[52px] items-center justify-center gap-1 rounded-lg border px-2 text-xs font-medium transition-colors ${
-                slot.active
-                  ? 'border-accent/40 bg-accent/10 text-accent hover:bg-accent/20'
-                  : 'border-[var(--ui-border-soft)] bg-[var(--ui-surface-panel)] text-text-muted hover:border-accent/30 hover:text-text-dark'
-              }`}
-            >
-              <Image className="h-3 w-3" />
-              {slot.label}
-            </button>
-          ))}
-          {videoSlots.map((slot) => (
-            <button
-              key={slot.key}
-              type="button"
-              onClick={(event) => {
-                event.stopPropagation();
-                void handlePickFile('video');
-              }}
-              className={`flex h-10 min-w-[58px] items-center justify-center gap-1 rounded-lg border px-2 text-xs font-medium transition-colors ${
-                slot.active
-                  ? 'border-accent/40 bg-accent/10 text-accent hover:bg-accent/20'
-                  : 'border-[var(--ui-border-soft)] bg-[var(--ui-surface-panel)] text-text-muted hover:border-accent/30 hover:text-text-dark'
-              }`}
-            >
-              <Video className="h-3 w-3" />
-              {slot.label}
-            </button>
-          ))}
-          {audioSlots.map((slot) => (
-            <button
-              key={slot.key}
-              type="button"
-              onClick={(event) => {
-                event.stopPropagation();
-                void handlePickFile('audio');
-              }}
-              className={`flex h-10 min-w-[58px] items-center justify-center gap-1 rounded-lg border px-2 text-xs font-medium transition-colors ${
-                slot.active
-                  ? 'border-accent/40 bg-accent/10 text-accent hover:bg-accent/20'
-                  : 'border-[var(--ui-border-soft)] bg-[var(--ui-surface-panel)] text-text-muted hover:border-accent/30 hover:text-text-dark'
-              }`}
-            >
-              <Music className="h-3 w-3" />
-              {slot.label}
-            </button>
-          ))}
+      <div className={`mt-7 flex min-h-0 flex-1 flex-col ${uiDensity.stackGap}`}>
+        <div className={`grid ${modeGridClass} ${uiDensity.sectionGap}`}>
+          {MODE_OPTIONS.map((mode) => {
+            const Icon = MODE_ICONS[mode] ?? Film;
+            const active = activeMode === mode;
+            return (
+              <button
+                key={mode}
+                type="button"
+                onClick={(event) => {
+                  event.stopPropagation();
+                  updateNodeData(id, { taskMode: mode });
+                }}
+                className={`flex flex-col items-center justify-center rounded-xl border transition-all ${
+                  compactModeCards ? 'gap-1.5 px-2 py-2.5' : 'gap-2 px-3 py-3'
+                } ${
+                  active
+                    ? 'border-accent/50 bg-accent/12 text-accent'
+                    : 'border-[var(--ui-border-soft)] bg-[var(--ui-surface-field)] text-text-muted hover:border-accent/30 hover:text-text-dark'
+                }`}
+              >
+                <Icon className={compactModeCards ? 'h-5 w-5' : 'h-6 w-6'} />
+                <span className={`text-xs font-medium ${uiDensity.metaText}`}>{getModeLabel(mode)}</span>
+              </button>
+            );
+          })}
         </div>
-      </div>
 
-      <div className="mb-2 grid grid-cols-2 gap-2">
-        <select
-          className={`nodrag nowheel h-8 rounded-lg border border-[var(--ui-border-soft)] bg-[var(--ui-surface-field)] px-2 text-text-dark outline-none ${uiDensity.metaText}`}
-          value={selectedInterface?.id ?? ''}
-          onChange={(event) => {
-            event.stopPropagation();
-            const nextInterface = customApiInterfaces.find((item) => item.id === event.target.value);
-            updateNodeData(id, {
-              interfaceId: event.target.value,
-              modelId: nextInterface?.modelIds[0] ?? '',
-            });
-          }}
-          onPointerDown={(event) => event.stopPropagation()}
-        >
-          {customApiInterfaces.length === 0 && (
-            <option value="">未配置接口</option>
-          )}
-          {customApiInterfaces.map((item) => (
-            <option key={item.id} value={item.id}>
-              {item.name}
-            </option>
-          ))}
-        </select>
-        <select
-          className={`nodrag nowheel h-8 rounded-lg border border-[var(--ui-border-soft)] bg-[var(--ui-surface-field)] px-2 text-text-dark outline-none ${uiDensity.metaText}`}
-          value={selectedModel}
-          onChange={(event) => {
-            event.stopPropagation();
-            updateNodeData(id, { modelId: event.target.value });
-          }}
-          onPointerDown={(event) => event.stopPropagation()}
-        >
-          {(selectedInterface?.modelIds ?? []).map((modelId) => (
-            <option key={modelId} value={modelId}>
-              {modelId}
-            </option>
-          ))}
-        </select>
-      </div>
-
-      <div className="mb-2 flex-1">
-        <ReferenceAwareTextarea
-          nodeId={id}
-          value={data.prompt}
-          onChange={(value) => updateNodeData(id, { prompt: value })}
-          placeholder={t('node.video.promptPlaceholder', { defaultValue: '描述视频生成目标...' })}
-          minHeightClassName="min-h-[90px]"
-          className={`h-full ${uiDensity.panelPadding} ${uiDensity.bodyText}`}
-          referenceMediaTypes={['image', 'video']}
-        />
-      </div>
-
-      <div className="grid grid-cols-[1fr_112px_112px_auto_auto_auto] items-center gap-2">
-        <select
-          className={`nodrag nowheel h-8 rounded-lg border border-[var(--ui-border-soft)] bg-[var(--ui-surface-field)] px-2 text-text-dark outline-none ${uiDensity.metaText}`}
-          value={activeMode}
-          onChange={(event) => {
-            event.stopPropagation();
-            updateNodeData(id, { taskMode: event.target.value as VideoNodeTaskMode });
-          }}
-          onPointerDown={(event) => event.stopPropagation()}
-        >
-          <option value="image-to-video">{MODE_LABELS['image-to-video']}</option>
-          <option value="first-last-frame">{MODE_LABELS['first-last-frame']}</option>
-          <option value="audio-to-video">{MODE_LABELS['audio-to-video']}</option>
-          <option value="reference">{MODE_LABELS.reference}</option>
-          <option value="video-storyboard-generation">{MODE_LABELS['video-storyboard-generation']}</option>
-        </select>
-        <select
-          className={`nodrag nowheel h-8 rounded-lg border border-[var(--ui-border-soft)] bg-[var(--ui-surface-field)] px-2 text-text-dark outline-none ${uiDensity.metaText}`}
-          value={selectedAspectRatio}
-          onChange={(event) => {
-            event.stopPropagation();
-            updateNodeData(id, { aspectRatio: event.target.value });
-          }}
-          onPointerDown={(event) => event.stopPropagation()}
-        >
-          {VIDEO_ASPECT_RATIO_OPTIONS.map((ratio) => (
-            <option key={ratio} value={ratio}>
-              {ratio}
-            </option>
-          ))}
-        </select>
-        <select
-          className={`nodrag nowheel h-8 rounded-lg border border-[var(--ui-border-soft)] bg-[var(--ui-surface-field)] px-2 text-text-dark outline-none ${uiDensity.metaText}`}
-          value={String(selectedDuration)}
-          onChange={(event) => {
-            event.stopPropagation();
-            updateNodeData(id, { generationSeconds: Number(event.target.value) });
-          }}
-          onPointerDown={(event) => event.stopPropagation()}
-        >
-          {VIDEO_DURATION_OPTIONS.map((seconds) => (
-            <option key={seconds} value={String(seconds)}>
-              {seconds}s
-            </option>
-          ))}
-        </select>
-        <button
-          type="button"
-          onClick={(event) => {
-            event.stopPropagation();
-            handleRunTask();
-          }}
-          className={`flex h-8 items-center gap-1.5 rounded-lg bg-accent px-3 text-xs font-medium text-white hover:bg-accent/80 ${uiDensity.buttonText}`}
-        >
-          {data.taskStatus === 'running' ? (
-            <LoaderCircle className="h-3.5 w-3.5 animate-spin" />
-          ) : (
-            <Upload className="h-3.5 w-3.5" />
-          )}
-          生成
-        </button>
-        {data.filePath ? (
-          <button
-            type="button"
-            onClick={(event) => {
-              event.stopPropagation();
-              handleCreateStoryboardNode();
-            }}
-            className={`flex h-8 items-center gap-1 rounded-lg border border-[var(--ui-border-soft)] bg-[var(--ui-surface-field)] px-2 text-text-dark hover:bg-[var(--ui-surface-panel)] ${uiDensity.metaText}`}
-            title="生成视频分镜节点"
-          >
-            <Clapperboard className="h-3.5 w-3.5" />
-            分镜
-          </button>
-        ) : (
-          <div />
-        )}
-        {data.filePath ? (
-          <button
-            type="button"
-            onClick={(event) => {
-              event.stopPropagation();
-              handleCreateVideoEditorNode();
-            }}
-            className={`flex h-8 items-center gap-1 rounded-lg border border-[var(--ui-border-soft)] bg-[var(--ui-surface-field)] px-2 text-text-dark hover:bg-[var(--ui-surface-panel)] ${uiDensity.metaText}`}
-            title={t('node.videoEditor.openEditor', { defaultValue: '打开编辑器' })}
-          >
-            <Film className="h-3.5 w-3.5" />
-            视频编辑
-          </button>
-        ) : (
-          <div />
-        )}
-      </div>
-
-      {data.taskMessage ? (
-        <div className={`mt-1 rounded-lg border border-[var(--ui-border-soft)] bg-[var(--ui-surface-field)] px-2 py-1 text-text-muted ${uiDensity.metaText}`}>
-          {data.taskMessage}
-          {data.taskStatus === 'success' ? (
-            <span className="ml-2 text-text-dark">
-              {t('node.video.duration', { defaultValue: '时长' })}: {selectedDuration}s
-            </span>
-          ) : null}
+        <div className={`tapnow-node-panel ${uiDensity.panelPadding}`}>
+          <div className={`mb-1.5 text-[10px] uppercase tracking-[0.12em] text-text-muted ${uiDensity.metaText}`}>
+            素材
+          </div>
+          <div className="flex flex-wrap gap-1.5">
+            {imageSlots.map((slot) => (
+              <button
+                key={slot.key}
+                type="button"
+                onClick={(event) => event.stopPropagation()}
+                className={`flex h-9 min-w-[58px] items-center justify-center gap-1 rounded-lg border px-2 text-xs font-medium transition-colors ${
+                  slot.active
+                    ? 'border-accent/40 bg-accent/10 text-accent hover:bg-accent/20'
+                    : 'border-[var(--ui-border-soft)] bg-[var(--ui-surface-panel)] text-text-muted hover:border-accent/30 hover:text-text-dark'
+                }`}
+              >
+                <Image className="h-3 w-3" />
+                {slot.label}
+              </button>
+            ))}
+            {videoSlots.map((slot) => (
+              <button
+                key={slot.key}
+                type="button"
+                onClick={(event) => {
+                  event.stopPropagation();
+                  void handlePickFile('video');
+                }}
+                className={`flex h-9 min-w-[58px] items-center justify-center gap-1 rounded-lg border px-2 text-xs font-medium transition-colors ${
+                  slot.active
+                    ? 'border-accent/40 bg-accent/10 text-accent hover:bg-accent/20'
+                    : 'border-[var(--ui-border-soft)] bg-[var(--ui-surface-panel)] text-text-muted hover:border-accent/30 hover:text-text-dark'
+                }`}
+              >
+                <Video className="h-3 w-3" />
+                {slot.label}
+              </button>
+            ))}
+            {audioSlots.map((slot) => (
+              <button
+                key={slot.key}
+                type="button"
+                onClick={(event) => {
+                  event.stopPropagation();
+                  void handlePickFile('audio');
+                }}
+                className={`flex h-9 min-w-[58px] items-center justify-center gap-1 rounded-lg border px-2 text-xs font-medium transition-colors ${
+                  slot.active
+                    ? 'border-accent/40 bg-accent/10 text-accent hover:bg-accent/20'
+                    : 'border-[var(--ui-border-soft)] bg-[var(--ui-surface-panel)] text-text-muted hover:border-accent/30 hover:text-text-dark'
+                }`}
+              >
+                <Music className="h-3 w-3" />
+                {slot.label}
+              </button>
+            ))}
+          </div>
         </div>
-      ) : null}
+
+        <div className={`grid ${providerGridClass} ${uiDensity.sectionGap}`}>
+          <select
+            className={`nodrag nowheel h-8 rounded-lg border border-[var(--ui-border-soft)] bg-[var(--ui-surface-field)] px-2 text-text-dark outline-none ${uiDensity.metaText}`}
+            value={selectedInterface?.id ?? ''}
+            onChange={(event) => {
+              event.stopPropagation();
+              const nextInterface = customApiInterfaces.find((item) => item.id === event.target.value);
+              updateNodeData(id, {
+                interfaceId: event.target.value,
+                modelId: nextInterface?.modelIds[0] ?? '',
+              });
+            }}
+            onPointerDown={(event) => event.stopPropagation()}
+          >
+            {customApiInterfaces.length === 0 && <option value="">未配置接口</option>}
+            {customApiInterfaces.map((item) => (
+              <option key={item.id} value={item.id}>
+                {item.name}
+              </option>
+            ))}
+          </select>
+          <select
+            className={`nodrag nowheel h-8 rounded-lg border border-[var(--ui-border-soft)] bg-[var(--ui-surface-field)] px-2 text-text-dark outline-none ${uiDensity.metaText}`}
+            value={selectedModel}
+            onChange={(event) => {
+              event.stopPropagation();
+              updateNodeData(id, { modelId: event.target.value });
+            }}
+            onPointerDown={(event) => event.stopPropagation()}
+          >
+            {(selectedInterface?.modelIds ?? []).map((modelId) => (
+              <option key={modelId} value={modelId}>
+                {modelId}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        <div className="min-h-0 flex-1">
+          <ReferenceAwareTextarea
+            nodeId={id}
+            value={data.prompt}
+            onChange={(value) => updateNodeData(id, { prompt: value })}
+            placeholder={t('node.video.promptPlaceholder', { defaultValue: 'Describe your video goal...' })}
+            minHeightClassName={uiDensity.density === 'compact' ? 'min-h-[76px]' : 'min-h-[96px]'}
+            className={`h-full ${uiDensity.panelPadding} ${uiDensity.bodyText}`}
+            referenceMediaTypes={['image', 'video']}
+          />
+        </div>
+
+        <div className={`tapnow-node-panel ${uiDensity.panelPadding}`}>
+          <div className={`grid ${controlSelectGridClass} ${uiDensity.sectionGap}`}>
+            <select
+              className={`nodrag nowheel h-8 rounded-lg border border-[var(--ui-border-soft)] bg-[var(--ui-surface-field)] px-2 text-text-dark outline-none ${uiDensity.metaText}`}
+              value={activeMode}
+              onChange={(event) => {
+                event.stopPropagation();
+                updateNodeData(id, { taskMode: event.target.value as VideoNodeTaskMode });
+              }}
+              onPointerDown={(event) => event.stopPropagation()}
+            >
+              <option value="image-to-video">{getModeLabel('image-to-video')}</option>
+              <option value="first-last-frame">{getModeLabel('first-last-frame')}</option>
+              <option value="audio-to-video">{getModeLabel('audio-to-video')}</option>
+              <option value="reference">{getModeLabel('reference')}</option>
+              <option value="video-storyboard-generation">{getModeLabel('video-storyboard-generation')}</option>
+            </select>
+            <select
+              className={`nodrag nowheel h-8 rounded-lg border border-[var(--ui-border-soft)] bg-[var(--ui-surface-field)] px-2 text-text-dark outline-none ${uiDensity.metaText}`}
+              value={selectedAspectRatio}
+              onChange={(event) => {
+                event.stopPropagation();
+                updateNodeData(id, { aspectRatio: event.target.value });
+              }}
+              onPointerDown={(event) => event.stopPropagation()}
+            >
+              {VIDEO_ASPECT_RATIO_OPTIONS.map((ratio) => (
+                <option key={ratio} value={ratio}>
+                  {ratio}
+                </option>
+              ))}
+            </select>
+            <select
+              className={`nodrag nowheel h-8 rounded-lg border border-[var(--ui-border-soft)] bg-[var(--ui-surface-field)] px-2 text-text-dark outline-none ${uiDensity.metaText}`}
+              value={String(selectedDuration)}
+              onChange={(event) => {
+                event.stopPropagation();
+                updateNodeData(id, { generationSeconds: Number(event.target.value) });
+              }}
+              onPointerDown={(event) => event.stopPropagation()}
+            >
+              {VIDEO_DURATION_OPTIONS.map((seconds) => (
+                <option key={seconds} value={String(seconds)}>
+                  {seconds}s
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div className={`mt-2 grid ${actionGridClass} ${uiDensity.sectionGap}`}>
+            <button
+              type="button"
+              onClick={(event) => {
+                event.stopPropagation();
+                handleRunTask();
+              }}
+              className={`inline-flex h-8 items-center justify-center gap-1.5 rounded-lg bg-accent px-3 text-xs font-medium text-white hover:bg-accent/80 ${uiDensity.buttonText}`}
+            >
+              {data.taskStatus === 'running' ? (
+                <LoaderCircle className="h-3.5 w-3.5 animate-spin" />
+              ) : (
+                <Upload className="h-3.5 w-3.5" />
+              )}
+              生成
+            </button>
+
+            <button
+              type="button"
+              disabled={!data.filePath}
+              onClick={(event) => {
+                event.stopPropagation();
+                if (data.filePath) {
+                  handleCreateStoryboardNode();
+                }
+              }}
+              className={`inline-flex h-8 items-center justify-center gap-1 rounded-lg border border-[var(--ui-border-soft)] bg-[var(--ui-surface-field)] px-2 text-text-dark hover:bg-[var(--ui-surface-panel)] disabled:cursor-not-allowed disabled:opacity-45 ${uiDensity.metaText}`}
+              title="生成视频分镜节点"
+            >
+              <Clapperboard className="h-3.5 w-3.5" />
+              分镜
+            </button>
+
+            <button
+              type="button"
+              disabled={!data.filePath}
+              onClick={(event) => {
+                event.stopPropagation();
+                if (data.filePath) {
+                  handleCreateVideoEditorNode();
+                }
+              }}
+              className={`inline-flex h-8 items-center justify-center gap-1 rounded-lg border border-[var(--ui-border-soft)] bg-[var(--ui-surface-field)] px-2 text-text-dark hover:bg-[var(--ui-surface-panel)] disabled:cursor-not-allowed disabled:opacity-45 ${uiDensity.metaText}`}
+              title={t('node.videoEditor.openEditor', { defaultValue: '打开编辑器' })}
+            >
+              <Film className="h-3.5 w-3.5" />
+              编辑
+            </button>
+          </div>
+        </div>
+
+        {data.taskMessage ? (
+          <div className={`rounded-lg border border-[var(--ui-border-soft)] bg-[var(--ui-surface-field)] px-2 py-1 text-text-muted ${uiDensity.metaText}`}>
+            {data.taskMessage}
+            {data.taskStatus === 'success' ? (
+              <span className="ml-2 text-text-dark">
+                {t('node.video.duration', { defaultValue: '时长' })}: {selectedDuration}s
+              </span>
+            ) : null}
+          </div>
+        ) : null}
+      </div>
 
       <Handle
         type="target"

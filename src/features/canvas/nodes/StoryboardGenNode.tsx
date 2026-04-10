@@ -64,7 +64,7 @@ import {
 } from '@/features/canvas/models';
 import { ModelParamsControls } from '@/features/canvas/ui/ModelParamsControls';
 import { CanvasNodeImage } from '@/features/canvas/ui/CanvasNodeImage';
-import { resolveAdaptiveHandleStyle } from '@/features/canvas/ui/nodeMetrics';
+import { resolveAdaptiveHandleStyle, resolveResponsiveNodeClasses } from '@/features/canvas/ui/nodeMetrics';
 import {
   UiButton,
 } from '@/components/ui';
@@ -794,6 +794,11 @@ export const StoryboardGenNode = memo(({ id, data, selected, width, height }: St
     baseFrameLayout.nodeHeight,
     Math.round(height ?? baseFrameLayout.nodeHeight)
   );
+  const uiDensity = useMemo(
+    () => resolveResponsiveNodeClasses(resolvedNodeWidth, resolvedNodeHeight),
+    [resolvedNodeHeight, resolvedNodeWidth]
+  );
+  const compactStoryboard = resolvedNodeWidth < 640;
   const targetHandleStyle = resolveAdaptiveHandleStyle(resolvedNodeWidth, resolvedNodeHeight, 'left');
   const sourceHandleStyle = resolveAdaptiveHandleStyle(resolvedNodeWidth, resolvedNodeHeight, 'right');
   const frameLayout = useMemo(() => {
@@ -1479,8 +1484,8 @@ export const StoryboardGenNode = memo(({ id, data, selected, width, height }: St
       />
 
       {/* Frame summary + grid settings */}
-      <div className="tapnow-node-panel mb-2.5 flex shrink-0 items-center justify-between gap-2 px-2 py-1.5">
-        <div className="flex items-center gap-1.5">
+      <div className={`tapnow-node-panel mb-2.5 flex shrink-0 flex-wrap items-center justify-between px-2 py-1.5 ${uiDensity.sectionGap}`}>
+        <div className={`flex flex-wrap items-center ${uiDensity.sectionGap}`}>
           <GridStepperControl
             label={t('node.storyboardGen.rowsShort')}
             value={nodeData.gridRows}
@@ -1496,14 +1501,14 @@ export const StoryboardGenNode = memo(({ id, data, selected, width, height }: St
         </div>
 
         {showStoryboardGenAdvancedRatioControls && (
-          <div className="tapnow-node-pill min-w-0 flex-1 px-2 py-0.5 text-center text-[10px]">
+          <div className={`tapnow-node-pill min-w-0 px-2 py-0.5 text-center text-[10px] ${compactStoryboard ? 'order-3 w-full' : 'flex-1'}`}>
             <span>{t('node.storyboardGen.cellAspectRatio')}: {resolvedAspectRatios.cellAspectRatioLabel}</span>
             <span className="mx-1 text-[rgba(255,255,255,0.22)]">|</span>
             <span>{t('node.storyboardGen.overallAspectRatio')}: {resolvedAspectRatios.overallAspectRatioLabel}</span>
           </div>
         )}
 
-        <div className="flex items-center gap-1">
+        <div className={`flex flex-wrap items-center justify-end ${uiDensity.sectionGap}`}>
           {showStoryboardGenAdvancedRatioControls && (
             <div className="flex h-5 items-center rounded-full border border-[rgba(255,255,255,0.14)] bg-[rgba(255,255,255,0.04)] p-0.5">
               <button
@@ -1646,51 +1651,53 @@ export const StoryboardGenNode = memo(({ id, data, selected, width, height }: St
 
       {/* AI Parameters */}
       <div
-        className="tapnow-node-panel relative mx-auto mt-auto flex shrink-0 items-center justify-between px-2 py-1.5"
-        style={{ width: `${frameLayout.paramsRowWidth}px` }}
+        className={`tapnow-node-panel relative mx-auto mt-auto flex w-full shrink-0 flex-wrap items-center justify-between px-2 py-1.5 ${uiDensity.sectionGap}`}
+        style={{ width: `min(100%, ${frameLayout.paramsRowWidth}px)` }}
       >
-        <ModelParamsControls
-          imageModels={imageModels}
-          selectedModel={selectedModel}
-          resolutionOptions={resolutionOptions}
-          selectedResolution={selectedResolution}
-          selectedAspectRatio={selectedAspectRatio}
-          aspectRatioOptions={aspectRatioOptions}
-          onModelChange={(modelId) => updateNodeData(id, { model: modelId })}
-          onResolutionChange={(resolution) =>
-            updateNodeData(id, { size: resolution as ImageSize })
-          }
-          onAspectRatioChange={(aspectRatio) =>
-            updateNodeData(id, { requestAspectRatio: aspectRatio })
-          }
-          extraParams={nodeData.extraParams}
-          onExtraParamChange={(key, value) =>
-            updateNodeData(id, {
-              extraParams: {
-                ...(nodeData.extraParams ?? {}),
-                [key]: value,
-              },
-            })
-          }
-          showWebSearchToggle={showWebSearchToggle}
-          webSearchEnabled={webSearchEnabled}
-          onWebSearchToggle={(enabled) =>
-            updateNodeData(id, {
-              extraParams: {
-                ...(nodeData.extraParams ?? {}),
-                enable_web_search: enabled,
-              },
-            })
-          }
-          triggerSize="sm"
-          chipClassName={NODE_CONTROL_CHIP_CLASS}
-          modelChipClassName={NODE_CONTROL_MODEL_CHIP_CLASS}
-          paramsChipClassName={NODE_CONTROL_PARAMS_CHIP_CLASS}
-          modelPanelAlign="center"
-          paramsPanelAlign="center"
-          modelPanelClassName="inline-block min-w-[300px] max-w-[calc(100vw-32px)] p-2"
-          paramsPanelClassName="w-[420px] p-3"
-        />
+        <div className={compactStoryboard ? 'w-full' : 'min-w-0 flex-1'}>
+          <ModelParamsControls
+            imageModels={imageModels}
+            selectedModel={selectedModel}
+            resolutionOptions={resolutionOptions}
+            selectedResolution={selectedResolution}
+            selectedAspectRatio={selectedAspectRatio}
+            aspectRatioOptions={aspectRatioOptions}
+            onModelChange={(modelId) => updateNodeData(id, { model: modelId })}
+            onResolutionChange={(resolution) =>
+              updateNodeData(id, { size: resolution as ImageSize })
+            }
+            onAspectRatioChange={(aspectRatio) =>
+              updateNodeData(id, { requestAspectRatio: aspectRatio })
+            }
+            extraParams={nodeData.extraParams}
+            onExtraParamChange={(key, value) =>
+              updateNodeData(id, {
+                extraParams: {
+                  ...(nodeData.extraParams ?? {}),
+                  [key]: value,
+                },
+              })
+            }
+            showWebSearchToggle={showWebSearchToggle}
+            webSearchEnabled={webSearchEnabled}
+            onWebSearchToggle={(enabled) =>
+              updateNodeData(id, {
+                extraParams: {
+                  ...(nodeData.extraParams ?? {}),
+                  enable_web_search: enabled,
+                },
+              })
+            }
+            triggerSize="sm"
+            chipClassName={NODE_CONTROL_CHIP_CLASS}
+            modelChipClassName={NODE_CONTROL_MODEL_CHIP_CLASS}
+            paramsChipClassName={NODE_CONTROL_PARAMS_CHIP_CLASS}
+            modelPanelAlign="center"
+            paramsPanelAlign="center"
+            modelPanelClassName="inline-block min-w-[300px] max-w-[calc(100vw-32px)] p-2"
+            paramsPanelClassName="w-[420px] p-3"
+          />
+        </div>
 
         <UiButton
           onClick={(event: ReactMouseEvent<HTMLButtonElement>) => {
@@ -1701,7 +1708,7 @@ export const StoryboardGenNode = memo(({ id, data, selected, width, height }: St
           }}
           variant="primary"
           size="sm"
-          className={`!min-w-0 shrink-0 ${NODE_CONTROL_PRIMARY_BUTTON_CLASS}`}
+          className={`!min-w-0 shrink-0 ${compactStoryboard ? 'w-full justify-center' : ''} ${NODE_CONTROL_PRIMARY_BUTTON_CLASS}`}
         >
           <Sparkles className={NODE_CONTROL_ICON_CLASS} strokeWidth={2.8} />
           {t('canvas.generate')}

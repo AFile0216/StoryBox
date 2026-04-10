@@ -49,6 +49,7 @@ export const AudioPreviewNode = memo(({ id, data, selected, width, height }: Aud
     () => resolveResponsiveNodeClasses(resolvedWidth, resolvedHeight),
     [resolvedHeight, resolvedWidth]
   );
+  const infoGridClass = resolvedWidth < 560 ? 'grid-cols-1' : 'grid-cols-2';
   const targetHandleStyle = useMemo(
     () => resolveAdaptiveHandleStyle(resolvedWidth, resolvedHeight, 'left'),
     [resolvedHeight, resolvedWidth]
@@ -100,61 +101,63 @@ export const AudioPreviewNode = memo(({ id, data, selected, width, height }: Aud
         onTitleChange={(nextTitle) => updateNodeData(id, { displayName: nextTitle })}
       />
 
-      <div className="mb-2 mt-6 flex items-center justify-between gap-2">
-        <div className={`tapnow-node-pill px-2 py-1 uppercase tracking-[0.12em] ${uiDensity.metaText}`}>
-          {t('node.audio.title', { defaultValue: 'Audio' })}
-        </div>
-        <button
-          type="button"
-          className={`tapnow-node-button px-2 py-1 ${uiDensity.metaText}`}
-          onClick={(event) => {
-            event.stopPropagation();
-            void handlePickAudio();
-          }}
-        >
-          {data.filePath
-            ? t('node.media.changeFile', { defaultValue: 'Change File' })
-            : t('node.media.selectFile', { defaultValue: 'Select File' })}
-        </button>
-      </div>
-
-      <div className="tapnow-node-surface p-4">
-        {audioSrc ? (
-          <audio
-            src={audioSrc}
-            controls
-            className="w-full"
-            onLoadedMetadata={(event) => {
-              const durationSec = Number.isFinite(event.currentTarget.duration)
-                ? event.currentTarget.duration
-                : null;
-              updateNodeData(id, { durationSec });
+      <div className={`mt-6 flex min-h-0 flex-1 flex-col ${uiDensity.stackGap}`}>
+        <div className="flex items-center justify-between gap-2">
+          <div className={`tapnow-node-pill px-2 py-1 uppercase tracking-[0.12em] ${uiDensity.metaText}`}>
+            {t('node.audio.title', { defaultValue: 'Audio' })}
+          </div>
+          <button
+            type="button"
+            className={`tapnow-node-button px-2 py-1 ${uiDensity.metaText}`}
+            onClick={(event) => {
+              event.stopPropagation();
+              void handlePickAudio();
             }}
-          />
-        ) : (
-          <div className="flex h-[88px] flex-col items-center justify-center gap-2 text-text-muted">
-            <Headphones className="h-8 w-8 opacity-60" />
-            <span className="text-sm">
-              {t('node.audio.empty', { defaultValue: 'Select a local audio file to preview.' })}
-            </span>
-          </div>
-        )}
-      </div>
-
-      <div className="mt-2 grid gap-2 md:grid-cols-2">
-        <div className={`tapnow-node-panel ${uiDensity.panelPadding}`}>
-          <div className="text-[10px] uppercase tracking-[0.12em] text-text-muted">
-            {t('node.video.file', { defaultValue: 'File' })}
-          </div>
-          <div className="mt-1 truncate text-sm text-text-dark">
-            {data.sourceFileName || t('node.media.notSelected', { defaultValue: 'Not selected' })}
-          </div>
+          >
+            {data.filePath
+              ? t('node.media.changeFile', { defaultValue: 'Change File' })
+              : t('node.media.selectFile', { defaultValue: 'Select File' })}
+          </button>
         </div>
-        <div className={`tapnow-node-panel ${uiDensity.panelPadding}`}>
-          <div className="text-[10px] uppercase tracking-[0.12em] text-text-muted">
-            {t('node.audio.duration', { defaultValue: 'Duration' })}
+
+        <div className="tapnow-node-surface flex min-h-0 flex-1 items-center p-4">
+          {audioSrc ? (
+            <audio
+              src={audioSrc}
+              controls
+              className="w-full"
+              onLoadedMetadata={(event) => {
+                const durationSec = Number.isFinite(event.currentTarget.duration)
+                  ? event.currentTarget.duration
+                  : null;
+                updateNodeData(id, { durationSec });
+              }}
+            />
+          ) : (
+            <div className="flex h-[88px] w-full flex-col items-center justify-center gap-2 text-text-muted">
+              <Headphones className="h-8 w-8 opacity-60" />
+              <span className="text-sm">
+                {t('node.audio.empty', { defaultValue: 'Select a local audio file to preview.' })}
+              </span>
+            </div>
+          )}
+        </div>
+
+        <div className={`grid ${uiDensity.sectionGap} ${infoGridClass}`}>
+          <div className={`tapnow-node-panel ${uiDensity.panelPadding}`}>
+            <div className="text-[10px] uppercase tracking-[0.12em] text-text-muted">
+              {t('node.video.file', { defaultValue: 'File' })}
+            </div>
+            <div className="mt-1 truncate text-sm text-text-dark">
+              {data.sourceFileName || t('node.media.notSelected', { defaultValue: 'Not selected' })}
+            </div>
           </div>
-          <div className="mt-1 text-sm text-text-dark">{formatSeconds(data.durationSec)}</div>
+          <div className={`tapnow-node-panel ${uiDensity.panelPadding}`}>
+            <div className="text-[10px] uppercase tracking-[0.12em] text-text-muted">
+              {t('node.audio.duration', { defaultValue: 'Duration' })}
+            </div>
+            <div className="mt-1 text-sm text-text-dark">{formatSeconds(data.durationSec)}</div>
+          </div>
         </div>
       </div>
 

@@ -55,15 +55,15 @@ function stripReferenceTokens(prompt: string): string {
 function resolveModeInstruction(mode: TextAnnotationMode): string {
   switch (mode) {
     case 'text-to-image-prompt':
-      return '生成可直接用于图像生成的高质量提示词。';
+      return 'Generate high-quality prompts ready for image generation.';
     case 'text-to-music-prompt':
-      return '生成可直接用于音乐生成的高质量提示词。';
+      return 'Generate high-quality prompts ready for music generation.';
     case 'text-to-video-prompt':
-      return '生成可直接用于视频生成的高质量提示词。';
+      return 'Generate high-quality prompts ready for video generation.';
     case 'reverse-prompt':
-      return '根据上下文生成反向提示词，强调约束项和负面词。';
+      return 'Generate reverse prompts from context with clear constraints and negatives.';
     default:
-      return '扩写并优化文本内容，保持可读和结构清晰。';
+      return 'Expand and optimize text while keeping it readable and well structured.';
   }
 }
 
@@ -129,6 +129,9 @@ export const TextAnnotationNode = memo(({
   const resolvedWidth = Math.max(MIN_WIDTH, Math.round(width ?? DEFAULT_WIDTH));
   const resolvedHeight = Math.max(MIN_HEIGHT, Math.round(height ?? DEFAULT_HEIGHT));
   const uiDensity = resolveResponsiveNodeClasses(resolvedWidth, resolvedHeight);
+  const selectGridClass =
+    resolvedWidth < 620 ? 'grid-cols-1' : resolvedWidth < 860 ? 'grid-cols-2' : 'grid-cols-3';
+  const actionGridClass = resolvedWidth < 620 ? 'grid-cols-1' : 'grid-cols-2';
   const targetHandleStyle = resolveAdaptiveHandleStyle(resolvedWidth, resolvedHeight, 'left');
   const sourceHandleStyle = resolveAdaptiveHandleStyle(resolvedWidth, resolvedHeight, 'right');
 
@@ -182,10 +185,10 @@ export const TextAnnotationNode = memo(({
     if (!prompt || !selectedInterface || !selectedModel || !selectedInterface.apiKey.trim()) {
       updateNodeData(id, {
         generationError: !prompt
-          ? t('node.imageEdit.promptRequired', { defaultValue: '请输入提示词' })
+          ? t('node.imageEdit.promptRequired', { defaultValue: 'Please enter a prompt' })
           : !selectedModel
-            ? t('node.imageEdit.modelRequired', { defaultValue: '请先选择可用模型' })
-            : t('node.imageEdit.apiKeyRequired', { defaultValue: '请先完成接口配置' }),
+            ? t('node.imageEdit.modelRequired', { defaultValue: 'Please select an available model first' })
+            : t('node.imageEdit.apiKeyRequired', { defaultValue: 'Please complete API settings first' }),
       });
       return;
     }
@@ -196,8 +199,8 @@ export const TextAnnotationNode = memo(({
     const referencedVideos = filterReferencedVideos(incomingVideos, prompt);
     const cleanedPrompt = stripReferenceTokens(prompt);
     const referenceLines = [
-      ...referencedImages.map((url, index) => `参考图${index + 1}: ${url}`),
-      ...referencedVideos.map((url, index) => `参考视频${index + 1}: ${url}`),
+      ...referencedImages.map((url, index) => `Reference image ${index + 1}: ${url}`),
+      ...referencedVideos.map((url, index) => `Reference video ${index + 1}: ${url}`),
     ];
     const userPrompt = [cleanedPrompt, ...referenceLines].filter(Boolean).join('\n');
 
@@ -233,7 +236,7 @@ export const TextAnnotationNode = memo(({
       const payload = await response.json().catch(() => null);
       const generatedText = extractChatContent(payload).trim();
       if (!generatedText) {
-        throw new Error(t('common.error', { defaultValue: '未获取到可用文本结果' }));
+        throw new Error(t('common.error', { defaultValue: 'No usable text returned' }));
       }
 
       updateNodeData(id, {
@@ -260,7 +263,7 @@ export const TextAnnotationNode = memo(({
   return (
     <div
       className={`
-        tapnow-node-card group relative h-full w-full overflow-visible p-2 transition-colors duration-150
+        tapnow-node-card group relative flex h-full w-full flex-col overflow-visible p-2 transition-colors duration-150
         ${selected ? 'tapnow-node-card--selected' : 'tapnow-node-card--default'}
       `}
       style={{ width: resolvedWidth, height: resolvedHeight }}
@@ -274,138 +277,143 @@ export const TextAnnotationNode = memo(({
         onTitleChange={(nextTitle) => updateNodeData(id, { displayName: nextTitle })}
       />
 
-      <div className="mb-2 mt-6 grid grid-cols-[1fr_1fr_1fr_auto_auto] items-center gap-2">
-        <UiSelect
-          value={mode}
-          onChange={(event) =>
-            updateNodeData(id, {
-              mode: event.target.value as TextAnnotationMode,
-            })
-          }
-          className="h-8 text-xs"
-        >
-          {TEXT_MODES.map((item) => (
-            <option key={item} value={item}>
-              {t(`node.textAnnotation.mode.${item}`)}
-            </option>
-          ))}
-        </UiSelect>
+      <div className={`mt-6 flex min-h-0 flex-1 flex-col ${uiDensity.stackGap}`}>
+        <div className={`grid ${selectGridClass} ${uiDensity.sectionGap}`}>
+          <UiSelect
+            value={mode}
+            onChange={(event) =>
+              updateNodeData(id, {
+                mode: event.target.value as TextAnnotationMode,
+              })
+            }
+            className="h-8 text-xs"
+          >
+            {TEXT_MODES.map((item) => (
+              <option key={item} value={item}>
+                {t(`node.textAnnotation.mode.${item}`)}
+              </option>
+            ))}
+          </UiSelect>
 
-        <UiSelect
-          value={selectedInterface?.id ?? ''}
-          onChange={(event) => {
-            const nextInterface = customApiInterfaces.find((item) => item.id === event.target.value);
-            updateNodeData(id, {
-              interfaceId: event.target.value,
-              modelId: nextInterface?.modelIds[0] ?? '',
-            });
-          }}
-          className="h-8 text-xs"
-        >
-          {customApiInterfaces.length === 0 ? <option value="">未配置接口</option> : null}
-          {customApiInterfaces.map((item) => (
-            <option key={item.id} value={item.id}>
-              {item.name}
-            </option>
-          ))}
-        </UiSelect>
+          <UiSelect
+            value={selectedInterface?.id ?? ''}
+            onChange={(event) => {
+              const nextInterface = customApiInterfaces.find((item) => item.id === event.target.value);
+              updateNodeData(id, {
+                interfaceId: event.target.value,
+                modelId: nextInterface?.modelIds[0] ?? '',
+              });
+            }}
+            className="h-8 text-xs"
+          >
+            {customApiInterfaces.length === 0 ? <option value="">No interface configured</option> : null}
+            {customApiInterfaces.map((item) => (
+              <option key={item.id} value={item.id}>
+                {item.name}
+              </option>
+            ))}
+          </UiSelect>
 
-        <UiSelect
-          value={selectedModel}
-          onChange={(event) => updateNodeData(id, { modelId: event.target.value })}
-          className="h-8 text-xs"
-        >
-          {(selectedInterface?.modelIds ?? []).map((modelId) => (
-            <option key={modelId} value={modelId}>
-              {modelId}
-            </option>
-          ))}
-          {selectedInterface?.modelIds?.length === 0 ? (
-            <option value="">{t('node.imageEdit.modelRequired', { defaultValue: '请先配置模型' })}</option>
-          ) : null}
-        </UiSelect>
+          <UiSelect
+            value={selectedModel}
+            onChange={(event) => updateNodeData(id, { modelId: event.target.value })}
+            className="h-8 text-xs"
+          >
+            {(selectedInterface?.modelIds ?? []).map((modelId) => (
+              <option key={modelId} value={modelId}>
+                {modelId}
+              </option>
+            ))}
+            {selectedInterface?.modelIds?.length === 0 ? (
+              <option value="">{t('node.imageEdit.modelRequired', { defaultValue: 'Please configure a model first' })}</option>
+            ) : null}
+          </UiSelect>
+        </div>
 
-        <button
-          type="button"
-          className={`flex h-8 items-center gap-1.5 rounded-lg border border-[var(--ui-border-soft)] px-3 text-xs font-medium text-text-dark hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-60 ${uiDensity.buttonText}`}
-          onClick={(event) => {
-            event.stopPropagation();
-            void handleCopyText();
-          }}
-          disabled={!content.trim()}
-        >
-          <Copy className="h-3.5 w-3.5" />
-          {copyState === 'copied'
-            ? t('common.copied', { defaultValue: '已复制' })
-            : copyState === 'error'
-              ? t('common.error', { defaultValue: '错误' })
-              : t('common.copyText', { defaultValue: '复制文本' })}
-        </button>
+        <div className={`grid ${actionGridClass} ${uiDensity.sectionGap}`}>
+          <button
+            type="button"
+            className={`inline-flex h-8 items-center justify-center gap-1.5 rounded-lg border border-[var(--ui-border-soft)] px-3 text-xs font-medium text-text-dark hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-60 ${uiDensity.buttonText}`}
+            onClick={(event) => {
+              event.stopPropagation();
+              void handleCopyText();
+            }}
+            disabled={!content.trim()}
+          >
+            <Copy className="h-3.5 w-3.5" />
+            {copyState === 'copied'
+              ? t('common.copied', { defaultValue: 'Copied' })
+              : copyState === 'error'
+                ? t('common.error', { defaultValue: 'Error' })
+                : t('common.copyText', { defaultValue: 'Copy text' })}
+          </button>
 
-        <button
-          type="button"
-          className={`flex h-8 items-center gap-1.5 rounded-lg bg-accent px-3 text-xs font-medium text-white hover:bg-accent/80 disabled:cursor-not-allowed disabled:opacity-60 ${uiDensity.buttonText}`}
-          onClick={(event) => {
-            event.stopPropagation();
-            void handleGenerate();
-          }}
-          disabled={isGenerating || !selectedInterface || !selectedModel}
-        >
-          {isGenerating ? <LoaderCircle className="h-3.5 w-3.5 animate-spin" /> : <Wand2 className="h-3.5 w-3.5" />}
-          生成
-        </button>
-      </div>
+          <button
+            type="button"
+            className={`inline-flex h-8 items-center justify-center gap-1.5 rounded-lg bg-accent px-3 text-xs font-medium text-white hover:bg-accent/80 disabled:cursor-not-allowed disabled:opacity-60 ${uiDensity.buttonText}`}
+            onClick={(event) => {
+              event.stopPropagation();
+              void handleGenerate();
+            }}
+            disabled={isGenerating || !selectedInterface || !selectedModel}
+          >
+            {isGenerating ? <LoaderCircle className="h-3.5 w-3.5 animate-spin" /> : <Wand2 className="h-3.5 w-3.5" />}
+            Generate
+          </button>
+        </div>
 
-      {selected ? (
-        <ReferenceAwareTextarea
-          nodeId={id}
-          autoFocus
-          value={content}
-          onChange={(value) => {
-            updateNodeData(id, { content: value, generationError: null });
-          }}
-          placeholder={t('node.textAnnotation.placeholder', {
-            mode: t(`node.textAnnotation.mode.${mode}`),
-          })}
-          minHeightClassName="min-h-0"
-          className={`h-[calc(100%-106px)] ${uiDensity.panelPadding} ${uiDensity.bodyText}`}
-          referenceMediaTypes={['image', 'video']}
-        />
-      ) : (
-        <div className={`tapnow-node-panel nodrag nowheel h-[calc(100%-106px)] overflow-auto ${uiDensity.panelPadding} ${uiDensity.bodyText} text-text-dark`}>
-          <div className={`tapnow-node-pill mb-2 px-2 py-0.5 uppercase tracking-[0.12em] ${uiDensity.metaText}`}>
-            {t(`node.textAnnotation.mode.${mode}`)}
-          </div>
-          {content.trim().length > 0 ? (
-            <div className="markdown-body break-words [&_a]:text-accent [&_blockquote]:border-l-2 [&_blockquote]:border-white/20 [&_blockquote]:pl-3 [&_code]:rounded [&_code]:bg-white/10 [&_code]:px-1 [&_code]:py-0.5 [&_h1]:text-base [&_h1]:font-semibold [&_h2]:text-[15px] [&_h2]:font-semibold [&_h3]:text-sm [&_h3]:font-semibold [&_hr]:border-white/10 [&_li]:my-0.5 [&_ol]:list-decimal [&_ol]:pl-5 [&_p]:my-0 [&_p+_p]:mt-4 [&_pre]:overflow-auto [&_pre]:rounded-md [&_pre]:bg-black/30 [&_pre]:p-2 [&_table]:w-full [&_table]:border-collapse [&_table]:text-xs [&_td]:border [&_td]:border-white/10 [&_td]:px-2 [&_td]:py-1 [&_th]:border [&_th]:border-white/10 [&_th]:px-2 [&_th]:py-1 [&_ul]:list-disc [&_ul]:pl-5">
-              <ReactMarkdown
-                remarkPlugins={[remarkGfm, remarkBreaks]}
-                components={{
-                  a: ({ href, children, ...props }) => (
-                    <a
-                      {...props}
-                      href={href}
-                      target="_blank"
-                      rel="noreferrer"
-                      onClick={(event) => {
-                        event.preventDefault();
-                        handleMarkdownLinkClick(href);
-                      }}
-                    >
-                      {children}
-                    </a>
-                  ),
-                }}
-              >
-                {content}
-              </ReactMarkdown>
-            </div>
+        <div className="min-h-0 flex-1">
+          {selected ? (
+            <ReferenceAwareTextarea
+              nodeId={id}
+              autoFocus
+              value={content}
+              onChange={(value) => {
+                updateNodeData(id, { content: value, generationError: null });
+              }}
+              placeholder={t('node.textAnnotation.placeholder', {
+                mode: t(`node.textAnnotation.mode.${mode}`),
+              })}
+              minHeightClassName="min-h-0"
+              className={`h-full ${uiDensity.panelPadding} ${uiDensity.bodyText}`}
+              referenceMediaTypes={['image', 'video']}
+            />
           ) : (
-            <div className="pt-1 text-text-muted">{t('node.textAnnotation.empty')}</div>
+            <div className={`tapnow-node-panel nodrag nowheel h-full overflow-auto ${uiDensity.panelPadding} ${uiDensity.bodyText} text-text-dark`}>
+              <div className={`tapnow-node-pill mb-2 px-2 py-0.5 uppercase tracking-[0.12em] ${uiDensity.metaText}`}>
+                {t(`node.textAnnotation.mode.${mode}`)}
+              </div>
+              {content.trim().length > 0 ? (
+                <div className="markdown-body break-words [&_a]:text-accent [&_blockquote]:border-l-2 [&_blockquote]:border-white/20 [&_blockquote]:pl-3 [&_code]:rounded [&_code]:bg-white/10 [&_code]:px-1 [&_code]:py-0.5 [&_h1]:text-base [&_h1]:font-semibold [&_h2]:text-[15px] [&_h2]:font-semibold [&_h3]:text-sm [&_h3]:font-semibold [&_hr]:border-white/10 [&_li]:my-0.5 [&_ol]:list-decimal [&_ol]:pl-5 [&_p]:my-0 [&_p+_p]:mt-4 [&_pre]:overflow-auto [&_pre]:rounded-md [&_pre]:bg-black/30 [&_pre]:p-2 [&_table]:w-full [&_table]:border-collapse [&_table]:text-xs [&_td]:border [&_td]:border-white/10 [&_td]:px-2 [&_td]:py-1 [&_th]:border [&_th]:border-white/10 [&_th]:px-2 [&_th]:py-1 [&_ul]:list-disc [&_ul]:pl-5">
+                  <ReactMarkdown
+                    remarkPlugins={[remarkGfm, remarkBreaks]}
+                    components={{
+                      a: ({ href, children, ...props }) => (
+                        <a
+                          {...props}
+                          href={href}
+                          target="_blank"
+                          rel="noreferrer"
+                          onClick={(event) => {
+                            event.preventDefault();
+                            handleMarkdownLinkClick(href);
+                          }}
+                        >
+                          {children}
+                        </a>
+                      ),
+                    }}
+                  >
+                    {content}
+                  </ReactMarkdown>
+                </div>
+              ) : (
+                <div className="pt-1 text-text-muted">{t('node.textAnnotation.empty')}</div>
+              )}
+            </div>
           )}
         </div>
-      )}
-
+      </div>
       {data.generationError ? (
         <div className="mt-1 rounded-lg border border-red-500/30 bg-red-500/10 px-2 py-1 text-xs text-red-300">
           {data.generationError}
@@ -438,3 +446,8 @@ export const TextAnnotationNode = memo(({
 });
 
 TextAnnotationNode.displayName = 'TextAnnotationNode';
+
+
+
+
+

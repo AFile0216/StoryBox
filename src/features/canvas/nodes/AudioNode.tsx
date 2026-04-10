@@ -47,6 +47,8 @@ export const AudioNode = memo(({ id, data, selected, width, height }: AudioNodeP
   const uiDensity = resolveResponsiveNodeClasses(resolvedWidth, resolvedHeight);
   const targetHandleStyle = resolveAdaptiveHandleStyle(resolvedWidth, resolvedHeight, 'left');
   const sourceHandleStyle = resolveAdaptiveHandleStyle(resolvedWidth, resolvedHeight, 'right');
+  const infoGridClass = resolvedWidth < 500 ? 'grid-cols-1' : 'grid-cols-2';
+  const actionGridClass = resolvedWidth < 560 ? 'grid-cols-1' : 'grid-cols-[minmax(0,1fr)_auto]';
   const audioSrc = useMemo(
     () => (data.filePath ? resolveLocalAssetUrl(data.filePath) : null),
     [data.filePath]
@@ -141,24 +143,24 @@ export const AudioNode = memo(({ id, data, selected, width, height }: AudioNodeP
         onTitleChange={(nextTitle) => updateNodeData(id, { displayName: nextTitle })}
       />
 
-      <div className="mb-2 mt-6 flex items-center justify-between gap-2">
-        <div className={`tapnow-node-pill px-2 py-1 uppercase tracking-[0.12em] ${uiDensity.metaText}`}>
-          {t('node.audio.title')}
+      <div className={`mt-6 flex min-h-0 flex-1 flex-col ${uiDensity.stackGap}`}>
+        <div className="flex items-center justify-between gap-2">
+          <div className={`tapnow-node-pill px-2 py-1 uppercase tracking-[0.12em] ${uiDensity.metaText}`}>
+            {t('node.audio.title')}
+          </div>
+          <button
+            type="button"
+            className={`tapnow-node-button px-2 py-1 ${uiDensity.metaText}`}
+            onClick={(event) => {
+              event.stopPropagation();
+              void handlePickAudio();
+            }}
+          >
+            {data.filePath ? t('node.media.changeFile') : t('node.media.selectFile')}
+          </button>
         </div>
-        <button
-          type="button"
-          className={`tapnow-node-button px-2 py-1 ${uiDensity.metaText}`}
-          onClick={(event) => {
-            event.stopPropagation();
-            void handlePickAudio();
-          }}
-        >
-          {data.filePath ? t('node.media.changeFile') : t('node.media.selectFile')}
-        </button>
-      </div>
 
-      <div className="flex min-h-0 flex-1 flex-col gap-2">
-        <div className="tapnow-node-surface p-4">
+        <div className="tapnow-node-surface p-3">
           {audioSrc ? (
             <audio
               src={audioSrc}
@@ -172,14 +174,14 @@ export const AudioNode = memo(({ id, data, selected, width, height }: AudioNodeP
               }}
             />
           ) : (
-            <div className="flex h-[88px] flex-col items-center justify-center gap-2 text-text-muted">
-              <Headphones className="h-8 w-8 opacity-60" />
+            <div className="flex h-[80px] flex-col items-center justify-center gap-2 text-text-muted">
+              <Headphones className="h-7 w-7 opacity-60" />
               <span className="text-sm">{t('node.audio.empty')}</span>
             </div>
           )}
         </div>
 
-        <div className="grid gap-2 md:grid-cols-2">
+        <div className={`grid ${uiDensity.sectionGap} ${infoGridClass}`}>
           <div className={`tapnow-node-panel ${uiDensity.panelPadding}`}>
             <div className="text-[10px] uppercase tracking-[0.12em] text-text-muted">
               {t('node.audio.duration')}
@@ -196,16 +198,18 @@ export const AudioNode = memo(({ id, data, selected, width, height }: AudioNodeP
           </div>
         </div>
 
-        <ReferenceAwareTextarea
-          nodeId={id}
-          value={data.prompt}
-          onChange={(value) => updateNodeData(id, { prompt: value })}
-          placeholder={t('node.audio.promptPlaceholder')}
-          minHeightClassName="min-h-[76px]"
-          className={`${uiDensity.panelPadding} ${uiDensity.bodyText}`}
-        />
+        <div className="min-h-0 flex-1">
+          <ReferenceAwareTextarea
+            nodeId={id}
+            value={data.prompt}
+            onChange={(value) => updateNodeData(id, { prompt: value })}
+            placeholder={t('node.audio.promptPlaceholder')}
+            minHeightClassName={uiDensity.density === 'compact' ? 'min-h-[68px]' : 'min-h-[84px]'}
+            className={`h-full ${uiDensity.panelPadding} ${uiDensity.bodyText}`}
+          />
+        </div>
 
-        <div className="grid gap-2 md:grid-cols-[1fr_auto]">
+        <div className={`grid ${uiDensity.sectionGap} ${actionGridClass}`}>
           <button
             type="button"
             className={`tapnow-node-button inline-flex items-center justify-center gap-2 px-3 py-2 ${uiDensity.buttonText}`}
@@ -227,7 +231,7 @@ export const AudioNode = memo(({ id, data, selected, width, height }: AudioNodeP
           </div>
         </div>
 
-        <div className={`tapnow-node-panel min-h-[54px] ${uiDensity.panelPadding} ${uiDensity.bodyText} text-text-muted`}>
+        <div className={`tapnow-node-panel min-h-[52px] ${uiDensity.panelPadding} ${uiDensity.bodyText} text-text-muted`}>
           {data.taskOutputSummary || t('node.media.outputPlaceholder')}
         </div>
       </div>

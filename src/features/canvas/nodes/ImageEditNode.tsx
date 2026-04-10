@@ -28,7 +28,7 @@ import {
 } from '@/features/canvas/domain/canvasNodes';
 import { resolveNodeDisplayName } from '@/features/canvas/domain/nodeDisplay';
 import { NodeHeader, NODE_HEADER_FLOATING_POSITION_CLASS } from '@/features/canvas/ui/NodeHeader';
-import { resolveAdaptiveHandleStyle } from '@/features/canvas/ui/nodeMetrics';
+import { resolveAdaptiveHandleStyle, resolveResponsiveNodeClasses } from '@/features/canvas/ui/nodeMetrics';
 import { NodeResizeHandle } from '@/features/canvas/ui/NodeResizeHandle';
 import {
   canvasAiGateway,
@@ -359,6 +359,12 @@ export const ImageEditNode = memo(({ id, data, selected, width, height }: ImageE
 
   const resolvedWidth = Math.max(IMAGE_EDIT_NODE_MIN_WIDTH, Math.round(width ?? IMAGE_EDIT_NODE_DEFAULT_WIDTH));
   const resolvedHeight = Math.max(IMAGE_EDIT_NODE_MIN_HEIGHT, Math.round(height ?? IMAGE_EDIT_NODE_DEFAULT_HEIGHT));
+  const uiDensity = useMemo(
+    () => resolveResponsiveNodeClasses(resolvedWidth, resolvedHeight),
+    [resolvedHeight, resolvedWidth]
+  );
+  const compactControls = resolvedWidth < 620;
+  const promptTextClass = uiDensity.density === 'compact' ? 'text-xs leading-5' : 'text-sm leading-6';
   const targetHandleStyle = resolveAdaptiveHandleStyle(resolvedWidth, resolvedHeight, 'left');
   const sourceHandleStyle = resolveAdaptiveHandleStyle(resolvedWidth, resolvedHeight, 'right');
 
@@ -750,12 +756,12 @@ export const ImageEditNode = memo(({ id, data, selected, width, height }: ImageE
         onTitleChange={(nextTitle) => updateNodeData(id, { displayName: nextTitle })}
       />
 
-      <div className="tapnow-node-panel relative min-h-0 flex-1 p-2">
+      <div className={`tapnow-node-panel relative mt-7 min-h-0 flex-1 ${uiDensity.panelPadding}`}>
         <div className="relative h-full min-h-0">
           <div
             ref={promptHighlightRef}
             aria-hidden="true"
-            className="ui-scrollbar pointer-events-none absolute inset-0 overflow-y-auto overflow-x-hidden text-sm leading-6 text-text-dark"
+            className={`ui-scrollbar pointer-events-none absolute inset-0 overflow-y-auto overflow-x-hidden text-text-dark ${promptTextClass}`}
             style={{ scrollbarGutter: 'stable' }}
           >
             <div className="min-h-full whitespace-pre-wrap break-words px-1 py-0.5">
@@ -775,12 +781,13 @@ export const ImageEditNode = memo(({ id, data, selected, width, height }: ImageE
             onScroll={syncPromptHighlightScroll}
             onMouseDown={(event) => event.stopPropagation()}
             placeholder={t('node.imageEdit.promptPlaceholder')}
-            className="ui-scrollbar nodrag nowheel relative z-10 h-full w-full resize-none overflow-y-auto overflow-x-hidden border-none bg-transparent px-1 py-0.5 text-sm leading-6 text-transparent caret-text-dark outline-none placeholder:text-text-muted/80 focus:border-transparent whitespace-pre-wrap break-words"
+            className={`ui-scrollbar nodrag nowheel relative z-10 h-full w-full resize-none overflow-y-auto overflow-x-hidden border-none bg-transparent px-1 py-0.5 text-transparent caret-text-dark outline-none placeholder:text-text-muted/80 focus:border-transparent whitespace-pre-wrap break-words ${promptTextClass}`}
             style={{ scrollbarGutter: 'stable' }}
           />
         </div>
 
-        {showImagePicker && incomingImageItems.length > 0 && (          <div
+        {showImagePicker && incomingImageItems.length > 0 && (
+          <div
             className="nowheel absolute z-30 w-[120px] overflow-hidden rounded-xl border border-[rgba(255,255,255,0.16)] bg-surface-dark shadow-xl"
             style={{ left: pickerAnchor.left, top: pickerAnchor.top }}
             onMouseDown={(event) => event.stopPropagation()}
@@ -820,7 +827,7 @@ export const ImageEditNode = memo(({ id, data, selected, width, height }: ImageE
         )}
       </div>
 
-      <div className="mt-2 flex shrink-0 items-center gap-1">
+      <div className={`flex shrink-0 flex-wrap items-center ${uiDensity.sectionGap}`}>
         {/* 模板库按钮 */}
         <button
           type="button"
@@ -879,7 +886,7 @@ export const ImageEditNode = memo(({ id, data, selected, width, height }: ImageE
         </div>
       </div>
 
-      <div className="mt-2 flex shrink-0 items-center gap-1">
+      <div className={`flex shrink-0 flex-wrap items-center ${uiDensity.sectionGap}`}>
         <ModelParamsControls
           imageModels={imageModels}
           selectedModel={selectedModel}
@@ -923,15 +930,13 @@ export const ImageEditNode = memo(({ id, data, selected, width, height }: ImageE
           paramsChipClassName={NODE_CONTROL_PARAMS_CHIP_CLASS}
         />
 
-        <div className="ml-auto" />
-
         <UiButton
           onClick={(event) => {
             event.stopPropagation();
             void handleGenerate();
           }}
           variant="primary"
-          className={`shrink-0 ${NODE_CONTROL_PRIMARY_BUTTON_CLASS}`}
+          className={`shrink-0 ${compactControls ? 'w-full justify-center' : ''} ${NODE_CONTROL_PRIMARY_BUTTON_CLASS}`}
         >
           <Sparkles className={NODE_CONTROL_ICON_CLASS} strokeWidth={2.8} />
           {t('canvas.generate')}
