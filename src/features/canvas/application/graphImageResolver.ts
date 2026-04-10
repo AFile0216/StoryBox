@@ -44,7 +44,12 @@ export class DefaultGraphImageResolver implements GraphImageResolver {
     }
 
     if (isUploadNode(node) || isImageEditNode(node) || isExportImageNode(node)) {
-      return node.data.imageUrl ? [node.data.imageUrl] : [];
+      const previewImageUrl = (node.data as { previewImageUrl?: string | null }).previewImageUrl;
+      const primaryImage =
+        typeof previewImageUrl === 'string' && previewImageUrl.trim().length > 0
+          ? previewImageUrl
+          : node.data.imageUrl;
+      return primaryImage ? [primaryImage] : [];
     }
 
     return [];

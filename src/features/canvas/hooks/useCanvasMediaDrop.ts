@@ -2,9 +2,10 @@ import { useCallback } from 'react';
 import type { ReactFlowInstance } from '@xyflow/react';
 
 import { CANVAS_NODE_TYPES, type CanvasNodeType } from '@/features/canvas/domain/canvasNodes';
+import { prepareNodeImage, prepareNodeImageFromFile } from '@/features/canvas/application/imageData';
 
 interface DroppedMediaPayload {
-  type: 'video' | 'audio';
+  type: 'video' | 'audio' | 'image';
   file?: File;
   path?: string;
   name: string;
@@ -35,6 +36,13 @@ function isAudioMimeType(mimeType: string | undefined | null): boolean {
   return mimeType.toLowerCase().startsWith('audio/');
 }
 
+function isImageMimeType(mimeType: string | undefined | null): boolean {
+  if (!mimeType) {
+    return false;
+  }
+  return mimeType.toLowerCase().startsWith('image/');
+}
+
 function isVideoFilename(fileName: string | undefined | null): boolean {
   if (!fileName) {
     return false;
@@ -49,7 +57,16 @@ function isAudioFilename(fileName: string | undefined | null): boolean {
   return /\.(mp3|wav|ogg|m4a|flac|aac)$/iu.test(fileName);
 }
 
-function resolveMediaTypeByNameOrPath(nameOrPath: string | undefined | null): 'video' | 'audio' | null {
+function isImageFilename(fileName: string | undefined | null): boolean {
+  if (!fileName) {
+    return false;
+  }
+  return /\.(png|jpe?g|webp|gif|bmp|tiff?|avif|heic|heif)$/iu.test(fileName);
+}
+
+function resolveMediaTypeByNameOrPath(
+  nameOrPath: string | undefined | null
+): 'video' | 'audio' | 'image' | null {
   if (!nameOrPath) {
     return null;
   }
@@ -58,6 +75,9 @@ function resolveMediaTypeByNameOrPath(nameOrPath: string | undefined | null): 'v
   }
   if (isAudioFilename(nameOrPath)) {
     return 'audio';
+  }
+  if (isImageFilename(nameOrPath)) {
+    return 'image';
   }
   return null;
 }
@@ -103,7 +123,9 @@ function resolveDroppedMediaPayloads(dataTransfer: DataTransfer | null): Dropped
       ? 'video'
       : isAudioMimeType(file.type)
         ? 'audio'
-        : resolveMediaTypeByNameOrPath(file.name || fromPath);
+        : isImageMimeType(file.type)
+          ? 'image'
+          : resolveMediaTypeByNameOrPath(file.name || fromPath);
     if (!resolvedType) {
       continue;
     }
@@ -160,7 +182,7 @@ export function useCanvasMediaDrop({
   }, []);
 
   const handleCanvasMediaDrop = useCallback(
-    (event: Pick<DragEvent, 'preventDefault' | 'stopPropagation' | 'dataTransfer' | 'clientX' | 'clientY'>) => {
+    async (event: Pick<DragEvent, 'preventDefault' | 'stopPropagation' | 'dataTransfer' | 'clientX' | 'clientY'>) => {
       const mediaPayloads = resolveDroppedMediaPayloads(event.dataTransfer);
       if (mediaPayloads.length === 0) {
         return;
@@ -179,18 +201,49 @@ export function useCanvasMediaDrop({
         const payload = mediaPayloads[index];
         const droppedPath = payload.path?.trim() ?? '';
         const filePath = ((payload.file as File & { path?: string } | undefined)?.path ?? '').trim();
+        const sourceFileName = payload.name || droppedPath.split(/[/\\]/u).pop() || `media-${Date.now()}`;
+        const nodePosition = {
+          x: flowPoint.x + index * 32,
+          y: flowPoint.y + index * 20,
+        };
+
+        if (payload.type === 'image') {
+          try {
+            const prepared = payload.file
+              ? await prepareNodeImageFromFile(payload.file)
+              : await prepareNodeImage(droppedPath || filePath);
+            addNode(
+              CANVAS_NODE_TYPES.upload as CanvasNodeType,
+              nodePosition,
+              {
+                imageUrl: prepared.imageUrl,
+                previewImageUrl: prepared.previewImageUrl,
+                aspectRatio: prepared.aspectRatio,
+                sourceFileName,
+                displayName: sourceFileName,
+              }
+            );
+            created += 1;
+          } catch (error) {
+            console.error('[canvas-media-drop] failed to import dropped image', {
+              sourceFileName,
+              droppedPath,
+              filePath,
+              error,
+            });
+          }
+          continue;
+        }
+
         const resolvedPath = droppedPath || filePath || (payload.file ? URL.createObjectURL(payload.file) : '');
         if (!resolvedPath) {
           continue;
         }
-        const sourceFileName = payload.name || resolvedPath.split(/[/\\]/u).pop() || `media-${Date.now()}`;
+
         if (payload.type === 'video') {
           addNode(
             CANVAS_NODE_TYPES.videoPreview as CanvasNodeType,
-            {
-              x: flowPoint.x + index * 32,
-              y: flowPoint.y + index * 20,
-            },
+            nodePosition,
             {
               filePath: resolvedPath,
               sourceFileName,
@@ -201,10 +254,7 @@ export function useCanvasMediaDrop({
         } else {
           addNode(
             CANVAS_NODE_TYPES.audioPreview as CanvasNodeType,
-            {
-              x: flowPoint.x + index * 32,
-              y: flowPoint.y + index * 20,
-            },
+            nodePosition,
             {
               filePath: resolvedPath,
               sourceFileName,
@@ -228,3 +278,4 @@ export function useCanvasMediaDrop({
     handleCanvasMediaDrop,
   };
 }
+

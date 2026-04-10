@@ -40,6 +40,7 @@ function greatestCommonDivisor(a: number, b: number): number {
 
 const DEFAULT_PREVIEW_MAX_DIMENSION = 512;
 const LOCAL_PATH_PREFIX_PATTERN = /^(?:[A-Za-z]:[\\/]|\\\\|\/)/;
+const FILE_URL_PREFIX = 'file://';
 
 export interface PreparedNodeImage {
   imageUrl: string;
@@ -105,6 +106,10 @@ export function isLikelyLocalImagePath(imageUrl: string): boolean {
   }
 
   return LOCAL_PATH_PREFIX_PATTERN.test(imageUrl);
+}
+
+function isLikelyFileUrl(imageUrl: string): boolean {
+  return imageUrl.toLowerCase().startsWith(FILE_URL_PREFIX);
 }
 
 export function resolveImageDisplayUrl(imageUrl: string): string {
@@ -180,14 +185,33 @@ export async function imageUrlToDataUrl(imageUrl: string): Promise<string> {
     return imageUrl;
   }
 
-  if (isLikelyLocalImagePath(imageUrl)) {
+  const isLocalLikeSource = isLikelyLocalImagePath(imageUrl) || isLikelyFileUrl(imageUrl);
+  if (isLocalLikeSource) {
     if (isTauri()) {
       try {
         return await loadImage(imageUrl);
-      } catch (error) {
-        throw createImagePipelineError('无法读取本地图片数据', `source=${imageUrl}`, error);
+      } catch (loadError) {
+        const displaySource = resolveImageDisplayUrl(imageUrl);
+        try {
+          const fallbackResponse = await fetch(displaySource);
+          if (!fallbackResponse.ok) {
+            throw new Error(`status=${fallbackResponse.status}`);
+          }
+          const fallbackBlob = await fallbackResponse.blob();
+          return await blobToDataUrl(fallbackBlob);
+        } catch (fallbackError) {
+          throw createImagePipelineError(
+            '无法读取本地图片数据',
+            `source=${imageUrl}\ndisplaySource=${displaySource}`,
+            {
+              loadError: stringifyUnknown(loadError),
+              fallbackError: stringifyUnknown(fallbackError),
+            }
+          );
+        }
       }
     }
+
     const localResponse = await fetch(resolveImageDisplayUrl(imageUrl));
     if (!localResponse.ok) {
       throw createImagePipelineError(
@@ -419,3 +443,4 @@ export async function prepareNodeImage(
     );
   }
 }
+
