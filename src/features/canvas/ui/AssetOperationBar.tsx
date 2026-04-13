@@ -42,11 +42,11 @@ export const AssetOperationBar = memo(() => {
   }
 
   return (
-    <div className="pointer-events-none absolute bottom-4 left-1/2 z-30 w-[min(98vw,1160px)] -translate-x-1/2 px-2">
-      <div className="pointer-events-auto flex flex-wrap items-center gap-2 rounded-2xl border border-[var(--ui-border-soft)] bg-[var(--ui-surface-panel)] px-2 py-2 shadow-[var(--ui-elevation-2)] backdrop-blur-xl md:flex-nowrap">
+    <div className="pointer-events-none absolute bottom-4 left-1/2 z-30 w-auto max-w-[calc(100vw-24px)] -translate-x-1/2 px-2">
+      <div className="pointer-events-auto inline-flex max-w-full flex-wrap items-center gap-2 rounded-2xl border border-[var(--ui-border-soft)] bg-[var(--ui-surface-panel)] px-2 py-2 shadow-[var(--ui-elevation-2)] backdrop-blur-xl">
         <select
           value="default"
-          className="h-9 min-w-[168px] flex-1 rounded-xl border border-[var(--ui-border-soft)] bg-[var(--ui-surface-field)] px-3 text-xs text-text-dark outline-none sm:min-w-[220px] sm:max-w-[280px] sm:flex-none"
+          className="h-9 w-[min(220px,68vw)] shrink-0 rounded-xl border border-[var(--ui-border-soft)] bg-[var(--ui-surface-field)] px-3 text-xs text-text-dark outline-none"
           onChange={() => {
             // reserved for multi-library extension
           }}
@@ -54,7 +54,7 @@ export const AssetOperationBar = memo(() => {
           <option value="default">{t('asset.library.default', { defaultValue: '选择资产库' })}</option>
         </select>
 
-        <div className="ui-scrollbar flex min-w-0 flex-1 items-center gap-1 overflow-x-auto whitespace-nowrap pr-1">
+        <div className="ui-scrollbar flex max-w-[min(58vw,640px)] items-center gap-1 overflow-x-auto whitespace-nowrap pr-1">
           {CATEGORY_META.map((item) => {
             const Icon = item.icon;
             const isActive = activeCategory === item.id;
@@ -95,7 +95,7 @@ export const AssetOperationBar = memo(() => {
             }
             window.setTimeout(() => setHint(''), 1400);
           }}
-          className="inline-flex h-9 items-center rounded-xl border border-[var(--ui-border-soft)] bg-[var(--ui-surface-field)] px-3 text-xs font-medium text-text-dark transition-colors hover:border-accent/35 hover:text-accent disabled:cursor-not-allowed disabled:opacity-45 sm:ml-auto"
+          className="inline-flex h-9 shrink-0 items-center rounded-xl border border-[var(--ui-border-soft)] bg-[var(--ui-surface-field)] px-3 text-xs font-medium text-text-dark transition-colors hover:border-accent/35 hover:text-accent disabled:cursor-not-allowed disabled:opacity-45"
         >
           {t('asset.archiveSelected', { defaultValue: '归档选中节点' })}
         </button>

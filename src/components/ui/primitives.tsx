@@ -117,7 +117,9 @@ export function UiButton({
       {...props}
     >
       {loading ? <LoaderCircle className="h-3.5 w-3.5 animate-spin" /> : null}
-      <span className={`whitespace-nowrap ${loading ? 'opacity-90' : ''}`}>{children}</span>
+      <span className={`inline-flex items-center gap-2 whitespace-nowrap ${loading ? 'opacity-90' : ''}`}>
+        {children}
+      </span>
     </button>
   );
 }
