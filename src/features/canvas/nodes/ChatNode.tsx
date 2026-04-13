@@ -163,7 +163,7 @@ export const ChatNode = memo(({ id, data, selected, width, height }: ChatNodePro
       {/* model selector */}
       <div className="flex items-center gap-1.5 px-2 pt-8 pb-1">
         <select
-          className="nodrag nowheel h-7 flex-1 rounded-lg border border-white/10 bg-black/20 px-2 text-xs text-text-dark outline-none"
+          className="nodrag nowheel h-7 flex-1 rounded-lg border border-[var(--ui-border-soft)] bg-[var(--ui-surface-field)] px-2 text-xs text-text-dark outline-none"
           value={data.interfaceId || ''}
           onChange={(e) => {
             const iface = customApiInterfaces.find((i) => i.id === e.target.value);
@@ -177,7 +177,7 @@ export const ChatNode = memo(({ id, data, selected, width, height }: ChatNodePro
           ))}
         </select>
         <select
-          className="nodrag nowheel h-7 flex-1 rounded-lg border border-white/10 bg-black/20 px-2 text-xs text-text-dark outline-none"
+          className="nodrag nowheel h-7 flex-1 rounded-lg border border-[var(--ui-border-soft)] bg-[var(--ui-surface-field)] px-2 text-xs text-text-dark outline-none"
           value={selectedModel}
           onChange={(e) => updateNodeData(id, { modelId: e.target.value })}
           onPointerDown={(e) => e.stopPropagation()}
@@ -251,7 +251,7 @@ export const ChatNode = memo(({ id, data, selected, width, height }: ChatNodePro
           <ImagePlus className="h-4 w-4" />
         </button>
         <textarea
-          className="nodrag nowheel ui-scrollbar flex-1 resize-none rounded-xl border border-white/10 bg-black/20 px-3 py-2 text-xs text-text-dark outline-none placeholder:text-text-muted focus:border-accent/50"
+          className="nodrag nowheel ui-scrollbar flex-1 resize-none rounded-xl border border-[var(--ui-border-soft)] bg-[var(--ui-surface-field)] px-3 py-2 text-xs text-text-dark outline-none placeholder:text-text-muted focus:border-accent/50"
           rows={2}
           placeholder={t('node.chat.inputPlaceholder', { defaultValue: '输入消息...' })}
           value={localInput}

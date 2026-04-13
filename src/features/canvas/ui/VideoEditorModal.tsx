@@ -487,14 +487,6 @@ export const VideoEditorModal = memo(({
   }, [normalizeTextTracks, onSave, playheadSec, textClips, timelineClips]);
 
   useEffect(() => {
-    setTimelineClips(normalizeTrackClips(initialTimelineClips));
-  }, [initialTimelineClips]);
-
-  useEffect(() => {
-    setTextClips(normalizeTrackClips(initialTextClips));
-  }, [initialTextClips]);
-
-  useEffect(() => {
     setPlayheadSec((previous) => clamp(previous, 0, safeTimelineMaxSec));
   }, [safeTimelineMaxSec]);
 
@@ -636,6 +628,7 @@ export const VideoEditorModal = memo(({
 
   const handleModalDropGuard = useCallback((event: ReactDragEvent<HTMLDivElement>) => {
     event.preventDefault();
+    event.stopPropagation();
   }, []);
 
   const handleTrackMouseDown = useCallback((event: ReactMouseEvent<HTMLDivElement>) => {
@@ -780,8 +773,8 @@ export const VideoEditorModal = memo(({
         </div>
 
         <div className="grid min-h-0 flex-1 xl:grid-cols-[minmax(0,1fr)_clamp(360px,34vw,520px)]">
-          <div className="flex min-w-0 flex-1 flex-col border-b border-[var(--ui-border-soft)] p-4 md:p-5 xl:border-b-0 xl:border-r">
-            <div className="relative min-h-[220px] flex-1 overflow-hidden rounded-[var(--ui-radius-2xl)] border border-[var(--ui-border-soft)] bg-[var(--ui-track-bg)]">
+          <div className="grid min-h-0 min-w-0 flex-1 grid-rows-[minmax(0,1fr)_auto] border-b border-[var(--ui-border-soft)] p-4 md:p-5 xl:border-b-0 xl:border-r">
+            <div className="relative min-h-[160px] min-w-0 overflow-hidden rounded-[var(--ui-radius-2xl)] border border-[var(--ui-border-soft)] bg-[var(--ui-track-bg)]">
               {activePreviewUrl ? (
                 <img
                   src={resolveImageDisplayUrl(activePreviewUrl)}
@@ -830,7 +823,7 @@ export const VideoEditorModal = memo(({
               </div>
             </div>
 
-            <div className="mt-4 rounded-[var(--ui-radius-xl)] border border-[var(--ui-border-soft)] bg-[var(--ui-overlay-panel)] p-3">
+            <div className="mt-4 min-h-[212px] shrink-0 rounded-[var(--ui-radius-xl)] border border-[var(--ui-border-soft)] bg-[var(--ui-overlay-panel)] p-3">
               <div className="mb-2 flex items-center justify-between text-xs text-text-muted">
                 <div className="flex items-center gap-2">
                   <button

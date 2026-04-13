@@ -308,7 +308,7 @@ export const NodeActionToolbar = memo(({ node }: NodeActionToolbarProps) => {
       offset={NODE_TOOLBAR_OFFSET}
       className={NODE_TOOLBAR_CLASS}
     >
-      <UiPanel className="flex items-center gap-1 rounded-[20px] border border-[var(--ui-overlay-inverse-border)] bg-[var(--ui-overlay-panel)] p-1 shadow-[var(--ui-elevation-2)] backdrop-blur-xl">
+      <UiPanel className="flex max-w-[calc(100vw-24px)] items-center gap-1 rounded-[20px] border border-[var(--ui-border-soft)] bg-[var(--ui-surface-panel)] p-1 shadow-[var(--ui-elevation-2)]">
         {!isImageEdit && tools.map((tool) => {
           const Icon = toolIconMap[tool.icon] ?? Crop;
 
@@ -452,7 +452,7 @@ export const NodeActionToolbar = memo(({ node }: NodeActionToolbarProps) => {
       {!isImageEdit && downloadMenu && (
         <div
           ref={downloadMenuRef}
-          className={`fixed z-[120] min-w-[280px] rounded-xl border border-[var(--ui-border-soft)] bg-[var(--ui-surface-panel)] p-2 shadow-[var(--ui-elevation-3)] backdrop-blur-sm transition-opacity duration-150 ${isDownloadMenuVisible ? 'opacity-100' : 'opacity-0'}`}
+          className={`fixed z-[120] min-w-[280px] rounded-xl border border-[var(--ui-border-soft)] bg-[var(--ui-surface-panel)] p-2 shadow-[var(--ui-elevation-3)] transition-opacity duration-150 ${isDownloadMenuVisible ? 'opacity-100' : 'opacity-0'}`}
           style={{ left: `${downloadMenu.x}px`, top: `${downloadMenu.y}px` }}
         >
           <button

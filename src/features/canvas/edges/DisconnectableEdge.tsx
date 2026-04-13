@@ -193,7 +193,7 @@ export const DisconnectableEdge = memo(function DisconnectableEdge(props: EdgePr
       {(selected || isHovered || isRelatedToFocusedNode) && (
         <EdgeLabelRenderer>
           <div
-            className="nodrag nopan absolute flex items-center gap-1 rounded-full border border-white/10 bg-black/70 px-1 py-1 text-text-muted shadow-lg backdrop-blur"
+            className="nodrag nopan absolute flex items-center gap-1 rounded-full border border-[var(--ui-border-soft)] bg-[var(--ui-surface-panel)] px-1 py-1 text-text-muted shadow-lg"
             style={{
               transform: `translate(-50%, -50%) translate(${labelX}px, ${labelY}px)`,
               pointerEvents: 'all',
@@ -201,7 +201,7 @@ export const DisconnectableEdge = memo(function DisconnectableEdge(props: EdgePr
           >
             <button
               type="button"
-              className="flex h-6 min-w-6 items-center justify-center rounded-full px-1 text-[10px] font-medium transition-colors hover:bg-white/10 hover:text-text-dark"
+              className="flex h-6 min-w-6 items-center justify-center rounded-full px-1 text-[10px] font-medium transition-colors hover:bg-[var(--ui-hover-surface)] hover:text-text-dark"
               onClick={(event) => {
                 event.stopPropagation();
                 updateEdgeData(id, { lineStyle: isDashed ? 'solid' : 'dashed' });
@@ -213,7 +213,7 @@ export const DisconnectableEdge = memo(function DisconnectableEdge(props: EdgePr
             </button>
             <button
               type="button"
-              className="flex h-6 min-w-6 items-center justify-center rounded-full px-1 text-[10px] font-medium transition-colors hover:bg-white/10 hover:text-text-dark"
+              className="flex h-6 min-w-6 items-center justify-center rounded-full px-1 text-[10px] font-medium transition-colors hover:bg-[var(--ui-hover-surface)] hover:text-text-dark"
               onClick={(event) => {
                 event.stopPropagation();
                 const currentIndex = EDGE_COLOR_CYCLE.findIndex(
@@ -230,7 +230,7 @@ export const DisconnectableEdge = memo(function DisconnectableEdge(props: EdgePr
             </button>
             <button
               type="button"
-              className="flex h-6 min-w-6 items-center justify-center rounded-full px-1 text-[10px] font-medium transition-colors hover:bg-white/10 hover:text-text-dark"
+              className="flex h-6 min-w-6 items-center justify-center rounded-full px-1 text-[10px] font-medium transition-colors hover:bg-[var(--ui-hover-surface)] hover:text-text-dark"
               onClick={(event) => {
                 event.stopPropagation();
                 updateEdgeData(id, {

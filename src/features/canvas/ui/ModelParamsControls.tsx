@@ -626,7 +626,7 @@ export const ModelParamsControls = memo(({
             {panelExtraParamSchema.length > 0 && (
               <div className="mt-3">
                 <div className="mb-2 text-xs text-text-muted">{t('modelParams.extraOptions')}</div>
-                <div className="space-y-2 rounded-xl border border-[rgba(255,255,255,0.1)] bg-bg-dark/65 p-3">
+                <div className="space-y-2 rounded-xl border border-[var(--ui-border-soft)] bg-[var(--ui-surface-field)] p-3">
                   {panelExtraParamSchema.map((definition) => {
                     const translatedLabel = resolveTranslatedText(
                       t,
@@ -648,7 +648,7 @@ export const ModelParamsControls = memo(({
                     );
 
                     return (
-                      <div key={definition.key} className="space-y-2 rounded-lg border border-[rgba(255,255,255,0.08)] bg-black/10 p-2">
+                      <div key={definition.key} className="space-y-2 rounded-lg border border-[var(--ui-border-soft)] bg-[var(--ui-muted-surface)] p-2">
                         <div>
                           <div className="text-xs font-medium text-text-dark">{translatedLabel}</div>
                           {translatedDescription && (

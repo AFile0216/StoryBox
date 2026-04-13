@@ -19,20 +19,20 @@
   --text-muted-rgb: 89 109 137;
   --accent: #f97316;
   --accent-rgb: 249 115 22;
-  --ui-surface-panel: rgba(255, 255, 255, 0.96);
-  --ui-surface-field: rgba(250, 253, 255, 0.98);
+  --ui-surface-panel: rgb(var(--surface-rgb));
+  --ui-surface-field: rgb(var(--surface-rgb));
   --ui-border-soft: rgba(15, 23, 42, 0.15);
   --ui-border-strong: rgba(15, 23, 42, 0.3);
   --ui-overlay-scrim: rgba(7, 14, 24, 0.42);
-  --ui-overlay-blur: 4px;
-  --ui-overlay-panel: rgba(255, 255, 255, 0.9);
+  --ui-overlay-blur: 0px;
+  --ui-overlay-panel: rgb(var(--surface-rgb));
   --ui-overlay-inverse: rgba(8, 14, 22, 0.64);
   --ui-overlay-inverse-strong: rgba(8, 14, 22, 0.78);
   --ui-overlay-inverse-border: rgba(255, 255, 255, 0.24);
   --ui-hover-surface: rgba(15, 23, 42, 0.055);
   --ui-hover-surface-strong: rgba(15, 23, 42, 0.11);
   --ui-pressed-surface: rgba(15, 23, 42, 0.18);
-  --ui-muted-surface: rgba(255, 255, 255, 0.78);
+  --ui-muted-surface: rgba(var(--surface-rgb), 0.86);
   --ui-track-bg: rgba(15, 23, 42, 0.1);
   --ui-track-grid: rgba(15, 23, 42, 0.14);
   --ui-track-mark: rgba(15, 23, 42, 0.32);
@@ -109,20 +109,20 @@
   --text-muted: #91a7c2;
   --text-muted-rgb: 145 167 194;
   --accent-rgb: 255 138 31;
-  --ui-surface-panel: rgba(18, 26, 37, 0.93);
-  --ui-surface-field: rgba(11, 19, 29, 0.95);
+  --ui-surface-panel: rgb(var(--surface-rgb));
+  --ui-surface-field: rgb(var(--surface-rgb));
   --ui-border-soft: rgba(198, 214, 233, 0.19);
   --ui-border-strong: rgba(227, 237, 248, 0.33);
   --ui-overlay-scrim: rgba(1, 5, 10, 0.66);
-  --ui-overlay-blur: 5px;
-  --ui-overlay-panel: rgba(5, 11, 18, 0.82);
+  --ui-overlay-blur: 0px;
+  --ui-overlay-panel: rgb(var(--surface-rgb));
   --ui-overlay-inverse: rgba(5, 10, 16, 0.72);
   --ui-overlay-inverse-strong: rgba(3, 8, 14, 0.86);
   --ui-overlay-inverse-border: rgba(221, 233, 250, 0.22);
   --ui-hover-surface: rgba(255, 255, 255, 0.08);
   --ui-hover-surface-strong: rgba(255, 255, 255, 0.14);
   --ui-pressed-surface: rgba(255, 255, 255, 0.2);
-  --ui-muted-surface: rgba(255, 255, 255, 0.06);
+  --ui-muted-surface: rgba(var(--surface-rgb), 0.54);
   --ui-track-bg: rgba(3, 9, 15, 0.62);
   --ui-track-grid: rgba(217, 229, 247, 0.1);
   --ui-track-mark: rgba(217, 229, 247, 0.28);
@@ -230,8 +230,8 @@
 :root[data-theme-contrast='high'] {
   --text-rgb: 11 20 34;
   --text-muted-rgb: 63 80 103;
-  --ui-surface-panel: rgba(255, 255, 255, 0.97);
-  --ui-surface-field: rgba(255, 255, 255, 0.98);
+  --ui-surface-panel: rgb(var(--surface-rgb));
+  --ui-surface-field: rgb(var(--surface-rgb));
   --ui-border-soft: rgba(15, 23, 42, 0.24);
   --ui-border-strong: rgba(15, 23, 42, 0.4);
   --tapnow-node-card-border: rgba(9, 22, 38, 0.24);
@@ -250,8 +250,8 @@
 :root.dark[data-theme-contrast='high'] {
   --text-rgb: 247 251 255;
   --text-muted-rgb: 178 194 215;
-  --ui-surface-panel: rgba(18, 25, 36, 0.96);
-  --ui-surface-field: rgba(11, 18, 27, 0.96);
+  --ui-surface-panel: rgb(var(--surface-rgb));
+  --ui-surface-field: rgb(var(--surface-rgb));
   --ui-border-soft: rgba(214, 229, 248, 0.27);
   --ui-border-strong: rgba(235, 243, 255, 0.42);
   --tapnow-node-card-border: rgba(208, 224, 247, 0.28);
@@ -270,8 +270,8 @@
 :root[data-theme-contrast='soft'] {
   --text-rgb: 28 38 54;
   --text-muted-rgb: 106 122 145;
-  --ui-surface-panel: rgba(251, 252, 255, 0.9);
-  --ui-surface-field: rgba(246, 249, 255, 0.9);
+  --ui-surface-panel: rgb(var(--surface-rgb));
+  --ui-surface-field: rgb(var(--surface-rgb));
   --ui-border-soft: rgba(15, 23, 42, 0.12);
   --ui-border-strong: rgba(15, 23, 42, 0.22);
   --tapnow-node-card-border: rgba(12, 25, 43, 0.11);
@@ -287,8 +287,8 @@
 :root.dark[data-theme-contrast='soft'] {
   --text-rgb: 228 236 246;
   --text-muted-rgb: 130 149 174;
-  --ui-surface-panel: rgba(14, 21, 31, 0.88);
-  --ui-surface-field: rgba(11, 17, 26, 0.88);
+  --ui-surface-panel: rgb(var(--surface-rgb));
+  --ui-surface-field: rgb(var(--surface-rgb));
   --ui-border-soft: rgba(198, 214, 233, 0.12);
   --ui-border-strong: rgba(227, 237, 248, 0.2);
   --tapnow-node-card-border: rgba(188, 211, 236, 0.12);
@@ -411,14 +411,14 @@ html[data-platform='macos'] #root {
 }
 
 .ui-panel {
-  background: var(--ui-surface-panel);
+  background: rgb(var(--surface-rgb));
   border-color: var(--ui-border-soft);
   border-radius: var(--ui-radius-xl);
   box-shadow: var(--ui-elevation-2);
 }
 
 .ui-field {
-  background: var(--ui-surface-field);
+  background: rgb(var(--surface-rgb));
   border-color: var(--ui-border-soft);
   border-radius: var(--ui-radius-lg);
 }
@@ -426,13 +426,13 @@ html[data-platform='macos'] #root {
 .ui-card {
   border: 1px solid var(--ui-border-soft);
   border-radius: var(--ui-radius-xl);
-  background: linear-gradient(180deg, rgba(var(--surface-rgb), 0.88), rgba(var(--surface-rgb), 0.72));
+  background: rgb(var(--surface-rgb));
   box-shadow: var(--ui-elevation-1);
 }
 
 .ui-overlay-backdrop {
   background: var(--ui-overlay-scrim);
-  backdrop-filter: blur(var(--ui-overlay-blur));
+  backdrop-filter: none;
 }
 
 .ui-empty-state {

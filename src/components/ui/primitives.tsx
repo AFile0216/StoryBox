@@ -512,7 +512,7 @@ export function UiModal({
   onClose,
   children,
   footer,
-  widthClassName = 'w-[min(92vw,560px)]',
+  widthClassName = 'w-[min(96vw,560px)]',
   containerClassName = '',
 }: UiModalProps) {
   const { shouldRender, isVisible } = useDialogTransition(isOpen, UI_DIALOG_TRANSITION_MS);
@@ -522,7 +522,7 @@ export function UiModal({
   }
 
   return (
-    <div className={`fixed ${UI_CONTENT_OVERLAY_INSET_CLASS} z-[120] flex items-center justify-center p-3 md:p-4 ${containerClassName}`}>
+    <div className={`fixed ${UI_CONTENT_OVERLAY_INSET_CLASS} z-[120] flex items-center justify-center p-2 sm:p-3 md:p-4 ${containerClassName}`}>
       <div
         className={`ui-overlay-backdrop absolute inset-0 transition-opacity duration-200 ${
           isVisible ? 'opacity-100' : 'opacity-0'

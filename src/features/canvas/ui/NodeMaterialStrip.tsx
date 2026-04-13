@@ -16,12 +16,25 @@ function resolveOriginLabel(
   t: ReturnType<typeof useTranslation>['t']
 ): string {
   if (origin === 'local') {
-    return t('asset.source.local', { defaultValue: '本地' });
+    return t('asset.source.local', { defaultValue: 'Local' });
   }
   if (origin === 'generated') {
-    return t('asset.source.generated', { defaultValue: '生成' });
+    return t('asset.source.generated', { defaultValue: 'Generated' });
   }
-  return t('asset.source.linked', { defaultValue: '引用' });
+  return t('asset.source.linked', { defaultValue: 'Linked' });
+}
+
+function resolveTokenLabel(
+  mediaKind: 'image' | 'video' | 'audio',
+  t: ReturnType<typeof useTranslation>['t']
+): string {
+  if (mediaKind === 'image') {
+    return t('asset.token.image', { defaultValue: 'Image' });
+  }
+  if (mediaKind === 'video') {
+    return t('asset.token.video', { defaultValue: 'Video' });
+  }
+  return t('asset.token.audio', { defaultValue: 'Audio' });
 }
 
 export const NodeMaterialStrip = memo(({
@@ -43,14 +56,14 @@ export const NodeMaterialStrip = memo(({
   }
 
   return (
-    <div className={`tapnow-node-panel nodrag nowheel flex items-center gap-2 overflow-x-auto p-1.5 ${className}`}>
+    <div className={`tapnow-node-panel nodrag nowheel flex max-w-full items-center gap-2 overflow-x-auto p-1.5 ${className}`}>
       {materialItems.map((item, index) => (
         <div
           key={item.key}
-          className="flex h-12 min-w-[112px] items-center gap-2 rounded-lg border border-[var(--ui-border-soft)] bg-[var(--ui-surface-field)] px-1.5"
+          className="flex h-11 min-w-[96px] md:min-w-[112px] items-center gap-2 rounded-lg border border-[var(--ui-border-soft)] bg-[var(--ui-surface-field)] px-1.5"
           title={`${item.title} · ${resolveOriginLabel(item.origin, t)}`}
         >
-          <div className="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-md border border-[var(--ui-border-soft)] bg-black/25">
+          <div className="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-md border border-[var(--ui-border-soft)] bg-[var(--ui-muted-surface)]">
             {item.mediaKind === 'image' ? (
               <img
                 src={item.displayUrl}
@@ -68,7 +81,7 @@ export const NodeMaterialStrip = memo(({
           </div>
           <div className="min-w-0">
             <div className="truncate text-[11px] font-medium text-text-dark">
-              @{item.mediaKind === 'image' ? t('asset.token.image', { defaultValue: '图' }) : item.mediaKind === 'video' ? t('asset.token.video', { defaultValue: '视频' }) : t('asset.token.audio', { defaultValue: '音频' })}{index + 1}
+              @{resolveTokenLabel(item.mediaKind, t)}{index + 1}
             </div>
             <div className="truncate text-[10px] text-text-muted">{resolveOriginLabel(item.origin, t)}</div>
           </div>

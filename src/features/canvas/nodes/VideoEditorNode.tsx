@@ -299,7 +299,7 @@ export const VideoEditorNode = memo(({ id, data, selected, width, height }: Vide
                   className="h-full w-full rounded-lg object-cover"
                   draggable={false}
                 />
-                <div className="pointer-events-none absolute left-3 top-3 rounded border border-[var(--ui-border-soft)] bg-black/50 px-2 py-1 ui-timecode text-[10px] text-white/85">
+                <div className="pointer-events-none absolute left-3 top-3 rounded border border-[var(--ui-border-soft)] bg-[var(--ui-media-chip)] px-2 py-1 ui-timecode text-[10px] text-white/85">
                   SOURCE CLIP
                 </div>
               </>

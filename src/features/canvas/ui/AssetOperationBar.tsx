@@ -43,7 +43,7 @@ export const AssetOperationBar = memo(() => {
 
   return (
     <div className="pointer-events-none absolute bottom-4 left-1/2 z-30 w-auto max-w-[calc(100vw-24px)] -translate-x-1/2 px-2">
-      <div className="pointer-events-auto inline-flex max-w-full flex-wrap items-center gap-2 rounded-2xl border border-[var(--ui-border-soft)] bg-[var(--ui-surface-panel)] px-2 py-2 shadow-[var(--ui-elevation-2)] backdrop-blur-xl">
+      <div className="pointer-events-auto inline-flex max-w-full flex-wrap items-center gap-2 rounded-2xl border border-[var(--ui-border-soft)] bg-[var(--ui-surface-panel)] px-2 py-2 shadow-[var(--ui-elevation-2)]">
         <select
           value="default"
           className="h-9 w-[min(220px,68vw)] shrink-0 rounded-xl border border-[var(--ui-border-soft)] bg-[var(--ui-surface-field)] px-3 text-xs text-text-dark outline-none"
@@ -72,7 +72,7 @@ export const AssetOperationBar = memo(() => {
               >
                 <Icon className="h-3.5 w-3.5" />
                 <span>{t(item.labelKey, { defaultValue: item.fallback })}</span>
-                <span className="rounded-md border border-[var(--ui-border-soft)] bg-black/20 px-1.5 py-0.5 text-[10px]">{count}</span>
+                <span className="rounded-md border border-[var(--ui-border-soft)] bg-[var(--ui-muted-surface)] px-1.5 py-0.5 text-[10px]">{count}</span>
               </button>
             );
           })}

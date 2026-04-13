@@ -32,7 +32,7 @@ export const CanvasToolbar = memo(({ isLocked, onToggleLock }: CanvasToolbarProp
   }, [addNode]);
 
   return (
-    <div className="absolute bottom-4 left-1/2 z-10 flex -translate-x-1/2 items-center gap-2 rounded-2xl border border-[var(--ui-overlay-inverse-border)] bg-[var(--ui-overlay-inverse)] px-2 py-1.5 shadow-[var(--ui-elevation-2)] backdrop-blur-xl">
+    <div className="absolute bottom-4 left-1/2 z-10 flex max-w-[calc(100vw-20px)] -translate-x-1/2 items-center gap-2 rounded-2xl border border-[var(--ui-border-soft)] bg-[var(--ui-surface-panel)] px-2 py-1.5 shadow-[var(--ui-elevation-2)]">
       <button
         onClick={handleAddNode}
         disabled={isLocked}

@@ -59,12 +59,12 @@ export const GroupNode = memo(({ id, data, selected }: GroupNodeProps) => {
         })}
       />
       <div className="absolute right-3 top-3 z-20 flex items-center gap-2">
-        <span className="rounded-full border border-white/10 bg-black/20 px-2 py-1 text-[10px] uppercase tracking-[0.12em] text-text-muted">
+        <span className="rounded-full border border-[var(--ui-border-soft)] bg-[var(--ui-surface-field)] px-2 py-1 text-[10px] uppercase tracking-[0.12em] text-text-muted">
           {memberCountLabel}
         </span>
         <button
           type="button"
-          className="nodrag inline-flex h-7 w-7 items-center justify-center rounded-full border border-white/10 bg-black/20 text-text-muted transition-colors hover:text-text-dark"
+          className="nodrag inline-flex h-7 w-7 items-center justify-center rounded-full border border-[var(--ui-border-soft)] bg-[var(--ui-surface-field)] text-text-muted transition-colors hover:bg-[var(--ui-hover-surface)] hover:text-text-dark"
           onClick={(event) => {
             event.stopPropagation();
             toggleGroupCollapsed(id);
@@ -76,7 +76,7 @@ export const GroupNode = memo(({ id, data, selected }: GroupNodeProps) => {
         </button>
       </div>
       {collapsed ? (
-        <div className="absolute inset-x-3 top-14 rounded-xl border border-dashed border-white/10 bg-black/10 px-3 py-4 text-xs text-text-muted">
+        <div className="absolute inset-x-3 top-14 rounded-xl border border-dashed border-[var(--ui-border-soft)] bg-[var(--ui-surface-field)] px-3 py-4 text-xs text-text-muted">
           {collapsedHint}
         </div>
       ) : null}
