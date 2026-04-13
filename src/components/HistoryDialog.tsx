@@ -60,7 +60,7 @@ export const HistoryDialog = memo(({ isOpen, onClose }: HistoryDialogProps) => {
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-3 md:p-4 backdrop-blur-sm">
+    <div className="fixed inset-0 z-50 flex items-center justify-center ui-overlay-backdrop p-3 md:p-4">
       <div className="flex h-[min(92vh,920px)] w-[min(98vw,1320px)] flex-col overflow-hidden rounded-[var(--ui-radius-2xl)] border border-[var(--ui-border-soft)] bg-[var(--ui-surface-panel)] shadow-[var(--ui-elevation-3)]">
         <div className="flex min-h-14 flex-wrap items-center justify-between gap-2 border-b border-[var(--ui-border-soft)] bg-gradient-to-r from-accent/10 to-transparent px-4 md:px-6">
           <h2 className="text-lg font-semibold text-text-dark">
@@ -140,7 +140,7 @@ export const HistoryDialog = memo(({ isOpen, onClose }: HistoryDialogProps) => {
                   key={asset.id}
                   className="group relative overflow-hidden rounded-xl border border-[var(--ui-border-soft)] bg-[var(--ui-surface-field)]"
                 >
-                  <div className="relative aspect-video w-full overflow-hidden bg-black/20">
+                  <div className="relative aspect-video w-full overflow-hidden bg-[var(--ui-track-bg)]">
                     {asset.mediaType === 'image' && asset.mediaUrl ? (
                       <img
                         src={resolveImageDisplayUrl(asset.mediaUrl)}
@@ -157,13 +157,13 @@ export const HistoryDialog = memo(({ isOpen, onClose }: HistoryDialogProps) => {
                     <button
                       type="button"
                       onClick={() => removeAsset(currentProjectId, asset.id)}
-                      className="absolute right-2 top-2 rounded-lg bg-black/60 p-1.5 text-white opacity-0 backdrop-blur-md transition-opacity hover:bg-red-500/80 group-hover:opacity-100"
+                      className="absolute right-2 top-2 rounded-lg border border-[var(--ui-media-chip-border)] bg-[var(--ui-media-chip)] p-1.5 text-white opacity-0 backdrop-blur-md transition-opacity hover:bg-red-500/80 group-hover:opacity-100"
                       title={t('common.delete', { defaultValue: 'Delete' })}
                     >
                       <Trash2 className="h-3.5 w-3.5" />
                     </button>
 
-                    <div className="absolute left-2 top-2 rounded-md bg-black/55 px-1.5 py-0.5 text-[10px] text-white">
+                    <div className="absolute left-2 top-2 rounded-md border border-[var(--ui-media-chip-border)] bg-[var(--ui-media-chip)] px-1.5 py-0.5 text-[10px] text-white">
                       {resolveSourceLabel(asset.sourceType, t)}
                     </div>
                   </div>

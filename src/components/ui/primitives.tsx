@@ -84,10 +84,10 @@ function resolveButtonVariant(variant: ButtonVariant): string {
   }
 
   if (variant === 'ghost') {
-    return 'border-transparent bg-transparent text-text-dark hover:-translate-y-px hover:border-[var(--ui-border-soft)] hover:bg-[rgba(15,23,42,0.05)] dark:hover:bg-white/[0.06]';
+    return 'border-transparent bg-transparent text-text-dark hover:-translate-y-px hover:border-[var(--ui-border-soft)] hover:bg-[var(--ui-hover-surface)]';
   }
 
-  return 'border-[var(--ui-border-soft)] bg-[var(--ui-surface-field)] text-text-dark hover:-translate-y-px hover:border-[var(--ui-border-strong)] hover:bg-white/80 dark:hover:bg-white/[0.08]';
+  return 'border-[var(--ui-border-soft)] bg-[var(--ui-surface-field)] text-text-dark hover:-translate-y-px hover:border-[var(--ui-border-strong)] hover:bg-[var(--ui-hover-surface)]';
 }
 
 function resolveButtonSize(size: ButtonSize): string {
@@ -130,7 +130,7 @@ export function UiIconButton({ className = '', active = false, ...props }: UiIco
       className={`inline-flex h-9 w-9 items-center justify-center rounded-[var(--ui-radius-lg)] border transition-[transform,border-color,background-color,color,box-shadow] duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[rgba(var(--accent-rgb),0.26)] ${
         active
           ? 'border-[rgba(var(--accent-rgb),0.42)] bg-[rgba(var(--accent-rgb),0.12)] text-text-dark shadow-[0_0_0_1px_rgba(var(--accent-rgb),0.2)]'
-          : 'border-[var(--ui-border-soft)] bg-[var(--ui-surface-field)] text-text-muted hover:-translate-y-px hover:border-[var(--ui-border-strong)] hover:bg-white/85 hover:text-text-dark dark:hover:bg-white/[0.08]'
+          : 'border-[var(--ui-border-soft)] bg-[var(--ui-surface-field)] text-text-muted hover:-translate-y-px hover:border-[var(--ui-border-strong)] hover:bg-[var(--ui-hover-surface)] hover:text-text-dark'
       } ${className}`}
       {...props}
     />
@@ -144,7 +144,7 @@ export const UiChipButton = forwardRef<HTMLButtonElement, UiChipButtonProps>(
       className={`inline-flex h-8 items-center gap-2 rounded-full border px-3 text-xs tracking-[0.01em] transition-[transform,border-color,background-color,color,box-shadow] duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[rgba(var(--accent-rgb),0.24)] ${
         active
           ? 'border-[rgba(var(--accent-rgb),0.46)] bg-[rgba(var(--accent-rgb),0.13)] text-text-dark shadow-[0_8px_18px_rgba(var(--accent-rgb),0.18)]'
-          : 'border-[var(--ui-border-soft)] bg-[var(--ui-surface-field)] text-text-muted hover:-translate-y-px hover:border-[var(--ui-border-strong)] hover:bg-white/80 hover:text-text-dark dark:hover:bg-white/[0.08]'
+          : 'border-[var(--ui-border-soft)] bg-[var(--ui-surface-field)] text-text-muted hover:-translate-y-px hover:border-[var(--ui-border-strong)] hover:bg-[var(--ui-hover-surface)] hover:text-text-dark'
       } ${className}`}
       {...props}
     />
@@ -424,9 +424,9 @@ export function UiSelect({ className = '', children, invalid = false, ...props }
         aria-expanded={isOpen}
         aria-controls={listboxIdRef.current}
         disabled={disabled}
-        className={`group inline-flex h-9 w-full items-center justify-between rounded-[var(--ui-radius-lg)] border bg-[var(--ui-surface-field)] px-3 text-left text-sm font-medium text-text-dark outline-none transition-[border-color,background-color,box-shadow,color] duration-150 hover:border-[var(--ui-border-strong)] hover:bg-white/80 focus-visible:ring-2 focus-visible:ring-[rgba(var(--accent-rgb),0.2)] disabled:cursor-not-allowed disabled:opacity-55 ${
+        className={`group inline-flex h-9 w-full items-center justify-between rounded-[var(--ui-radius-lg)] border bg-[var(--ui-surface-field)] px-3 text-left text-sm font-medium text-text-dark outline-none transition-[border-color,background-color,box-shadow,color] duration-150 hover:border-[var(--ui-border-strong)] hover:bg-[var(--ui-hover-surface)] focus-visible:ring-2 focus-visible:ring-[rgba(var(--accent-rgb),0.2)] disabled:cursor-not-allowed disabled:opacity-55 ${
           invalid
-            ? 'border-[rgba(239,68,68,0.42)]'
+            ? 'border-[rgba(var(--status-error-rgb),0.42)]'
             : 'border-[var(--ui-border-soft)]'
         } ${className}`}
         onClick={() => {
@@ -480,8 +480,8 @@ export function UiSelect({ className = '', children, invalid = false, ...props }
                         option.disabled
                           ? 'cursor-not-allowed opacity-40'
                           : isSelected
-                            ? 'bg-[rgba(var(--accent-rgb),0.86)] text-white'
-                            : 'text-text-dark hover:bg-[rgba(15,23,42,0.06)] dark:hover:bg-white/[0.08]'
+                          ? 'bg-[rgba(var(--accent-rgb),0.86)] text-white'
+                            : 'text-text-dark hover:bg-[var(--ui-hover-surface)]'
                       }`}
                       onClick={() => {
                         if (option.disabled) {
@@ -524,7 +524,7 @@ export function UiModal({
   return (
     <div className={`fixed ${UI_CONTENT_OVERLAY_INSET_CLASS} z-[120] flex items-center justify-center p-3 md:p-4 ${containerClassName}`}>
       <div
-        className={`absolute inset-0 bg-black/56 backdrop-blur-[2px] transition-opacity duration-200 ${
+        className={`ui-overlay-backdrop absolute inset-0 transition-opacity duration-200 ${
           isVisible ? 'opacity-100' : 'opacity-0'
         }`}
         onClick={onClose}

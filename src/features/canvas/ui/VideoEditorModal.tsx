@@ -71,6 +71,31 @@ function clamp(value: number, min: number, max: number): number {
   return Math.min(Math.max(value, min), max);
 }
 
+function toFiniteNumber(value: unknown, fallback = 0): number {
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    return value;
+  }
+  if (typeof value === 'string' && value.trim().length > 0) {
+    const parsed = Number(value);
+    if (Number.isFinite(parsed)) {
+      return parsed;
+    }
+  }
+  return fallback;
+}
+
+function resolveClipEndSec(clip: TimelineClipLike): number {
+  const startSec = Math.max(0, toFiniteNumber(clip.startSec, 0));
+  const durationSec = Math.max(MIN_CLIP_DURATION_SEC, toFiniteNumber(clip.durationSec, MIN_CLIP_DURATION_SEC));
+  return startSec + durationSec;
+}
+
+function toTimelinePercent(valueSec: number, timelineSec: number): number {
+  const safeTimelineSec = Math.max(MIN_CLIP_DURATION_SEC, toFiniteNumber(timelineSec, 2));
+  const safeValueSec = Math.max(0, toFiniteNumber(valueSec, 0));
+  return clamp((safeValueSec / safeTimelineSec) * 100, 0, 100);
+}
+
 function formatSeconds(value: number | null | undefined): string {
   if (!Number.isFinite(value) || value === null || value === undefined) {
     return '0.0s';
@@ -88,12 +113,15 @@ function sortTrackClips<T extends TimelineClipLike>(clips: T[]): T[] {
 }
 
 function normalizeTrackClips<T extends TimelineClipLike>(clips: T[]): T[] {
-  const sorted = sortTrackClips(
-    clips.map((clip) => ({
+  const sanitized = clips
+    .filter((clip) => typeof clip.id === 'string' && clip.id.trim().length > 0)
+    .map((clip) => ({
       ...clip,
-      startSec: Math.max(0, clip.startSec),
-      durationSec: Math.max(MIN_CLIP_DURATION_SEC, clip.durationSec),
-    }))
+      startSec: Math.max(0, toFiniteNumber(clip.startSec, 0)),
+      durationSec: Math.max(MIN_CLIP_DURATION_SEC, toFiniteNumber(clip.durationSec, MIN_CLIP_DURATION_SEC)),
+    }));
+  const sorted = sortTrackClips(
+    sanitized
   );
 
   const normalized: T[] = [];
@@ -118,13 +146,14 @@ function findAvailableStartSec<T extends TimelineClipLike>(
   durationSec: number
 ): number {
   const sorted = sortTrackClips(clips);
-  let candidate = Math.max(0, preferredStartSec);
+  let candidate = Math.max(0, toFiniteNumber(preferredStartSec, 0));
+  const safeDurationSec = Math.max(MIN_CLIP_DURATION_SEC, toFiniteNumber(durationSec, MIN_CLIP_DURATION_SEC));
 
   for (const clip of sorted) {
-    const clipStart = clip.startSec;
-    const clipEnd = clip.startSec + clip.durationSec;
+    const clipStart = Math.max(0, toFiniteNumber(clip.startSec, 0));
+    const clipEnd = clipStart + Math.max(MIN_CLIP_DURATION_SEC, toFiniteNumber(clip.durationSec, MIN_CLIP_DURATION_SEC));
 
-    if (candidate + durationSec <= clipStart) {
+    if (candidate + safeDurationSec <= clipStart) {
       break;
     }
     if (candidate >= clipEnd) {
@@ -137,8 +166,13 @@ function findAvailableStartSec<T extends TimelineClipLike>(
 }
 
 function findActiveTrackClip<T extends TimelineClipLike>(clips: T[], timeSec: number): T | null {
+  const safeTimeSec = Math.max(0, toFiniteNumber(timeSec, 0));
   return clips.find(
-    (clip) => timeSec >= clip.startSec && timeSec < clip.startSec + clip.durationSec
+    (clip) => {
+      const startSec = Math.max(0, toFiniteNumber(clip.startSec, 0));
+      const durationSec = Math.max(MIN_CLIP_DURATION_SEC, toFiniteNumber(clip.durationSec, MIN_CLIP_DURATION_SEC));
+      return safeTimeSec >= startSec && safeTimeSec < startSec + durationSec;
+    }
   ) ?? null;
 }
 
@@ -148,8 +182,10 @@ function collectTrackEdges<T extends TimelineClipLike>(clips: T[], excludeClipId
     if (excludeClipId && clip.id === excludeClipId) {
       return;
     }
-    edges.push(clip.startSec);
-    edges.push(clip.startSec + clip.durationSec);
+    const startSec = Math.max(0, toFiniteNumber(clip.startSec, 0));
+    const durationSec = Math.max(MIN_CLIP_DURATION_SEC, toFiniteNumber(clip.durationSec, MIN_CLIP_DURATION_SEC));
+    edges.push(startSec);
+    edges.push(startSec + durationSec);
   });
   return edges;
 }
@@ -303,15 +339,16 @@ function resolveTimelineDuration(
   textClips: VideoEditorTextClip[]
 ): number {
   const videoEnd = timelineClips.reduce(
-    (max, clip) => Math.max(max, clip.startSec + clip.durationSec),
+    (max, clip) => Math.max(max, resolveClipEndSec(clip)),
     0
   );
   const textEnd = textClips.reduce(
-    (max, clip) => Math.max(max, clip.startSec + clip.durationSec),
+    (max, clip) => Math.max(max, resolveClipEndSec(clip)),
     0
   );
+  const safeDurationSec = Math.max(0, toFiniteNumber(durationSec, 0));
 
-  return Math.max(2, durationSec, videoEnd, textEnd);
+  return Math.max(2, safeDurationSec, videoEnd, textEnd);
 }
 
 export const VideoEditorModal = memo(({
@@ -355,9 +392,13 @@ export const VideoEditorModal = memo(({
     () => resolveTimelineDuration(durationSec, timelineClips, textClips),
     [durationSec, textClips, timelineClips]
   );
+  const safeTimelineMaxSec = useMemo(
+    () => Math.max(2, toFiniteNumber(timelineMaxSec, 2)),
+    [timelineMaxSec]
+  );
   const playheadPercent = useMemo(
-    () => (timelineMaxSec > 0 ? clamp((playheadSec / timelineMaxSec) * 100, 0, 100) : 0),
-    [playheadSec, timelineMaxSec]
+    () => toTimelinePercent(playheadSec, safeTimelineMaxSec),
+    [playheadSec, safeTimelineMaxSec]
   );
 
   const activeVideoClip = useMemo(
@@ -375,7 +416,11 @@ export const VideoEditorModal = memo(({
   const activePreviewUrl = activeSourceClip?.previewImageUrl || activeSourceClip?.imageUrl || null;
   const activeTextOverlays = useMemo(
     () => sortTrackClips(textClips).filter(
-      (clip) => playheadSec >= clip.startSec && playheadSec < clip.startSec + clip.durationSec && clip.text.trim()
+      (clip) => {
+        const clipStartSec = Math.max(0, toFiniteNumber(clip.startSec, 0));
+        const clipEndSec = resolveClipEndSec(clip);
+        return playheadSec >= clipStartSec && playheadSec < clipEndSec && clip.text.trim();
+      }
     ),
     [playheadSec, textClips]
   );
@@ -383,25 +428,25 @@ export const VideoEditorModal = memo(({
   const hasReferenceVideo = Boolean(filePath);
 
   const rulerStepSec = useMemo(() => {
-    if (timelineMaxSec <= 12) {
+    if (safeTimelineMaxSec <= 12) {
       return 1;
     }
-    if (timelineMaxSec <= 40) {
+    if (safeTimelineMaxSec <= 40) {
       return 2;
     }
     return 5;
-  }, [timelineMaxSec]);
+  }, [safeTimelineMaxSec]);
 
   const rulerMarks = useMemo(() => {
     const marks: number[] = [];
-    for (let sec = 0; sec <= timelineMaxSec + 0.0001; sec += rulerStepSec) {
+    for (let sec = 0; sec <= safeTimelineMaxSec + 0.0001; sec += rulerStepSec) {
       marks.push(Number(sec.toFixed(3)));
     }
-    if (marks[marks.length - 1] < timelineMaxSec) {
-      marks.push(timelineMaxSec);
+    if (marks.length === 0 || marks[marks.length - 1] < safeTimelineMaxSec) {
+      marks.push(safeTimelineMaxSec);
     }
     return marks;
-  }, [rulerStepSec, timelineMaxSec]);
+  }, [rulerStepSec, safeTimelineMaxSec]);
 
   const stopTicker = useCallback(() => {
     if (tickerRef.current !== null) {
@@ -434,8 +479,8 @@ export const VideoEditorModal = memo(({
   }, [initialTextClips]);
 
   useEffect(() => {
-    setPlayheadSec((previous) => clamp(previous, 0, timelineMaxSec));
-  }, [timelineMaxSec]);
+    setPlayheadSec((previous) => clamp(previous, 0, safeTimelineMaxSec));
+  }, [safeTimelineMaxSec]);
 
   useEffect(() => {
     timelineClipsRef.current = timelineClips;
@@ -511,10 +556,10 @@ export const VideoEditorModal = memo(({
     tickerRef.current = window.setInterval(() => {
       setPlayheadSec((previous) => {
         const next = previous + 0.05;
-        if (next >= timelineMaxSec) {
+        if (next >= safeTimelineMaxSec) {
           stopTicker();
           setIsPlaying(false);
-          return timelineMaxSec;
+          return safeTimelineMaxSec;
         }
         return next;
       });
@@ -523,7 +568,7 @@ export const VideoEditorModal = memo(({
     return () => {
       stopTicker();
     };
-  }, [isPlaying, stopTicker, timelineMaxSec]);
+  }, [isPlaying, safeTimelineMaxSec, stopTicker]);
 
   const handleTimelineDrop = useCallback((event: ReactDragEvent<HTMLDivElement>) => {
     event.preventDefault();
@@ -535,13 +580,14 @@ export const VideoEditorModal = memo(({
     }
 
     const rect = videoTrackRef.current?.getBoundingClientRect();
+    const safeTimelineSec = Math.max(2, toFiniteNumber(timelineMaxSec, 2));
     let startSec = timelineClips.length > 0
-      ? Math.max(...timelineClips.map((clip) => clip.startSec + clip.durationSec))
+      ? Math.max(...timelineClips.map((clip) => resolveClipEndSec(clip)))
       : 0;
 
     if (rect && rect.width > 0) {
       const ratio = clamp((event.clientX - rect.left) / rect.width, 0, 1);
-      startSec = ratio * timelineMaxSec;
+      startSec = ratio * safeTimelineSec;
     }
 
     setTimelineClips((previous) => {
@@ -549,7 +595,7 @@ export const VideoEditorModal = memo(({
         ...collectTrackEdges(previous),
         ...collectTrackEdges(textClipsRef.current),
       ];
-      const snapThresholdSec = resolveSnapThresholdSec(timelineMaxSec);
+      const snapThresholdSec = resolveSnapThresholdSec(safeTimelineSec);
       const snappedStart = snapEnabled
         ? findClosestAnchor(startSec, snapAnchors, snapThresholdSec)?.anchor ?? startSec
         : startSec;
@@ -578,8 +624,8 @@ export const VideoEditorModal = memo(({
     }
 
     const ratio = clamp((event.clientX - rect.left) / rect.width, 0, 1);
-    setPlayheadSec(ratio * timelineMaxSec);
-  }, [timelineMaxSec]);
+    setPlayheadSec(ratio * safeTimelineMaxSec);
+  }, [safeTimelineMaxSec]);
 
   const handleClipMouseDown = useCallback((
     event: ReactMouseEvent<HTMLDivElement>,
@@ -602,10 +648,10 @@ export const VideoEditorModal = memo(({
       originX: event.clientX,
       startSec: clip.startSec,
       durationSec: clip.durationSec,
-      timelineMaxSec,
+      timelineMaxSec: safeTimelineMaxSec,
       trackWidth: rect.width,
     });
-  }, [timelineMaxSec]);
+  }, [safeTimelineMaxSec]);
 
   const handleRemoveVideoClip = useCallback((clipId: string) => {
     setTimelineClips((previous) => previous.filter((clip) => clip.id !== clipId));
@@ -668,18 +714,18 @@ export const VideoEditorModal = memo(({
 
   return (
     <div
-      className="fixed inset-0 z-50 p-3 md:p-5 lg:p-6"
+      className="nodrag nowheel fixed inset-0 z-50 p-3 md:p-5 lg:p-6"
       onMouseDown={(event) => event.stopPropagation()}
     >
-      <div className="flex h-full flex-col overflow-hidden rounded-[var(--ui-radius-2xl)] border border-[var(--ui-border-soft)] bg-[linear-gradient(180deg,rgba(16,24,35,0.96),rgba(10,16,24,0.95))] shadow-[0_24px_80px_rgba(2,6,23,0.45)]">
-        <div className="flex min-h-12 shrink-0 flex-wrap items-center justify-between gap-2 border-b border-[rgba(255,255,255,0.08)] px-4 py-2">
+      <div className="flex h-full flex-col overflow-hidden rounded-[var(--ui-radius-2xl)] border border-[var(--ui-border-soft)] bg-[var(--ui-surface-panel)] shadow-[var(--ui-elevation-3)]">
+        <div className="flex min-h-12 shrink-0 flex-wrap items-center justify-between gap-2 border-b border-[var(--ui-border-soft)] px-4 py-2">
           <span className="ui-display-title text-sm font-medium uppercase tracking-[0.08em] text-text-dark">
             {t('node.videoEditor.editorTitle', { defaultValue: '视频编辑器' })}
           </span>
           <div className="flex items-center gap-2">
             <button
               type="button"
-              className="inline-flex items-center gap-1 rounded-lg border border-[var(--ui-border-soft)] bg-[rgba(255,255,255,0.03)] px-3 py-1.5 text-xs text-text-dark hover:bg-white/10"
+              className="inline-flex items-center gap-1 rounded-lg border border-[var(--ui-border-soft)] bg-[var(--ui-muted-surface)] px-3 py-1.5 text-xs text-text-dark hover:bg-[var(--ui-hover-surface)]"
               onClick={handleSave}
             >
               <Save className="h-3.5 w-3.5" />
@@ -701,7 +747,7 @@ export const VideoEditorModal = memo(({
             </button>
             <button
               type="button"
-              className="inline-flex h-8 w-8 items-center justify-center rounded-md text-text-muted hover:bg-white/10 hover:text-text-dark"
+              className="inline-flex h-8 w-8 items-center justify-center rounded-md text-text-muted hover:bg-[var(--ui-hover-surface)] hover:text-text-dark"
               aria-label={t('common.close', { defaultValue: '关闭' })}
               onClick={onClose}
             >
@@ -711,8 +757,8 @@ export const VideoEditorModal = memo(({
         </div>
 
         <div className="grid min-h-0 flex-1 xl:grid-cols-[minmax(0,1fr)_clamp(360px,34vw,520px)]">
-          <div className="flex min-w-0 flex-1 flex-col border-b border-[rgba(255,255,255,0.08)] p-4 md:p-5 xl:border-b-0 xl:border-r">
-            <div className="relative min-h-[220px] flex-1 overflow-hidden rounded-[var(--ui-radius-2xl)] border border-[rgba(255,255,255,0.22)] bg-black">
+          <div className="flex min-w-0 flex-1 flex-col border-b border-[var(--ui-border-soft)] p-4 md:p-5 xl:border-b-0 xl:border-r">
+            <div className="relative min-h-[220px] flex-1 overflow-hidden rounded-[var(--ui-radius-2xl)] border border-[var(--ui-border-soft)] bg-[var(--ui-track-bg)]">
               {activePreviewUrl ? (
                 <img
                   src={resolveImageDisplayUrl(activePreviewUrl)}
@@ -724,7 +770,7 @@ export const VideoEditorModal = memo(({
 
               {!activePreviewUrl ? (
                 <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
-                  <div className="ui-timecode rounded-md border border-white/20 bg-black/55 px-3 py-1 text-xs text-white/75">
+                  <div className="ui-timecode rounded-md border border-[var(--ui-media-chip-border)] bg-[var(--ui-media-chip)] px-3 py-1 text-xs text-white/85">
                     {t('node.videoEditor.blackFrame', { defaultValue: '黑场（无分镜）' })}
                   </div>
                 </div>
@@ -735,7 +781,7 @@ export const VideoEditorModal = memo(({
                   {activeTextOverlays.map((clip) => (
                     <div
                       key={clip.id}
-                      className="ui-safe-text ui-clamp-2 max-w-[min(84%,680px)] rounded-md bg-black/55 px-3 py-1 text-center font-medium text-white"
+                      className="ui-safe-text ui-clamp-2 max-w-[min(84%,680px)] rounded-md border border-[var(--ui-media-chip-border)] bg-[var(--ui-media-chip)] px-3 py-1 text-center font-medium text-white"
                       style={{
                         color: clip.color || '#ffffff',
                         fontSize: `${Math.max(14, clip.fontSize ?? 28)}px`,
@@ -748,25 +794,25 @@ export const VideoEditorModal = memo(({
               ) : null}
 
               <div className="absolute left-4 top-4 flex items-center gap-2">
-                <span className="rounded border border-white/20 bg-black/55 px-2 py-1 text-[11px] text-white/85">
+                <span className="rounded border border-[var(--ui-media-chip-border)] bg-[var(--ui-media-chip)] px-2 py-1 text-[11px] text-white">
                   {activePreviewUrl
                     ? (activeSourceClip?.label || t('node.videoEditor.previewFrame', { defaultValue: '当前分镜' }))
                     : t('node.videoEditor.blackFrame', { defaultValue: '黑场（无分镜）' })}
                 </span>
                 {hasReferenceVideo ? (
-                  <span className="rounded border border-white/15 bg-black/45 px-2 py-1 text-[10px] text-white/65">
+                  <span className="rounded border border-[var(--ui-media-chip-border)] bg-[var(--ui-overlay-inverse)] px-2 py-1 text-[10px] text-white/80">
                     {t('node.videoEditor.referenceVideoConnected', { defaultValue: '已连接参考视频' })}
                   </span>
                 ) : null}
               </div>
             </div>
 
-            <div className="mt-4 rounded-[var(--ui-radius-xl)] border border-[var(--ui-border-soft)] bg-[rgba(9,15,23,0.8)] p-3">
+            <div className="mt-4 rounded-[var(--ui-radius-xl)] border border-[var(--ui-border-soft)] bg-[var(--ui-overlay-panel)] p-3">
               <div className="mb-2 flex items-center justify-between text-xs text-text-muted">
                 <div className="flex items-center gap-2">
                   <button
                     type="button"
-                    className="inline-flex h-7 w-7 items-center justify-center rounded-md border border-white/15 bg-white/5 text-text-muted hover:bg-white/12 hover:text-white"
+                    className="inline-flex h-7 w-7 items-center justify-center rounded-md border border-[var(--ui-border-soft)] bg-[var(--ui-muted-surface)] text-text-muted hover:bg-[var(--ui-hover-surface)] hover:text-text-dark"
                     aria-label={isPlaying
                       ? t('node.videoEditor.pause', { defaultValue: '暂停播放' })
                       : t('node.videoEditor.play', { defaultValue: '播放时间线' })}
@@ -789,7 +835,7 @@ export const VideoEditorModal = memo(({
                     className={`inline-flex items-center gap-1 rounded border px-2 py-0.5 text-[10px] transition-colors ${
                       snapEnabled
                         ? 'border-sky-300/55 bg-sky-400/18 text-sky-100'
-                        : 'border-white/20 bg-white/5 text-text-muted hover:bg-white/10'
+                        : 'border-[var(--ui-border-soft)] bg-[var(--ui-muted-surface)] text-text-muted hover:bg-[var(--ui-hover-surface)]'
                     }`}
                     onClick={() => setSnapEnabled((previous) => !previous)}
                   >
@@ -799,27 +845,27 @@ export const VideoEditorModal = memo(({
                       : t('node.videoEditor.snapOff', { defaultValue: '吸附：关' })}
                   </button>
                 </div>
-                <span className="ui-timecode text-[11px] text-white/85">{formatSeconds(playheadSec)} / {formatSeconds(timelineMaxSec)}</span>
+                <span className="ui-timecode text-[11px] text-text-dark">{formatSeconds(playheadSec)} / {formatSeconds(safeTimelineMaxSec)}</span>
               </div>
 
               <div
                 ref={timelineTrackRef}
-                className="relative overflow-hidden rounded-xl border border-[rgba(255,255,255,0.14)] bg-black/35"
+                className="relative overflow-hidden rounded-xl border border-[var(--ui-border-soft)] bg-[var(--ui-track-bg)]"
                 onMouseDown={handleTrackMouseDown}
               >
-                <div className="pointer-events-none absolute inset-0 bg-[repeating-linear-gradient(90deg,rgba(255,255,255,0.06)_0,rgba(255,255,255,0.06)_1px,transparent_1px,transparent_56px)] opacity-25" />
+                <div className="pointer-events-none absolute inset-0 bg-[repeating-linear-gradient(90deg,var(--ui-track-grid)_0,var(--ui-track-grid)_1px,transparent_1px,transparent_56px)] opacity-35" />
 
-                <div className="relative h-7 border-b border-[rgba(255,255,255,0.08)] bg-black/30">
+                <div className="relative h-7 border-b border-[var(--ui-border-soft)] bg-[var(--ui-muted-surface)]">
                   {rulerMarks.map((sec) => {
-                    const left = timelineMaxSec > 0 ? (sec / timelineMaxSec) * 100 : 0;
+                    const left = toTimelinePercent(sec, safeTimelineMaxSec);
                     return (
                       <div
                         key={sec}
                         className="pointer-events-none absolute bottom-0 top-0"
                         style={{ left: `${left}%` }}
                       >
-                        <div className="h-2 w-px bg-white/40" />
-                        <span className="ui-timecode absolute top-2 -translate-x-1/2 text-[10px] text-white/70">
+                        <div className="h-2 w-px bg-[var(--ui-track-mark)]" />
+                        <span className="ui-timecode absolute top-2 -translate-x-1/2 text-[10px] text-[rgba(var(--text-rgb),0.76)]">
                           {formatSeconds(sec)}
                         </span>
                       </div>
@@ -829,11 +875,11 @@ export const VideoEditorModal = memo(({
 
                 <div className="relative h-[120px]">
                   {rulerMarks.map((sec) => {
-                    const left = timelineMaxSec > 0 ? (sec / timelineMaxSec) * 100 : 0;
+                    const left = toTimelinePercent(sec, safeTimelineMaxSec);
                     return (
                       <div
                         key={`grid-${sec}`}
-                        className="pointer-events-none absolute bottom-0 top-0 w-px bg-white/10"
+                        className="pointer-events-none absolute bottom-0 top-0 w-px bg-[var(--ui-track-grid)]"
                         style={{ left: `${left}%` }}
                       />
                     );
@@ -841,7 +887,7 @@ export const VideoEditorModal = memo(({
 
                   <div
                     ref={videoTrackRef}
-                    className="absolute left-0 right-0 top-0 h-[60px] border-b border-[rgba(255,255,255,0.08)] bg-[linear-gradient(180deg,rgba(56,189,248,0.08),rgba(15,23,42,0.15))]"
+                    className="nodrag nowheel absolute left-0 right-0 top-0 h-[60px] border-b border-[var(--ui-border-soft)] bg-[linear-gradient(180deg,rgba(56,189,248,0.12),rgba(var(--surface-rgb),0.14))]"
                     onDragOver={handleTimelineDragOver}
                     onDrop={handleTimelineDrop}
                   >
@@ -851,8 +897,8 @@ export const VideoEditorModal = memo(({
 
                     {timelineClips.map((clip) => {
                       const source = sourceClipMap.get(clip.sourceClipId);
-                      const left = `${(clip.startSec / timelineMaxSec) * 100}%`;
-                      const width = `${Math.max(3, (clip.durationSec / timelineMaxSec) * 100)}%`;
+                      const left = `${toTimelinePercent(clip.startSec, safeTimelineMaxSec)}%`;
+                      const width = `${Math.max(3, toTimelinePercent(clip.durationSec, safeTimelineMaxSec))}%`;
                       const isSelected = activeVideoClipId === clip.id;
                       const isPlayheadActive = activeVideoClip?.id === clip.id;
                       return (
@@ -869,7 +915,7 @@ export const VideoEditorModal = memo(({
                         >
                           <button
                             type="button"
-                            className="absolute -right-2 -top-2 inline-flex h-4 w-4 items-center justify-center rounded-full border border-white/20 bg-black/80 text-white hover:bg-red-500"
+                            className="absolute -right-2 -top-2 inline-flex h-4 w-4 items-center justify-center rounded-full border border-[var(--ui-media-chip-border)] bg-[var(--ui-overlay-inverse)] text-white hover:bg-red-500"
                             aria-label={t('common.delete', { defaultValue: '删除' })}
                             onClick={(event) => {
                               event.stopPropagation();
@@ -879,7 +925,7 @@ export const VideoEditorModal = memo(({
                             <Trash2 className="h-2.5 w-2.5" />
                           </button>
                           <div
-                            className="absolute inset-y-0 left-0 w-2 cursor-ew-resize rounded-l bg-black/25 hover:bg-black/40"
+                            className="absolute inset-y-0 left-0 w-2 cursor-ew-resize rounded-l bg-[var(--ui-overlay-inverse)] hover:bg-[var(--ui-overlay-inverse-strong)]"
                             onMouseDown={(event) => {
                               setActiveVideoClipId(clip.id);
                               handleClipMouseDown(event, clip, 'resize-left', 'video');
@@ -890,7 +936,7 @@ export const VideoEditorModal = memo(({
                             {formatSeconds(clip.startSec)}-{formatSeconds(clip.startSec + clip.durationSec)}
                           </div>
                           <div
-                            className="absolute inset-y-0 right-0 w-2 cursor-ew-resize rounded-r bg-black/25 hover:bg-black/40"
+                            className="absolute inset-y-0 right-0 w-2 cursor-ew-resize rounded-r bg-[var(--ui-overlay-inverse)] hover:bg-[var(--ui-overlay-inverse-strong)]"
                             onMouseDown={(event) => {
                               setActiveVideoClipId(clip.id);
                               handleClipMouseDown(event, clip, 'resize-right', 'video');
@@ -901,14 +947,14 @@ export const VideoEditorModal = memo(({
                     })}
                   </div>
 
-                  <div className="absolute left-0 right-0 top-[60px] h-[60px] bg-[linear-gradient(180deg,rgba(245,158,11,0.08),rgba(15,23,42,0.15))]">
+                  <div className="absolute left-0 right-0 top-[60px] h-[60px] bg-[linear-gradient(180deg,rgba(245,158,11,0.12),rgba(var(--surface-rgb),0.14))]">
                     <div className="ui-timecode absolute left-2 top-1 rounded border border-amber-300/30 bg-amber-500/15 px-1.5 py-0.5 text-[10px] uppercase tracking-[0.08em] text-amber-100/90">
                       {t('node.videoEditor.textTrack', { defaultValue: '文字轨' })}
                     </div>
 
                     {textClips.map((clip) => {
-                      const left = `${(clip.startSec / timelineMaxSec) * 100}%`;
-                      const width = `${Math.max(3, (clip.durationSec / timelineMaxSec) * 100)}%`;
+                      const left = `${toTimelinePercent(clip.startSec, safeTimelineMaxSec)}%`;
+                      const width = `${Math.max(3, toTimelinePercent(clip.durationSec, safeTimelineMaxSec))}%`;
                       const isActive = activeTextClipId === clip.id;
                       return (
                         <div
@@ -924,7 +970,7 @@ export const VideoEditorModal = memo(({
                         >
                           <button
                             type="button"
-                            className="absolute -right-2 -top-2 inline-flex h-4 w-4 items-center justify-center rounded-full border border-white/20 bg-black/80 text-white hover:bg-red-500"
+                            className="absolute -right-2 -top-2 inline-flex h-4 w-4 items-center justify-center rounded-full border border-[var(--ui-media-chip-border)] bg-[var(--ui-overlay-inverse)] text-white hover:bg-red-500"
                             aria-label={t('common.delete', { defaultValue: '删除' })}
                             onClick={(event) => {
                               event.stopPropagation();
@@ -934,7 +980,7 @@ export const VideoEditorModal = memo(({
                             <Trash2 className="h-2.5 w-2.5" />
                           </button>
                           <div
-                            className="absolute inset-y-0 left-0 w-2 cursor-ew-resize rounded-l bg-black/25 hover:bg-black/40"
+                            className="absolute inset-y-0 left-0 w-2 cursor-ew-resize rounded-l bg-[var(--ui-overlay-inverse)] hover:bg-[var(--ui-overlay-inverse-strong)]"
                             onMouseDown={(event) => {
                               setActiveTextClipId(clip.id);
                               handleClipMouseDown(event, clip, 'resize-left', 'text');
@@ -945,7 +991,7 @@ export const VideoEditorModal = memo(({
                             {formatSeconds(clip.startSec)}-{formatSeconds(clip.startSec + clip.durationSec)}
                           </div>
                           <div
-                            className="absolute inset-y-0 right-0 w-2 cursor-ew-resize rounded-r bg-black/25 hover:bg-black/40"
+                            className="absolute inset-y-0 right-0 w-2 cursor-ew-resize rounded-r bg-[var(--ui-overlay-inverse)] hover:bg-[var(--ui-overlay-inverse-strong)]"
                             onMouseDown={(event) => {
                               setActiveTextClipId(clip.id);
                               handleClipMouseDown(event, clip, 'resize-right', 'text');
@@ -960,10 +1006,10 @@ export const VideoEditorModal = memo(({
                     className="pointer-events-none absolute bottom-0 top-0 z-20 w-0.5 bg-accent/95 shadow-[0_0_8px_rgba(249,115,22,0.9)]"
                     style={{ left: `${playheadPercent}%` }}
                   >
-                    <div className="absolute -top-6 left-1/2 -translate-x-1/2 rounded border border-white/25 bg-black/65 px-1.5 py-0.5 ui-timecode text-[10px] text-white">
+                    <div className="absolute -top-6 left-1/2 -translate-x-1/2 rounded border border-[var(--ui-media-chip-border)] bg-[var(--ui-media-chip)] px-1.5 py-0.5 ui-timecode text-[10px] text-white">
                       {formatSeconds(playheadSec)}
                     </div>
-                    <div className="absolute -top-1 left-1/2 h-2 w-2 -translate-x-1/2 rotate-45 border border-black/40 bg-accent" />
+                    <div className="absolute -top-1 left-1/2 h-2 w-2 -translate-x-1/2 rotate-45 border border-[var(--ui-overlay-inverse-border)] bg-accent" />
                   </div>
                 </div>
               </div>
@@ -972,12 +1018,12 @@ export const VideoEditorModal = memo(({
                 <input
                   type="range"
                   min={0}
-                  max={timelineMaxSec}
+                  max={safeTimelineMaxSec}
                   step={0.1}
-                  value={clamp(playheadSec, 0, timelineMaxSec)}
+                  value={clamp(playheadSec, 0, safeTimelineMaxSec)}
                   onChange={(event) => setPlayheadSec(Number(event.target.value))}
                   aria-label={t('node.videoEditor.timeline', { defaultValue: '时间轴' })}
-                  className="h-1.5 w-full cursor-pointer appearance-none rounded-full bg-white/15 accent-[rgb(var(--accent-rgb))]"
+                  className="h-1.5 w-full cursor-pointer appearance-none rounded-full bg-[var(--ui-track-bg)] accent-[rgb(var(--accent-rgb))]"
                 />
               </div>
             </div>
@@ -989,9 +1035,9 @@ export const VideoEditorModal = memo(({
               <div className="mb-2 ui-display-title text-sm font-medium uppercase tracking-[0.08em] text-text-dark">
                 {t('node.videoEditor.sourceClips', { defaultValue: '分镜栏' })}
               </div>
-              <div className="ui-scrollbar min-h-0 flex-1 space-y-2 overflow-y-auto rounded-[var(--ui-radius-xl)] border border-[var(--ui-border-soft)] bg-[rgba(8,14,22,0.6)] p-3 pr-2">
+              <div className="ui-scrollbar min-h-0 flex-1 space-y-2 overflow-y-auto rounded-[var(--ui-radius-xl)] border border-[var(--ui-border-soft)] bg-[var(--ui-surface-field)] p-3 pr-2">
                 {sourceClips.length === 0 ? (
-                  <div className="rounded-lg border border-[rgba(255,255,255,0.08)] bg-bg-dark/30 px-3 py-4 text-xs text-text-muted">
+                  <div className="rounded-lg border border-[var(--ui-border-soft)] bg-[var(--ui-muted-surface)] px-3 py-4 text-xs text-text-muted">
                     {t('node.videoEditor.noSourceClips', { defaultValue: '未检测到分镜图片，请连接分镜节点' })}
                   </div>
                 ) : (
@@ -1005,7 +1051,7 @@ export const VideoEditorModal = memo(({
                           event.dataTransfer.setData('storybox/source-clip-id', clip.id);
                           event.dataTransfer.effectAllowed = 'copy';
                         }}
-                        className="cursor-grab rounded-xl border border-[rgba(255,255,255,0.14)] bg-[rgba(255,255,255,0.03)] p-2 transition-colors hover:border-[rgba(255,255,255,0.28)] hover:bg-[rgba(255,255,255,0.05)] active:cursor-grabbing"
+                        className="nodrag nowheel cursor-grab rounded-xl border border-[var(--ui-border-soft)] bg-[var(--ui-muted-surface)] p-2 transition-colors hover:border-[var(--ui-border-strong)] hover:bg-[var(--ui-hover-surface)] active:cursor-grabbing"
                       >
                         {previewUrl ? (
                           <img
@@ -1015,7 +1061,7 @@ export const VideoEditorModal = memo(({
                             draggable={false}
                           />
                         ) : (
-                          <div className="mb-1.5 flex h-20 items-center justify-center rounded bg-white/5 text-xs text-text-muted">
+                          <div className="mb-1.5 flex h-20 items-center justify-center rounded bg-[var(--ui-hover-surface)] text-xs text-text-muted">
                             {clip.label}
                           </div>
                         )}
@@ -1027,7 +1073,7 @@ export const VideoEditorModal = memo(({
                 )}
               </div>
 
-              <div className="mt-3 rounded-[var(--ui-radius-xl)] border border-[var(--ui-border-soft)] bg-[rgba(8,14,22,0.6)] p-3">
+              <div className="mt-3 rounded-[var(--ui-radius-xl)] border border-[var(--ui-border-soft)] bg-[var(--ui-surface-field)] p-3">
                 <div className="text-[11px] text-text-muted">
                   {t('node.videoEditor.currentRange', { defaultValue: '当前时间线范围' })}
                 </div>
@@ -1051,7 +1097,7 @@ export const VideoEditorModal = memo(({
                   placeholder={selectedVideoClip
                     ? t('node.videoEditor.notePlaceholder', { defaultValue: '填写该时间段分镜备注' })
                     : t('node.videoEditor.noSelectedClipForNote', { defaultValue: '请先在时间轴选择一个分镜片段' })}
-                  className="mt-1 h-20 w-full resize-none rounded-md border border-[rgba(255,255,255,0.14)] bg-black/30 px-2 py-1 text-xs text-text-dark outline-none disabled:opacity-60"
+                  className="mt-1 h-20 w-full resize-none rounded-md border border-[var(--ui-border-soft)] bg-[var(--ui-muted-surface)] px-2 py-1 text-xs text-text-dark outline-none disabled:opacity-60"
                 />
               </div>
             </div>
@@ -1060,9 +1106,9 @@ export const VideoEditorModal = memo(({
               <div className="mb-2 ui-display-title text-sm font-medium uppercase tracking-[0.08em] text-text-dark">
                 {t('node.videoEditor.textTrack', { defaultValue: '文字轨' })}
               </div>
-              <div className="flex min-h-0 flex-1 flex-col rounded-[var(--ui-radius-xl)] border border-[var(--ui-border-soft)] bg-[rgba(8,14,22,0.6)] p-3">
+              <div className="flex min-h-0 flex-1 flex-col rounded-[var(--ui-radius-xl)] border border-[var(--ui-border-soft)] bg-[var(--ui-surface-field)] p-3">
                 <div className="flex items-center gap-2">
-                  <div className="flex min-w-0 flex-1 items-center gap-2 rounded-md border border-[rgba(255,255,255,0.14)] bg-black/35 px-2 py-1">
+                  <div className="flex min-w-0 flex-1 items-center gap-2 rounded-md border border-[var(--ui-border-soft)] bg-[var(--ui-muted-surface)] px-2 py-1">
                     <Type className="h-3.5 w-3.5 shrink-0 text-text-muted" />
                     <input
                       type="text"
@@ -1080,7 +1126,7 @@ export const VideoEditorModal = memo(({
                   </div>
                   <button
                     type="button"
-                    className="rounded-md border border-amber-300/40 bg-amber-500/75 px-2 py-1 text-xs font-medium text-white hover:bg-amber-500"
+                    className="rounded-md border border-amber-300/55 bg-amber-500/86 px-2 py-1 text-xs font-medium text-white hover:bg-amber-500"
                     onClick={handleAddTextClip}
                   >
                     {t('node.videoEditor.addTextClip', { defaultValue: '添加' })}
@@ -1089,7 +1135,7 @@ export const VideoEditorModal = memo(({
 
                 <div className="ui-scrollbar mt-3 flex-1 space-y-2 overflow-y-auto pr-1">
                   {textClips.length === 0 ? (
-                    <div className="rounded-lg border border-[rgba(255,255,255,0.08)] bg-bg-dark/20 px-3 py-2 text-xs text-text-muted">
+                    <div className="rounded-lg border border-[var(--ui-border-soft)] bg-[var(--ui-muted-surface)] px-3 py-2 text-xs text-text-muted">
                       {t('node.videoEditor.noTextClips', { defaultValue: '暂无文字片段' })}
                     </div>
                   ) : (
@@ -1099,7 +1145,7 @@ export const VideoEditorModal = memo(({
                         className={`rounded-lg border p-2 ${
                           activeTextClipId === clip.id
                             ? 'border-amber-300/70 bg-amber-500/16'
-                            : 'border-[rgba(255,255,255,0.14)] bg-black/30'
+                            : 'border-[var(--ui-border-soft)] bg-[var(--ui-muted-surface)]'
                         }`}
                         onMouseDown={() => setActiveTextClipId(clip.id)}
                       >
@@ -1108,7 +1154,7 @@ export const VideoEditorModal = memo(({
                           value={clip.text}
                           onChange={(event) => handleUpdateTextClip(clip.id, event.target.value)}
                           onFocus={() => setActiveTextClipId(clip.id)}
-                          className="w-full rounded border border-[rgba(255,255,255,0.14)] bg-black/30 px-2 py-1 text-xs text-text-dark outline-none"
+                          className="w-full rounded border border-[var(--ui-border-soft)] bg-[var(--ui-surface-field)] px-2 py-1 text-xs text-text-dark outline-none"
                         />
                         <div className="mt-1 flex items-center justify-between text-[10px] text-text-muted">
                           <span className="ui-timecode">

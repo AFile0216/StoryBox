@@ -48,7 +48,7 @@ const toolIconMap: Record<ToolIconKey, typeof Crop> = {
 
 const TOOLBAR_BUTTON_RADIUS_CLASS = 'rounded-2xl';
 const TOOLBAR_NEUTRAL_BUTTON_CLASS =
-  'border-[rgba(255,255,255,0.1)] bg-[rgba(15,23,42,0.74)] text-text-dark hover:border-[rgba(255,255,255,0.18)] hover:bg-[rgba(15,23,42,0.92)]';
+  'border-[var(--ui-border-soft)] bg-[var(--ui-surface-field)] text-text-dark hover:border-[var(--ui-border-strong)] hover:bg-[var(--ui-hover-surface-strong)]';
 
 export const NodeActionToolbar = memo(({ node }: NodeActionToolbarProps) => {
   const { t, i18n } = useTranslation();
@@ -308,7 +308,7 @@ export const NodeActionToolbar = memo(({ node }: NodeActionToolbarProps) => {
       offset={NODE_TOOLBAR_OFFSET}
       className={NODE_TOOLBAR_CLASS}
     >
-      <UiPanel className="flex items-center gap-1 rounded-[20px] border border-white/10 bg-[rgba(15,23,42,0.76)] p-1 shadow-[0_18px_40px_rgba(2,6,23,0.26)] backdrop-blur-xl">
+      <UiPanel className="flex items-center gap-1 rounded-[20px] border border-[var(--ui-overlay-inverse-border)] bg-[var(--ui-overlay-panel)] p-1 shadow-[var(--ui-elevation-2)] backdrop-blur-xl">
         {!isImageEdit && tools.map((tool) => {
           const Icon = toolIconMap[tool.icon] ?? Crop;
 
@@ -452,12 +452,12 @@ export const NodeActionToolbar = memo(({ node }: NodeActionToolbarProps) => {
       {!isImageEdit && downloadMenu && (
         <div
           ref={downloadMenuRef}
-          className={`fixed z-[120] min-w-[280px] rounded-xl border border-[rgba(255,255,255,0.18)] bg-surface-dark/95 p-2 shadow-2xl backdrop-blur-sm transition-opacity duration-150 ${isDownloadMenuVisible ? 'opacity-100' : 'opacity-0'}`}
+          className={`fixed z-[120] min-w-[280px] rounded-xl border border-[var(--ui-border-soft)] bg-[var(--ui-surface-panel)] p-2 shadow-[var(--ui-elevation-3)] backdrop-blur-sm transition-opacity duration-150 ${isDownloadMenuVisible ? 'opacity-100' : 'opacity-0'}`}
           style={{ left: `${downloadMenu.x}px`, top: `${downloadMenu.y}px` }}
         >
           <button
             type="button"
-            className="flex h-9 w-full items-center gap-2 rounded-lg px-2.5 text-left text-sm text-text-dark transition-colors hover:bg-bg-dark"
+            className="flex h-9 w-full items-center gap-2 rounded-lg px-2.5 text-left text-sm text-text-dark transition-colors hover:bg-[var(--ui-hover-surface)]"
             onClick={() => {
               void handleDownloadSaveAs();
             }}
@@ -467,12 +467,12 @@ export const NodeActionToolbar = memo(({ node }: NodeActionToolbarProps) => {
           </button>
 
           {downloadPresetPaths.length > 0 ? (
-            <div className="mt-1 space-y-1 border-t border-[rgba(255,255,255,0.1)] pt-2">
+            <div className="mt-1 space-y-1 border-t border-[var(--ui-border-soft)] pt-2">
               {downloadPresetPaths.map((path) => (
                 <button
                   key={path}
                   type="button"
-                  className="flex h-9 w-full items-center gap-2 rounded-lg px-2.5 text-left text-xs text-text-dark transition-colors hover:bg-bg-dark"
+                  className="flex h-9 w-full items-center gap-2 rounded-lg px-2.5 text-left text-xs text-text-dark transition-colors hover:bg-[var(--ui-hover-surface)]"
                   onClick={() => {
                     void handleDownloadToPreset(path);
                   }}
@@ -484,7 +484,7 @@ export const NodeActionToolbar = memo(({ node }: NodeActionToolbarProps) => {
               ))}
             </div>
           ) : (
-            <div className="mt-1 border-t border-[rgba(255,255,255,0.1)] px-2.5 pt-2 text-xs text-text-muted">
+            <div className="mt-1 border-t border-[var(--ui-border-soft)] px-2.5 pt-2 text-xs text-text-muted">
               {t('nodeToolbar.noDownloadPresetPathsHint')}
             </div>
           )}

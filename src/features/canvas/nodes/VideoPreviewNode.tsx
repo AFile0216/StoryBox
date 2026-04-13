@@ -238,7 +238,7 @@ export const VideoPreviewNode = memo(({ id, data, selected, width, height }: Vid
 
         <div className={`tapnow-node-surface relative flex ${previewMinHeightClass} min-h-0 flex-1 items-center justify-center overflow-hidden`}>
           {hasSequencePreview ? (
-            <div className="relative h-full w-full bg-black">
+            <div className="relative h-full w-full bg-[var(--ui-track-bg)]">
               {activeFramePreview ? (
                 <img
                   src={resolveImageDisplayUrl(activeFramePreview)}
@@ -252,7 +252,7 @@ export const VideoPreviewNode = memo(({ id, data, selected, width, height }: Vid
                   {activeTextClips.map((clip) => (
                     <div
                       key={clip.id}
-                      className="max-w-[80%] rounded-md bg-black/55 px-3 py-1 text-center font-medium text-white"
+                      className="max-w-[80%] rounded-md border border-[var(--ui-media-chip-border)] bg-[var(--ui-media-chip)] px-3 py-1 text-center font-medium text-white"
                       style={{
                         color: clip.color || '#ffffff',
                         fontSize: `${Math.max(12, clip.fontSize ?? 24)}px`,
@@ -265,7 +265,7 @@ export const VideoPreviewNode = memo(({ id, data, selected, width, height }: Vid
               ) : null}
               {!activeFramePreview ? (
                 <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
-                  <div className="ui-timecode rounded border border-white/20 bg-black/55 px-2 py-1 text-[11px] text-white/75">
+                  <div className="ui-timecode rounded border border-[var(--ui-media-chip-border)] bg-[var(--ui-media-chip)] px-2 py-1 text-[11px] text-white/85">
                     {t('node.videoEditor.blackFrame', { defaultValue: '黑场（无分镜）' })}
                   </div>
                 </div>
@@ -294,11 +294,11 @@ export const VideoPreviewNode = memo(({ id, data, selected, width, height }: Vid
         </div>
 
         {hasSequencePreview ? (
-          <div className="rounded-lg border border-[var(--ui-border-soft)] bg-[rgba(8,14,22,0.7)] p-2">
+          <div className="rounded-lg border border-[var(--ui-border-soft)] bg-[var(--ui-overlay-panel)] p-2">
             <div className="mb-1 flex items-center justify-between text-[11px] text-text-muted">
               <button
                 type="button"
-                className="inline-flex h-6 w-6 items-center justify-center rounded-md border border-white/15 bg-white/5 text-text-muted hover:bg-white/10 hover:text-text-dark"
+                className="inline-flex h-6 w-6 items-center justify-center rounded-md border border-[var(--ui-border-soft)] bg-[var(--ui-muted-surface)] text-text-muted hover:bg-[var(--ui-hover-surface)] hover:text-text-dark"
                 aria-label={isPlaying
                   ? t('node.videoEditor.pause', { defaultValue: '暂停播放' })
                   : t('node.videoEditor.play', { defaultValue: '播放时间线' })}
@@ -316,17 +316,17 @@ export const VideoPreviewNode = memo(({ id, data, selected, width, height }: Vid
               </button>
               <span className="ui-timecode">{formatSeconds(playheadSec)} / {formatSeconds(timelineMaxSec)}</span>
             </div>
-            <div className="relative mb-2 h-10 overflow-hidden rounded-md border border-white/12 bg-black/35">
-              <div className="pointer-events-none absolute inset-0 bg-[repeating-linear-gradient(90deg,rgba(255,255,255,0.06)_0,rgba(255,255,255,0.06)_1px,transparent_1px,transparent_46px)] opacity-30" />
+            <div className="relative mb-2 h-10 overflow-hidden rounded-md border border-[var(--ui-border-soft)] bg-[var(--ui-track-bg)]">
+              <div className="pointer-events-none absolute inset-0 bg-[repeating-linear-gradient(90deg,var(--ui-track-grid)_0,var(--ui-track-grid)_1px,transparent_1px,transparent_46px)] opacity-40" />
               {rulerMarks.map((sec) => {
                 const left = timelineMaxSec > 0 ? (sec / timelineMaxSec) * 100 : 0;
                 return (
                   <div
                     key={sec}
-                    className="pointer-events-none absolute bottom-0 top-0 w-px bg-white/20"
+                    className="pointer-events-none absolute bottom-0 top-0 w-px bg-[var(--ui-track-mark)]"
                     style={{ left: `${left}%` }}
                   >
-                    <span className="ui-timecode absolute left-1 top-0 text-[9px] text-white/65">
+                    <span className="ui-timecode absolute left-1 top-0 text-[9px] text-[rgba(var(--text-rgb),0.72)]">
                       {formatSeconds(sec)}
                     </span>
                   </div>
@@ -349,7 +349,7 @@ export const VideoPreviewNode = memo(({ id, data, selected, width, height }: Vid
                 updateNodeData(id, { currentTimeSec: next });
               }}
               aria-label={t('node.videoEditor.timeline', { defaultValue: '时间轴' })}
-              className="h-1.5 w-full cursor-pointer appearance-none rounded-full bg-white/15 accent-[rgb(var(--accent-rgb))]"
+              className="h-1.5 w-full cursor-pointer appearance-none rounded-full bg-[var(--ui-track-bg)] accent-[rgb(var(--accent-rgb))]"
             />
           </div>
         ) : null}

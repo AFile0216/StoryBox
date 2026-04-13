@@ -23,6 +23,23 @@
   --ui-surface-field: rgba(246, 250, 255, 0.96);
   --ui-border-soft: rgba(15, 23, 42, 0.15);
   --ui-border-strong: rgba(15, 23, 42, 0.3);
+  --ui-overlay-scrim: rgba(7, 14, 24, 0.42);
+  --ui-overlay-blur: 4px;
+  --ui-overlay-panel: rgba(255, 255, 255, 0.82);
+  --ui-overlay-inverse: rgba(8, 14, 22, 0.64);
+  --ui-overlay-inverse-strong: rgba(8, 14, 22, 0.78);
+  --ui-overlay-inverse-border: rgba(255, 255, 255, 0.24);
+  --ui-hover-surface: rgba(15, 23, 42, 0.06);
+  --ui-hover-surface-strong: rgba(15, 23, 42, 0.12);
+  --ui-pressed-surface: rgba(15, 23, 42, 0.18);
+  --ui-muted-surface: rgba(255, 255, 255, 0.68);
+  --ui-track-bg: rgba(15, 23, 42, 0.14);
+  --ui-track-grid: rgba(15, 23, 42, 0.18);
+  --ui-track-mark: rgba(15, 23, 42, 0.38);
+  --ui-media-chip: rgba(6, 12, 20, 0.56);
+  --ui-media-chip-border: rgba(255, 255, 255, 0.28);
+  --ui-accent-soft: rgba(var(--accent-rgb), 0.16);
+  --ui-accent-strong: rgba(var(--accent-rgb), 0.9);
   --ui-shadow-panel: 0 18px 42px rgba(15, 23, 42, 0.14);
   --ui-elevation-1: 0 6px 16px rgba(15, 23, 42, 0.1);
   --ui-elevation-2: 0 12px 28px rgba(15, 23, 42, 0.14);
@@ -96,6 +113,23 @@
   --ui-surface-field: rgba(11, 19, 29, 0.95);
   --ui-border-soft: rgba(198, 214, 233, 0.19);
   --ui-border-strong: rgba(227, 237, 248, 0.33);
+  --ui-overlay-scrim: rgba(1, 5, 10, 0.66);
+  --ui-overlay-blur: 5px;
+  --ui-overlay-panel: rgba(5, 11, 18, 0.82);
+  --ui-overlay-inverse: rgba(5, 10, 16, 0.72);
+  --ui-overlay-inverse-strong: rgba(3, 8, 14, 0.86);
+  --ui-overlay-inverse-border: rgba(221, 233, 250, 0.22);
+  --ui-hover-surface: rgba(255, 255, 255, 0.08);
+  --ui-hover-surface-strong: rgba(255, 255, 255, 0.14);
+  --ui-pressed-surface: rgba(255, 255, 255, 0.2);
+  --ui-muted-surface: rgba(255, 255, 255, 0.06);
+  --ui-track-bg: rgba(3, 9, 15, 0.62);
+  --ui-track-grid: rgba(217, 229, 247, 0.1);
+  --ui-track-mark: rgba(217, 229, 247, 0.28);
+  --ui-media-chip: rgba(3, 8, 14, 0.68);
+  --ui-media-chip-border: rgba(217, 229, 247, 0.24);
+  --ui-accent-soft: rgba(var(--accent-rgb), 0.2);
+  --ui-accent-strong: rgba(var(--accent-rgb), 0.92);
   --ui-shadow-panel: 0 18px 44px rgba(2, 7, 13, 0.46);
   --ui-elevation-1: 0 8px 18px rgba(2, 7, 13, 0.34);
   --ui-elevation-2: 0 14px 30px rgba(2, 7, 13, 0.42);
@@ -389,6 +423,11 @@ html[data-platform='macos'] #root {
   border-radius: var(--ui-radius-xl);
   background: linear-gradient(180deg, rgba(var(--surface-rgb), 0.88), rgba(var(--surface-rgb), 0.72));
   box-shadow: var(--ui-elevation-1);
+}
+
+.ui-overlay-backdrop {
+  background: var(--ui-overlay-scrim);
+  backdrop-filter: blur(var(--ui-overlay-blur));
 }
 
 .ui-empty-state {

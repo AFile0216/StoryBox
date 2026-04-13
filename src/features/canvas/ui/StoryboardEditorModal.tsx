@@ -450,8 +450,8 @@ export const StoryboardEditorModal = memo(({
   }, [activeId, safeMax, segments]);
 
   return (
-    <div className="fixed inset-0 z-50 flex flex-col bg-bg-dark" onMouseDown={(event) => event.stopPropagation()}>
-      <div className="flex h-12 shrink-0 items-center justify-between border-b border-[rgba(255,255,255,0.08)] px-4">
+    <div className="fixed inset-0 z-50 flex flex-col bg-[var(--ui-surface-panel)]" onMouseDown={(event) => event.stopPropagation()}>
+      <div className="flex h-12 shrink-0 items-center justify-between border-b border-[var(--ui-border-soft)] px-4">
         <span className="text-sm font-medium text-text-dark">
           {t('node.videoStoryboard.editorTitle', { defaultValue: '分镜编辑器' })}
         </span>
@@ -465,7 +465,7 @@ export const StoryboardEditorModal = memo(({
           </button>
           <button
             type="button"
-            className="inline-flex h-8 w-8 items-center justify-center rounded-md text-text-muted hover:bg-white/5 hover:text-text-dark"
+            className="inline-flex h-8 w-8 items-center justify-center rounded-md text-text-muted hover:bg-[var(--ui-hover-surface)] hover:text-text-dark"
             onClick={onClose}
           >
             <X className="h-4 w-4" />
@@ -474,8 +474,8 @@ export const StoryboardEditorModal = memo(({
       </div>
 
       <div className="flex min-h-0 flex-1">
-        <div className="flex w-[60%] min-w-0 flex-col gap-3 border-r border-[rgba(255,255,255,0.08)] p-4">
-          <div className="relative min-h-0 flex-1 overflow-hidden rounded-xl bg-black">
+        <div className="flex w-[60%] min-w-0 flex-col gap-3 border-r border-[var(--ui-border-soft)] p-4">
+          <div className="relative min-h-0 flex-1 overflow-hidden rounded-xl bg-[var(--ui-track-bg)]">
             {videoSrc ? (
               <video
                 ref={videoRef}
@@ -507,10 +507,10 @@ export const StoryboardEditorModal = memo(({
             )}
           </div>
 
-          <div className="shrink-0 rounded-xl border border-[rgba(255,255,255,0.08)] bg-bg-dark/50 p-3">
+          <div className="shrink-0 rounded-xl border border-[var(--ui-border-soft)] bg-[var(--ui-overlay-panel)] p-3">
             <div className="mb-2 flex items-center justify-between text-xs text-text-muted">
               <div className="flex items-center gap-2">
-                <button type="button" className="text-text-muted hover:text-white" onClick={togglePlay}>
+                <button type="button" className="text-text-muted hover:text-text-dark" onClick={togglePlay}>
                   {isPlaying ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
                 </button>
                 <span>{t('node.videoStoryboard.timeline', { defaultValue: '时间轴' })}</span>
@@ -518,7 +518,7 @@ export const StoryboardEditorModal = memo(({
               <span ref={playheadTextRef}>{formatSecondsLabel(0)} / {formatSecondsLabel(durationSec)}</span>
             </div>
 
-            <div className="relative mb-3 h-6 rounded-md bg-white/5">
+            <div className="relative mb-3 h-6 rounded-md bg-[var(--ui-track-bg)]">
               {timelineMarkers.map((marker) => (
                 <div
                   key={marker.id}
@@ -533,12 +533,12 @@ export const StoryboardEditorModal = memo(({
               ))}
               <div
                 ref={playheadLineRef}
-                className="pointer-events-none absolute top-0 h-full w-0.5 bg-white/80"
+                className="pointer-events-none absolute top-0 h-full w-0.5 bg-[var(--ui-track-mark)]"
                 style={{ left: '0%' }}
               />
               <span
                 ref={playheadBadgeRef}
-                className="pointer-events-none absolute left-0 top-0 z-10 -translate-x-1/2 rounded bg-black/70 px-1.5 py-0.5 text-[10px] leading-none text-white"
+                className="pointer-events-none absolute left-0 top-0 z-10 -translate-x-1/2 rounded border border-[var(--ui-media-chip-border)] bg-[var(--ui-media-chip)] px-1.5 py-0.5 text-[10px] leading-none text-white"
               >
                 {formatSecondsLabel(0)}
               </span>
@@ -582,11 +582,11 @@ export const StoryboardEditorModal = memo(({
                   step={0.1}
                   value={Number(inPoint.toFixed(1))}
                   onChange={(event) => setInPoint(Number(event.target.value))}
-                  className="w-20 rounded border border-[rgba(255,255,255,0.08)] bg-bg-dark/50 px-2 py-1 text-xs text-text-dark outline-none"
+                  className="w-20 rounded border border-[var(--ui-border-soft)] bg-[var(--ui-muted-surface)] px-2 py-1 text-xs text-text-dark outline-none"
                 />
                 <button
                   type="button"
-                  className="rounded border border-[rgba(255,255,255,0.12)] px-2 py-1 text-xs text-text-muted hover:text-text-dark"
+                  className="rounded border border-[var(--ui-border-soft)] px-2 py-1 text-xs text-text-muted hover:bg-[var(--ui-hover-surface)] hover:text-text-dark"
                   onClick={() => setInPoint(videoRef.current?.currentTime ?? 0)}
                 >
                   {t('node.videoStoryboard.useCurrentForStart', { defaultValue: '用当前' })}
@@ -616,11 +616,11 @@ export const StoryboardEditorModal = memo(({
                   step={0.1}
                   value={Number(outPoint.toFixed(1))}
                   onChange={(event) => setOutPoint(Number(event.target.value))}
-                  className="w-20 rounded border border-[rgba(255,255,255,0.08)] bg-bg-dark/50 px-2 py-1 text-xs text-text-dark outline-none"
+                  className="w-20 rounded border border-[var(--ui-border-soft)] bg-[var(--ui-muted-surface)] px-2 py-1 text-xs text-text-dark outline-none"
                 />
                 <button
                   type="button"
-                  className="rounded border border-[rgba(255,255,255,0.12)] px-2 py-1 text-xs text-text-muted hover:text-text-dark"
+                  className="rounded border border-[var(--ui-border-soft)] px-2 py-1 text-xs text-text-muted hover:bg-[var(--ui-hover-surface)] hover:text-text-dark"
                   onClick={() => setOutPoint(videoRef.current?.currentTime ?? 0)}
                 >
                   {t('node.videoStoryboard.useCurrentForEnd', { defaultValue: '用当前' })}
@@ -631,7 +631,7 @@ export const StoryboardEditorModal = memo(({
             <div className="mt-3 flex gap-2">
               <button
                 type="button"
-                className="inline-flex items-center gap-1.5 rounded-lg border border-[rgba(255,255,255,0.12)] px-3 py-1.5 text-xs text-text-dark hover:bg-white/5"
+                className="inline-flex items-center gap-1.5 rounded-lg border border-[var(--ui-border-soft)] px-3 py-1.5 text-xs text-text-dark hover:bg-[var(--ui-hover-surface)]"
                 onClick={handleAddSegment}
               >
                 <Plus className="h-3.5 w-3.5" />
@@ -641,7 +641,7 @@ export const StoryboardEditorModal = memo(({
                 <>
                   <button
                     type="button"
-                    className="inline-flex items-center gap-1.5 rounded-lg border border-[rgba(255,255,255,0.12)] px-3 py-1.5 text-xs text-text-dark hover:bg-white/5"
+                    className="inline-flex items-center gap-1.5 rounded-lg border border-[var(--ui-border-soft)] px-3 py-1.5 text-xs text-text-dark hover:bg-[var(--ui-hover-surface)]"
                     onClick={handleUpdateRange}
                   >
                     <Scissors className="h-3.5 w-3.5" />
@@ -649,7 +649,7 @@ export const StoryboardEditorModal = memo(({
                   </button>
                   <button
                     type="button"
-                    className="inline-flex items-center gap-1.5 rounded-lg border border-[rgba(255,255,255,0.12)] px-3 py-1.5 text-xs text-text-dark hover:bg-white/5"
+                    className="inline-flex items-center gap-1.5 rounded-lg border border-[var(--ui-border-soft)] px-3 py-1.5 text-xs text-text-dark hover:bg-[var(--ui-hover-surface)]"
                     onClick={() => void handleCaptureFrame()}
                     disabled={capturing}
                   >
@@ -663,14 +663,14 @@ export const StoryboardEditorModal = memo(({
         </div>
 
         <div className="flex w-[40%] min-w-0 flex-col">
-          <div className="flex h-10 shrink-0 items-center justify-between border-b border-[rgba(255,255,255,0.08)] px-4">
+          <div className="flex h-10 shrink-0 items-center justify-between border-b border-[var(--ui-border-soft)] px-4">
             <span className="text-xs uppercase tracking-[0.12em] text-text-muted">
               {t('node.videoStoryboard.segmentList', { defaultValue: '分镜列表' })} ({segments.length})
             </span>
           </div>
 
           <div className="flex min-h-0 flex-1">
-            <div className="ui-scrollbar w-[210px] shrink-0 overflow-y-auto border-r border-[rgba(255,255,255,0.08)] p-2">
+            <div className="ui-scrollbar w-[210px] shrink-0 overflow-y-auto border-r border-[var(--ui-border-soft)] p-2">
               {segments.length === 0 ? (
                 <div className="px-2 py-4 text-center text-xs text-text-muted">
                   {t('node.videoStoryboard.noSegments', { defaultValue: '暂无分镜' })}
@@ -685,7 +685,7 @@ export const StoryboardEditorModal = memo(({
                       className={`relative mb-2 w-full overflow-hidden rounded-lg border p-2 text-left transition-colors ${
                         isActive
                           ? 'border-accent/50 bg-accent/12'
-                          : 'border-[rgba(255,255,255,0.08)] bg-bg-dark/35 hover:border-[rgba(255,255,255,0.18)]'
+                          : 'border-[var(--ui-border-soft)] bg-[var(--ui-muted-surface)] hover:border-[var(--ui-border-strong)]'
                       }`}
                       onClick={() => handleSelectSegment(segment)}
                     >
@@ -696,7 +696,7 @@ export const StoryboardEditorModal = memo(({
                       {segment.keyframeDataUrl ? (
                         <img src={segment.keyframeDataUrl} alt="" className="mb-1.5 h-16 w-full rounded object-cover" />
                       ) : (
-                        <div className="mb-1.5 flex h-16 items-center justify-center rounded bg-white/5 text-xs text-text-muted">
+                        <div className="mb-1.5 flex h-16 items-center justify-center rounded bg-[var(--ui-hover-surface)] text-xs text-text-muted">
                           #{index + 1}
                         </div>
                       )}
@@ -724,7 +724,7 @@ export const StoryboardEditorModal = memo(({
                     </span>
                     <button
                       type="button"
-                      className="inline-flex h-7 w-7 items-center justify-center rounded text-text-muted hover:bg-white/5 hover:text-red-400"
+                      className="inline-flex h-7 w-7 items-center justify-center rounded text-text-muted hover:bg-[var(--ui-hover-surface)] hover:text-red-400"
                       onClick={() => handleDeleteSegment(activeSegment.id)}
                     >
                       <Trash2 className="h-3.5 w-3.5" />
@@ -793,11 +793,11 @@ export const StoryboardEditorModal = memo(({
                           }
                         }}
                         placeholder={t('node.videoStoryboard.tagPlaceholder', { defaultValue: '输入标签后回车' })}
-                        className="flex-1 rounded border border-[rgba(255,255,255,0.08)] bg-bg-dark/50 px-2 py-1 text-xs text-text-dark outline-none placeholder:text-text-muted/60"
+                        className="flex-1 rounded border border-[var(--ui-border-soft)] bg-[var(--ui-muted-surface)] px-2 py-1 text-xs text-text-dark outline-none placeholder:text-text-muted/60"
                       />
                       <button
                         type="button"
-                        className="rounded border border-[rgba(255,255,255,0.12)] px-2 py-1 text-xs text-text-muted hover:text-text-dark"
+                        className="rounded border border-[var(--ui-border-soft)] px-2 py-1 text-xs text-text-muted hover:bg-[var(--ui-hover-surface)] hover:text-text-dark"
                         onClick={handleAddTag}
                       >
                         <Plus className="h-3.5 w-3.5" />
@@ -842,7 +842,7 @@ function ScriptField({
         onChange={onChange}
         placeholder={placeholder}
         minHeightClassName="min-h-[92px]"
-        className="rounded-lg border border-[rgba(255,255,255,0.08)] bg-bg-dark/50 text-sm"
+        className="rounded-lg border border-[var(--ui-border-soft)] bg-[var(--ui-muted-surface)] text-sm"
         referenceMediaTypes={['image']}
       />
     </div>

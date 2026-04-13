@@ -191,7 +191,7 @@ export function ProjectManager() {
       </div>
 
       {isOpeningProject ? (
-        <div className={`fixed ${UI_CONTENT_OVERLAY_INSET_CLASS} z-20 flex items-center justify-center bg-black/30 backdrop-blur-[2px]`}>
+        <div className={`fixed ${UI_CONTENT_OVERLAY_INSET_CLASS} z-20 flex items-center justify-center ui-overlay-backdrop`}>
           <div className="ui-card inline-flex items-center gap-2 px-4 py-2 text-sm text-text-dark">
             <LoaderCircle className="h-4 w-4 animate-spin text-accent" />
             {t('project.open', { defaultValue: 'Open Project' })}

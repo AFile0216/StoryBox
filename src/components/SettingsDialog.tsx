@@ -452,7 +452,7 @@ export function SettingsDialog({
     <>
       <div className={`fixed ${UI_CONTENT_OVERLAY_INSET_CLASS} z-50 flex items-center justify-center p-3 md:p-5`}>
       <div
-        className={`absolute inset-0 bg-black/68 backdrop-blur-[2px] transition-opacity duration-200 ${isVisible ? 'opacity-100' : 'opacity-0'}`}
+        className={`ui-overlay-backdrop absolute inset-0 transition-opacity duration-200 ${isVisible ? 'opacity-100' : 'opacity-0'}`}
         onClick={onClose}
       />
       <div className="relative w-[min(98vw,1220px)]">
@@ -618,7 +618,7 @@ export function SettingsDialog({
                             {localCustomApiInterfaces.length > 1 && (
                               <button
                                 type="button"
-                                className="inline-flex h-8 w-8 items-center justify-center rounded text-text-muted hover:bg-black/20 hover:text-text-dark"
+                                className="inline-flex h-8 w-8 items-center justify-center rounded text-text-muted hover:bg-[var(--ui-hover-surface)] hover:text-text-dark"
                                 onClick={() => handleRemoveCustomApiInterface(apiInterface.id)}
                               >
                                 <Trash2 className="h-4 w-4" />
