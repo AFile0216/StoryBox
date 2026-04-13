@@ -164,14 +164,14 @@ export const AiSidePanel = memo(() => {
 
   return (
     <div
-      className={`absolute right-0 top-0 z-40 h-full border-l border-[var(--ui-border-soft)] bg-[var(--ui-surface-panel)] transition-[width] duration-200 ${
-        collapsed ? 'w-7' : 'w-[360px] max-w-[46vw]'
+      className={`absolute right-0 top-0 z-40 h-full border-l border-[var(--ui-border-soft)] bg-[var(--ui-surface-panel)] shadow-[var(--ui-elevation-2)] backdrop-blur-xl transition-[width] duration-200 ${
+        collapsed ? 'w-10' : 'w-[clamp(300px,32vw,420px)] max-w-[52vw]'
       }`}
     >
       <button
         type="button"
         onClick={() => setCollapsed((previous) => !previous)}
-        className="absolute -left-4 top-1/2 flex h-10 w-8 -translate-y-1/2 items-center justify-center rounded-l-full border border-[var(--ui-border-soft)] bg-[var(--ui-surface-panel)] text-accent shadow-[0_8px_20px_rgba(2,6,23,0.28)]"
+        className="absolute -left-4 top-1/2 flex h-10 w-8 -translate-y-1/2 items-center justify-center rounded-l-full border border-[var(--ui-border-soft)] bg-[var(--ui-surface-panel)] text-accent shadow-[var(--ui-elevation-2)]"
         aria-label={collapsed
           ? t('node.chat.expand', { defaultValue: '展开 AI 面板' })
           : t('node.chat.collapse', { defaultValue: '收起 AI 面板' })}
@@ -180,7 +180,7 @@ export const AiSidePanel = memo(() => {
       </button>
 
       {!collapsed ? (
-        <div className="flex h-full min-h-0 flex-col p-3">
+        <div className="flex h-full min-h-0 flex-col gap-2 p-3">
           <div className="mb-2 flex items-center gap-2 text-text-dark">
             <Sparkles className="h-4 w-4 text-accent" />
             <span className="text-sm font-semibold">
@@ -227,7 +227,7 @@ export const AiSidePanel = memo(() => {
             {messages.map((message) => (
               <div
                 key={message.id}
-                className={`rounded-lg px-2.5 py-2 text-xs leading-5 ${
+                className={`ui-safe-text rounded-lg px-2.5 py-2 text-xs leading-5 whitespace-pre-wrap ${
                   message.role === 'user'
                     ? 'ml-8 bg-accent/20 text-text-dark'
                     : message.role === 'error'

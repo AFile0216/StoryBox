@@ -455,42 +455,44 @@ export function SettingsDialog({
         className={`absolute inset-0 bg-black/68 backdrop-blur-[2px] transition-opacity duration-200 ${isVisible ? 'opacity-100' : 'opacity-0'}`}
         onClick={onClose}
       />
-      <div className="relative w-[min(96vw,1220px)]">
+      <div className="relative w-[min(98vw,1220px)]">
         <div
-          className={`relative mx-auto flex h-[min(90vh,800px)] w-full overflow-hidden rounded-[var(--ui-radius-2xl)] border border-[var(--ui-border-soft)] bg-[var(--ui-surface-panel)] shadow-[var(--ui-shadow-panel)] transition-[opacity,transform] duration-200 ${isVisible ? 'translate-y-0 opacity-100' : 'translate-y-2 opacity-0'}`}
+          className={`relative mx-auto flex h-[min(92vh,860px)] w-full flex-col overflow-hidden rounded-[var(--ui-radius-2xl)] border border-[var(--ui-border-soft)] bg-[var(--ui-surface-panel)] shadow-[var(--ui-shadow-panel)] transition-[opacity,transform] duration-200 md:flex-row ${isVisible ? 'translate-y-0 opacity-100' : 'translate-y-2 opacity-0'}`}
         >
           <button onClick={onClose} className="absolute right-3 top-3 z-10 inline-flex h-8 w-8 items-center justify-center rounded-[var(--ui-radius-lg)] border border-transparent text-text-muted transition-colors hover:border-[var(--ui-border-soft)] hover:bg-[var(--ui-surface-field)] hover:text-text-dark">
             <X className="h-5 w-5 text-text-muted" />
           </button>
 
-          <div className="w-[210px] border-r border-[var(--ui-border-soft)] bg-[rgba(var(--bg-rgb),0.52)] px-3 py-3">
+          <div className="border-b border-[var(--ui-border-soft)] bg-[rgba(var(--bg-rgb),0.52)] px-3 py-3 md:w-[224px] md:shrink-0 md:border-b-0 md:border-r">
             <div className="px-2 py-3">
               <span className="ui-display-title text-[11px] font-medium uppercase tracking-[0.14em] text-text-muted">
                 {t('settings.title')}
               </span>
             </div>
-            {(['general', 'providers', 'prompt', 'appearance', 'experimental', 'about'] as SettingsCategory[]).map((category) => (
-              <button
-                key={category}
-                onClick={() => setActiveCategory(category)}
-                className={`mb-1 w-full rounded-[var(--ui-radius-lg)] px-3 py-2.5 text-left transition-all duration-150 ${
-                  activeCategory === category
-                    ? 'border border-[rgba(var(--accent-rgb),0.45)] bg-[rgba(var(--accent-rgb),0.15)] text-text-dark shadow-[0_8px_20px_rgba(var(--accent-rgb),0.14)]'
-                    : 'border border-transparent text-text-muted hover:border-[var(--ui-border-soft)] hover:bg-[var(--ui-surface-field)] hover:text-text-dark'
-                }`}
-              >
-                <span className="text-sm">{t(`settings.${category}`)}</span>
-              </button>
-            ))}
+            <div className="ui-scrollbar flex gap-1 overflow-x-auto pb-1 md:block md:overflow-visible md:pb-0">
+              {(['general', 'providers', 'prompt', 'appearance', 'experimental', 'about'] as SettingsCategory[]).map((category) => (
+                <button
+                  key={category}
+                  onClick={() => setActiveCategory(category)}
+                  className={`mb-1 shrink-0 rounded-[var(--ui-radius-lg)] px-3 py-2.5 text-left transition-all duration-150 md:w-full ${
+                    activeCategory === category
+                      ? 'border border-[rgba(var(--accent-rgb),0.45)] bg-[rgba(var(--accent-rgb),0.15)] text-text-dark shadow-[0_8px_20px_rgba(var(--accent-rgb),0.14)]'
+                      : 'border border-transparent text-text-muted hover:border-[var(--ui-border-soft)] hover:bg-[var(--ui-surface-field)] hover:text-text-dark'
+                  }`}
+                >
+                  <span className="text-sm">{t(`settings.${category}`)}</span>
+                </button>
+              ))}
+            </div>
           </div>
 
           <div className="flex min-w-0 flex-1 flex-col">
-            <div className="border-b border-[var(--ui-border-soft)] px-6 py-5">
+            <div className="border-b border-[var(--ui-border-soft)] px-4 py-4 md:px-6 md:py-5">
               <h2 className="ui-display-title text-[14px] uppercase tracking-[0.08em] text-text-dark">{t(`settings.${activeCategory}`)}</h2>
               <p className="mt-1 text-sm text-text-muted">{t(`settings.${activeCategory}Desc`)}</p>
             </div>
 
-            <div className="ui-scrollbar flex-1 space-y-4 overflow-y-auto p-6">
+            <div className="ui-scrollbar flex-1 space-y-4 overflow-y-auto p-4 md:p-6">
               {activeCategory === 'general' && (
                 <>
                   <SettingsCheckboxCard
@@ -1205,7 +1207,7 @@ export function SettingsDialog({
                 </>
               )}
             </div>
-            <div className="flex justify-end gap-2 border-t border-[var(--ui-border-soft)] px-6 py-4">
+            <div className="flex flex-wrap justify-end gap-2 border-t border-[var(--ui-border-soft)] px-4 py-4 md:px-6">
               {saveStatus === 'saved' ? (
                 <span className="ui-status-success mr-auto rounded-[var(--ui-radius-lg)] px-2 py-1 text-xs">
                   {t('common.success', { defaultValue: 'Success' })}

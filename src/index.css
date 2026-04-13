@@ -24,7 +24,12 @@
   --ui-border-soft: rgba(15, 23, 42, 0.15);
   --ui-border-strong: rgba(15, 23, 42, 0.3);
   --ui-shadow-panel: 0 18px 42px rgba(15, 23, 42, 0.14);
+  --ui-elevation-1: 0 6px 16px rgba(15, 23, 42, 0.1);
+  --ui-elevation-2: 0 12px 28px rgba(15, 23, 42, 0.14);
+  --ui-elevation-3: 0 20px 46px rgba(15, 23, 42, 0.2);
+  --ui-content-max-width: 1280px;
   --group-node-bg: color-mix(in srgb, rgb(var(--accent-rgb) / 0.18) 24%, rgb(var(--surface-rgb)));
+  --ui-radius-sm: 8px;
   --ui-radius-lg: 10px;
   --ui-radius-xl: 14px;
   --ui-radius-2xl: 18px;
@@ -88,7 +93,11 @@
   --ui-border-soft: rgba(198, 214, 233, 0.19);
   --ui-border-strong: rgba(227, 237, 248, 0.33);
   --ui-shadow-panel: 0 18px 44px rgba(2, 7, 13, 0.46);
+  --ui-elevation-1: 0 8px 18px rgba(2, 7, 13, 0.34);
+  --ui-elevation-2: 0 14px 30px rgba(2, 7, 13, 0.42);
+  --ui-elevation-3: 0 22px 52px rgba(2, 7, 13, 0.5);
   --group-node-bg: color-mix(in srgb, rgb(var(--accent-rgb) / 0.25) 36%, rgb(var(--surface-rgb)));
+  --ui-radius-sm: 8px;
   --ui-radius-lg: 10px;
   --ui-radius-xl: 14px;
   --ui-radius-2xl: 18px;
@@ -258,6 +267,9 @@ body {
     rgb(var(--bg-rgb));
   color: var(--text);
   letter-spacing: 0.01em;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
 }
 
 button,
@@ -269,7 +281,7 @@ textarea {
 
 :focus-visible {
   outline: none;
-  box-shadow: 0 0 0 2px rgba(var(--accent-rgb), 0.2);
+  box-shadow: 0 0 0 2px rgba(var(--accent-rgb), 0.26);
 }
 
 #boot-screen {
@@ -343,7 +355,7 @@ html[data-platform='macos'] #root {
   background: var(--ui-surface-panel);
   border-color: var(--ui-border-soft);
   border-radius: var(--ui-radius-xl);
-  box-shadow: var(--ui-shadow-panel);
+  box-shadow: var(--ui-elevation-2);
 }
 
 .ui-field {
@@ -355,14 +367,14 @@ html[data-platform='macos'] #root {
 .ui-card {
   border: 1px solid var(--ui-border-soft);
   border-radius: var(--ui-radius-xl);
-  background: linear-gradient(180deg, rgba(var(--surface-rgb), 0.85), rgba(var(--surface-rgb), 0.72));
-  box-shadow: var(--ui-shadow-panel);
+  background: linear-gradient(180deg, rgba(var(--surface-rgb), 0.88), rgba(var(--surface-rgb), 0.72));
+  box-shadow: var(--ui-elevation-1);
 }
 
 .ui-empty-state {
   border: 1px dashed var(--ui-border-soft);
   border-radius: var(--ui-radius-xl);
-  background: rgba(var(--surface-rgb), 0.45);
+  background: rgba(var(--surface-rgb), 0.5);
 }
 
 .ui-status-success {
@@ -387,6 +399,64 @@ html[data-platform='macos'] #root {
   border: 1px solid rgba(var(--status-info-rgb), 0.3);
   background: rgba(var(--status-info-rgb), 0.12);
   color: rgb(var(--status-info-rgb));
+}
+
+.ui-container {
+  width: min(100%, var(--ui-content-max-width));
+  margin-inline: auto;
+  padding-inline: clamp(16px, 2vw, 28px);
+}
+
+.ui-safe-text {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.ui-ellipsis {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ui-clamp-2 {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.ui-clamp-3 {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+}
+
+.ui-grid-fluid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(var(--ui-grid-min, 240px), 1fr));
+  gap: var(--space-md);
+}
+
+.ui-media-frame {
+  position: relative;
+  overflow: hidden;
+  border-radius: var(--ui-radius-lg);
+  background: rgba(var(--text-rgb), 0.08);
+}
+
+.ui-media-frame--16-9 {
+  aspect-ratio: 16 / 9;
+}
+
+.ui-media-frame--4-3 {
+  aspect-ratio: 4 / 3;
+}
+
+.ui-media-frame--1-1 {
+  aspect-ratio: 1 / 1;
 }
 
 .panel-anim-enter {

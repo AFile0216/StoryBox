@@ -70,10 +70,10 @@ export function ProjectManager() {
   }, [projects, sortDirection, sortField]);
 
   return (
-    <div className="ui-scrollbar h-full w-full overflow-auto p-5 md:p-8">
-      <div className="mx-auto max-w-6xl animate-[ui-fade-slide-in_var(--ui-duration-normal)_var(--ui-ease-standard)] space-y-6">
+    <div className="ui-scrollbar h-full w-full overflow-auto py-5 md:py-8">
+      <div className="ui-container animate-[ui-fade-slide-in_var(--ui-duration-normal)_var(--ui-ease-standard)] space-y-6">
         <section className="ui-card px-5 py-5 md:px-6 md:py-6">
-          <div className="flex flex-wrap items-start justify-between gap-4">
+          <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-start">
             <div>
               <div className="inline-flex items-center gap-2 rounded-full border border-[rgba(var(--accent-rgb),0.24)] bg-[rgba(var(--accent-rgb),0.1)] px-2.5 py-1 text-[11px] font-medium uppercase tracking-[0.1em] text-text-dark">
                 <Sparkles className="h-3.5 w-3.5" />
@@ -87,12 +87,12 @@ export function ProjectManager() {
               </p>
             </div>
 
-            <div className="flex min-w-[240px] flex-1 flex-wrap items-center justify-end gap-2">
+            <div className="grid w-full gap-2 sm:grid-cols-3 lg:w-auto lg:min-w-[420px]">
               <UiSelect
                 aria-label={t('project.sortBy')}
                 value={sortField}
                 onChange={(event) => setSortField(event.target.value as ProjectSortField)}
-                className="w-[130px]"
+                className="w-full"
               >
                 <option value="name">{t('project.sortByName')}</option>
                 <option value="createdAt">{t('project.sortByCreatedAt')}</option>
@@ -103,13 +103,13 @@ export function ProjectManager() {
                 aria-label={t('project.sortDirection')}
                 value={sortDirection}
                 onChange={(event) => setSortDirection(event.target.value as SortDirection)}
-                className="w-[108px]"
+                className="w-full"
               >
                 <option value="asc">{t('project.sortAsc')}</option>
                 <option value="desc">{t('project.sortDesc')}</option>
               </UiSelect>
 
-              <UiButton type="button" variant="primary" onClick={handleCreateProject} className="shrink-0">
+              <UiButton type="button" variant="primary" onClick={handleCreateProject} className="w-full">
                 <Plus className="h-4 w-4" />
                 {t('project.newProject')}
               </UiButton>
@@ -120,7 +120,7 @@ export function ProjectManager() {
         {configuredApiKeyCount === 0 ? <MissingApiKeyHint /> : null}
 
         {sortedProjects.length === 0 ? (
-          <section className="ui-empty-state flex min-h-[360px] flex-col items-center justify-center gap-3 px-6 py-10 text-center">
+          <section className="ui-empty-state flex min-h-[clamp(220px,36vh,320px)] flex-col items-center justify-center gap-3 px-6 py-10 text-center">
             <div className="rounded-2xl border border-[var(--ui-border-soft)] bg-[var(--ui-surface-field)] p-4 text-text-muted">
               <FolderOpen className="h-10 w-10" />
             </div>
@@ -134,7 +134,7 @@ export function ProjectManager() {
             </UiButton>
           </section>
         ) : (
-          <section className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
+          <section className="[--ui-grid-min:260px] ui-grid-fluid">
             {sortedProjects.map((project) => (
               <div
                 key={project.id}
@@ -151,8 +151,10 @@ export function ProjectManager() {
                 aria-label={`${t('project.open')}: ${project.name}`}
               >
                 <div className="flex w-full items-start justify-between gap-2">
-                  <h3 className="line-clamp-1 text-sm font-semibold text-text-dark md:text-base">{project.name}</h3>
-                  <div className="flex items-center gap-1 opacity-0 transition-opacity duration-150 group-hover:opacity-100 group-focus-visible:opacity-100">
+                  <h3 className="ui-ellipsis text-sm font-semibold text-text-dark md:text-base" title={project.name}>
+                    {project.name}
+                  </h3>
+                  <div className="flex items-center gap-1 opacity-70 transition-opacity duration-150 group-hover:opacity-100 group-focus-visible:opacity-100">
                     <button
                       type="button"
                       onClick={(event) => handleRenameClick(project.id, project.name, event)}

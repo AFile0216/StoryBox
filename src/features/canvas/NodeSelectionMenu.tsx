@@ -26,6 +26,7 @@ export function NodeSelectionMenu({ position, allowedTypes, onSelect, onClose }:
   const { t } = useTranslation();
   const menuRef = useRef<HTMLDivElement>(null);
   const [isVisible, setIsVisible] = useState(false);
+  const [safePosition, setSafePosition] = useState(position);
 
   const allowedTypeSet = useMemo(() => (allowedTypes ? new Set(allowedTypes) : null), [allowedTypes]);
 
@@ -71,6 +72,28 @@ export function NodeSelectionMenu({ position, allowedTypes, onSelect, onClose }:
     requestAnimationFrame(() => setIsVisible(true));
   }, []);
 
+  useEffect(() => {
+    const menuElement = menuRef.current;
+    if (!menuElement) {
+      setSafePosition(position);
+      return;
+    }
+    const offsetParent = menuElement.offsetParent as HTMLElement | null;
+    if (!offsetParent) {
+      setSafePosition(position);
+      return;
+    }
+
+    const parentRect = offsetParent.getBoundingClientRect();
+    const menuRect = menuElement.getBoundingClientRect();
+    const margin = 8;
+    const maxLeft = Math.max(margin, parentRect.width - menuRect.width - margin);
+    const maxTop = Math.max(margin, parentRect.height - menuRect.height - margin);
+    const nextX = Math.min(Math.max(margin, position.x), maxLeft);
+    const nextY = Math.min(Math.max(margin, position.y), maxTop);
+    setSafePosition({ x: nextX, y: nextY });
+  }, [isVisible, menuItems.length, position]);
+
   const handleClose = useCallback(() => {
     setIsVisible(false);
     setTimeout(onClose, UI_POPOVER_TRANSITION_MS);
@@ -91,10 +114,10 @@ export function NodeSelectionMenu({ position, allowedTypes, onSelect, onClose }:
     <div
       ref={menuRef}
       data-node-menu="true"
-      className={`absolute z-50 w-auto min-w-[168px] max-w-[70vw] overflow-hidden rounded-[12px] border border-[var(--ui-border-strong)] bg-[var(--ui-surface-panel)] shadow-[var(--ui-shadow-panel)] transition-all duration-120 ${
+      className={`absolute z-50 w-auto min-w-[172px] max-w-[70vw] overflow-hidden rounded-[var(--ui-radius-xl)] border border-[var(--ui-border-strong)] bg-[var(--ui-surface-panel)] shadow-[var(--ui-elevation-2)] transition-all duration-120 ${
         isVisible ? 'translate-y-0 opacity-100' : 'translate-y-1 opacity-0'
       }`}
-      style={{ left: position.x, top: position.y }}
+      style={{ left: safePosition.x, top: safePosition.y }}
     >
       <div className="border-b border-[var(--ui-border-soft)] px-3 py-2">
         <div className="ui-display-title text-[10px] uppercase tracking-[0.16em] text-text-muted">
@@ -108,7 +131,7 @@ export function NodeSelectionMenu({ position, allowedTypes, onSelect, onClose }:
           return (
             <button
               key={item.type}
-              className="group flex w-full items-center gap-2.5 rounded-[10px] px-2.5 py-2 text-left transition-colors hover:bg-[var(--ui-surface-field)]"
+              className="group flex w-full items-center gap-2.5 rounded-[var(--ui-radius-lg)] px-2.5 py-2 text-left transition-colors hover:bg-[var(--ui-surface-field)]"
               style={{ transitionDelay: isVisible ? `${index * 10}ms` : '0ms' }}
               onClick={() => {
                 handleClose();

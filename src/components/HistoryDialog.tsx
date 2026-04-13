@@ -60,9 +60,9 @@ export const HistoryDialog = memo(({ isOpen, onClose }: HistoryDialogProps) => {
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
-      <div className="flex h-[90vh] w-[92vw] max-w-6xl flex-col overflow-hidden rounded-2xl border border-[var(--ui-border-soft)] bg-[var(--ui-surface-panel)] shadow-2xl">
-        <div className="flex h-14 items-center justify-between border-b border-[var(--ui-border-soft)] bg-gradient-to-r from-accent/10 to-transparent px-6">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-3 md:p-4 backdrop-blur-sm">
+      <div className="flex h-[min(92vh,920px)] w-[min(98vw,1320px)] flex-col overflow-hidden rounded-[var(--ui-radius-2xl)] border border-[var(--ui-border-soft)] bg-[var(--ui-surface-panel)] shadow-[var(--ui-elevation-3)]">
+        <div className="flex min-h-14 flex-wrap items-center justify-between gap-2 border-b border-[var(--ui-border-soft)] bg-gradient-to-r from-accent/10 to-transparent px-4 md:px-6">
           <h2 className="text-lg font-semibold text-text-dark">
             {t('app.assetManager', { defaultValue: 'Asset Manager' })}
           </h2>
@@ -93,8 +93,8 @@ export const HistoryDialog = memo(({ isOpen, onClose }: HistoryDialogProps) => {
           </div>
         </div>
 
-        <div className="border-b border-[var(--ui-border-soft)] px-6 py-3">
-          <div className="flex flex-wrap items-center gap-2">
+        <div className="border-b border-[var(--ui-border-soft)] px-4 py-3 md:px-6">
+          <div className="ui-scrollbar flex items-center gap-2 overflow-x-auto pb-1">
             <button
               type="button"
               onClick={() => setActiveCategory('all')}
@@ -124,7 +124,7 @@ export const HistoryDialog = memo(({ isOpen, onClose }: HistoryDialogProps) => {
           </div>
         </div>
 
-        <div className="ui-scrollbar flex-1 overflow-y-auto p-6">
+        <div className="ui-scrollbar flex-1 overflow-y-auto p-4 md:p-6">
           {!currentProjectId ? (
             <div className="flex h-full items-center justify-center text-sm text-text-muted">
               {t('asset.noProject', { defaultValue: 'Open a project to view assets.' })}
@@ -134,7 +134,7 @@ export const HistoryDialog = memo(({ isOpen, onClose }: HistoryDialogProps) => {
               {t('asset.empty', { defaultValue: 'No assets in this category.' })}
             </div>
           ) : (
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+            <div className="[--ui-grid-min:240px] ui-grid-fluid">
               {assets.map((asset) => (
                 <div
                   key={asset.id}
@@ -169,11 +169,13 @@ export const HistoryDialog = memo(({ isOpen, onClose }: HistoryDialogProps) => {
                   </div>
 
                   <div className="space-y-2 p-3">
-                    <div className="line-clamp-2 text-xs leading-5 text-text-dark">
+                    <div className="ui-safe-text ui-clamp-2 text-xs leading-5 text-text-dark">
                       {asset.textContent || asset.title}
                     </div>
 
-                    <div className="text-[10px] text-text-muted">{asset.nodeTitle}</div>
+                    <div className="ui-ellipsis text-[10px] text-text-muted" title={asset.nodeTitle}>
+                      {asset.nodeTitle}
+                    </div>
 
                     <select
                       value={asset.category}

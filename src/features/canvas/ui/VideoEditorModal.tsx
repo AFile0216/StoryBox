@@ -668,11 +668,11 @@ export const VideoEditorModal = memo(({
 
   return (
     <div
-      className="fixed inset-0 z-50 p-5 lg:p-6"
+      className="fixed inset-0 z-50 p-3 md:p-5 lg:p-6"
       onMouseDown={(event) => event.stopPropagation()}
     >
-      <div className="flex h-full flex-col overflow-hidden rounded-[26px] border border-[var(--ui-border-soft)] bg-[linear-gradient(180deg,rgba(16,24,35,0.96),rgba(10,16,24,0.95))] shadow-[0_24px_80px_rgba(2,6,23,0.45)]">
-        <div className="flex h-12 shrink-0 items-center justify-between border-b border-[rgba(255,255,255,0.08)] px-4">
+      <div className="flex h-full flex-col overflow-hidden rounded-[var(--ui-radius-2xl)] border border-[var(--ui-border-soft)] bg-[linear-gradient(180deg,rgba(16,24,35,0.96),rgba(10,16,24,0.95))] shadow-[0_24px_80px_rgba(2,6,23,0.45)]">
+        <div className="flex min-h-12 shrink-0 flex-wrap items-center justify-between gap-2 border-b border-[rgba(255,255,255,0.08)] px-4 py-2">
           <span className="ui-display-title text-sm font-medium uppercase tracking-[0.08em] text-text-dark">
             {t('node.videoEditor.editorTitle', { defaultValue: '视频编辑器' })}
           </span>
@@ -710,9 +710,9 @@ export const VideoEditorModal = memo(({
           </div>
         </div>
 
-        <div className="flex min-h-0 flex-1">
-          <div className="flex min-w-0 flex-1 flex-col border-r border-[rgba(255,255,255,0.08)] p-5">
-            <div className="relative min-h-0 flex-1 overflow-hidden rounded-[24px] border border-[rgba(255,255,255,0.22)] bg-black">
+        <div className="grid min-h-0 flex-1 xl:grid-cols-[minmax(0,1fr)_clamp(360px,34vw,520px)]">
+          <div className="flex min-w-0 flex-1 flex-col border-b border-[rgba(255,255,255,0.08)] p-4 md:p-5 xl:border-b-0 xl:border-r">
+            <div className="relative min-h-[220px] flex-1 overflow-hidden rounded-[var(--ui-radius-2xl)] border border-[rgba(255,255,255,0.22)] bg-black">
               {activePreviewUrl ? (
                 <img
                   src={resolveImageDisplayUrl(activePreviewUrl)}
@@ -731,11 +731,11 @@ export const VideoEditorModal = memo(({
               ) : null}
 
               {activeTextOverlays.length > 0 ? (
-                <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-end gap-2 px-10 pb-8">
+                <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-end gap-2 px-6 pb-8 md:px-10">
                   {activeTextOverlays.map((clip) => (
                     <div
                       key={clip.id}
-                      className="max-w-[80%] rounded-md bg-black/55 px-3 py-1 text-center font-medium text-white"
+                      className="ui-safe-text ui-clamp-2 max-w-[min(84%,680px)] rounded-md bg-black/55 px-3 py-1 text-center font-medium text-white"
                       style={{
                         color: clip.color || '#ffffff',
                         fontSize: `${Math.max(14, clip.fontSize ?? 28)}px`,
@@ -761,7 +761,7 @@ export const VideoEditorModal = memo(({
               </div>
             </div>
 
-            <div className="mt-4 rounded-[16px] border border-[var(--ui-border-soft)] bg-[rgba(9,15,23,0.8)] p-3">
+            <div className="mt-4 rounded-[var(--ui-radius-xl)] border border-[var(--ui-border-soft)] bg-[rgba(9,15,23,0.8)] p-3">
               <div className="mb-2 flex items-center justify-between text-xs text-text-muted">
                 <div className="flex items-center gap-2">
                   <button
@@ -983,12 +983,13 @@ export const VideoEditorModal = memo(({
             </div>
           </div>
 
-          <div className="flex w-[620px] shrink-0 gap-4 p-5">
-            <div className="flex min-w-0 flex-1 flex-col">
+          <div className="flex min-h-0 min-w-0 flex-col gap-4 p-4 md:p-5">
+            <div className="grid min-h-0 flex-1 gap-4 2xl:grid-cols-2">
+              <div className="flex min-h-0 min-w-0 flex-col">
               <div className="mb-2 ui-display-title text-sm font-medium uppercase tracking-[0.08em] text-text-dark">
                 {t('node.videoEditor.sourceClips', { defaultValue: '分镜栏' })}
               </div>
-              <div className="ui-scrollbar flex-1 space-y-2 overflow-y-auto rounded-[16px] border border-[var(--ui-border-soft)] bg-[rgba(8,14,22,0.6)] p-3 pr-2">
+              <div className="ui-scrollbar min-h-0 flex-1 space-y-2 overflow-y-auto rounded-[var(--ui-radius-xl)] border border-[var(--ui-border-soft)] bg-[rgba(8,14,22,0.6)] p-3 pr-2">
                 {sourceClips.length === 0 ? (
                   <div className="rounded-lg border border-[rgba(255,255,255,0.08)] bg-bg-dark/30 px-3 py-4 text-xs text-text-muted">
                     {t('node.videoEditor.noSourceClips', { defaultValue: '未检测到分镜图片，请连接分镜节点' })}
@@ -1026,7 +1027,7 @@ export const VideoEditorModal = memo(({
                 )}
               </div>
 
-              <div className="mt-3 rounded-[16px] border border-[var(--ui-border-soft)] bg-[rgba(8,14,22,0.6)] p-3">
+              <div className="mt-3 rounded-[var(--ui-radius-xl)] border border-[var(--ui-border-soft)] bg-[rgba(8,14,22,0.6)] p-3">
                 <div className="text-[11px] text-text-muted">
                   {t('node.videoEditor.currentRange', { defaultValue: '当前时间线范围' })}
                 </div>
@@ -1055,11 +1056,11 @@ export const VideoEditorModal = memo(({
               </div>
             </div>
 
-            <div className="flex min-w-0 flex-1 flex-col">
+              <div className="flex min-h-0 min-w-0 flex-1 flex-col">
               <div className="mb-2 ui-display-title text-sm font-medium uppercase tracking-[0.08em] text-text-dark">
                 {t('node.videoEditor.textTrack', { defaultValue: '文字轨' })}
               </div>
-              <div className="flex flex-1 flex-col rounded-[16px] border border-[var(--ui-border-soft)] bg-[rgba(8,14,22,0.6)] p-3">
+              <div className="flex min-h-0 flex-1 flex-col rounded-[var(--ui-radius-xl)] border border-[var(--ui-border-soft)] bg-[rgba(8,14,22,0.6)] p-3">
                 <div className="flex items-center gap-2">
                   <div className="flex min-w-0 flex-1 items-center gap-2 rounded-md border border-[rgba(255,255,255,0.14)] bg-black/35 px-2 py-1">
                     <Type className="h-3.5 w-3.5 shrink-0 text-text-muted" />
@@ -1129,6 +1130,7 @@ export const VideoEditorModal = memo(({
                   )}
                 </div>
               </div>
+            </div>
             </div>
           </div>
         </div>

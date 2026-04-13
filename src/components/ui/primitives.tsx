@@ -68,26 +68,26 @@ interface UiModalProps {
 }
 
 const BUTTON_BASE_CLASS =
-  'inline-flex items-center justify-center gap-2 rounded-[var(--ui-radius-lg)] font-medium tracking-[0.01em] transition-[transform,border-color,background-color,color,box-shadow,opacity] duration-150 disabled:cursor-not-allowed disabled:opacity-55 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[rgba(var(--accent-rgb),0.26)]';
+  'inline-flex items-center justify-center gap-2 rounded-[var(--ui-radius-lg)] border font-medium tracking-[0.01em] transition-[transform,border-color,background-color,color,box-shadow,opacity] duration-150 disabled:cursor-not-allowed disabled:opacity-55 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[rgba(var(--accent-rgb),0.26)]';
 
 function resolveButtonVariant(variant: ButtonVariant): string {
   if (variant === 'primary') {
-    return 'border border-[rgba(var(--accent-rgb),0.5)] bg-[rgba(var(--accent-rgb),0.88)] text-white shadow-[0_10px_24px_rgba(var(--accent-rgb),0.3)] hover:-translate-y-px hover:bg-[rgba(var(--accent-rgb),0.96)] hover:shadow-[0_14px_30px_rgba(var(--accent-rgb),0.36)]';
+    return 'border-[rgba(var(--accent-rgb),0.52)] bg-[rgba(var(--accent-rgb),0.9)] text-white shadow-[0_8px_20px_rgba(var(--accent-rgb),0.25)] hover:-translate-y-px hover:bg-[rgba(var(--accent-rgb),0.96)] hover:shadow-[0_12px_26px_rgba(var(--accent-rgb),0.3)]';
   }
 
   if (variant === 'danger') {
-    return 'border border-[rgba(239,68,68,0.38)] bg-[rgba(239,68,68,0.16)] text-[rgb(254,226,226)] hover:-translate-y-px hover:bg-[rgba(239,68,68,0.24)]';
+    return 'border-[rgba(var(--status-error-rgb),0.36)] bg-[rgba(var(--status-error-rgb),0.12)] text-[rgb(var(--status-error-rgb))] hover:-translate-y-px hover:bg-[rgba(var(--status-error-rgb),0.18)]';
   }
 
   if (variant === 'success') {
-    return 'border border-[rgba(34,197,94,0.34)] bg-[rgba(34,197,94,0.16)] text-[rgb(220,252,231)] hover:-translate-y-px hover:bg-[rgba(34,197,94,0.24)]';
+    return 'border-[rgba(var(--status-success-rgb),0.34)] bg-[rgba(var(--status-success-rgb),0.14)] text-[rgb(var(--status-success-rgb))] hover:-translate-y-px hover:bg-[rgba(var(--status-success-rgb),0.2)]';
   }
 
   if (variant === 'ghost') {
-    return 'border border-transparent bg-transparent text-text-dark hover:-translate-y-px hover:border-[var(--ui-border-soft)] hover:bg-[rgba(15,23,42,0.06)] dark:hover:bg-white/[0.05]';
+    return 'border-transparent bg-transparent text-text-dark hover:-translate-y-px hover:border-[var(--ui-border-soft)] hover:bg-[rgba(15,23,42,0.05)] dark:hover:bg-white/[0.06]';
   }
 
-  return 'border border-[var(--ui-border-soft)] bg-[var(--ui-surface-field)] text-text-dark hover:-translate-y-px hover:border-[var(--ui-border-strong)] hover:bg-white/80 dark:hover:bg-white/[0.06]';
+  return 'border-[var(--ui-border-soft)] bg-[var(--ui-surface-field)] text-text-dark hover:-translate-y-px hover:border-[var(--ui-border-strong)] hover:bg-white/80 dark:hover:bg-white/[0.08]';
 }
 
 function resolveButtonSize(size: ButtonSize): string {
@@ -95,9 +95,9 @@ function resolveButtonSize(size: ButtonSize): string {
     return 'h-8 px-3 text-xs';
   }
   if (size === 'lg') {
-    return 'h-11 px-4 text-sm';
+    return 'h-10 px-4 text-sm';
   }
-  return 'h-10 px-3.5 text-sm';
+  return 'h-9 px-3.5 text-sm';
 }
 
 export function UiButton({
@@ -125,10 +125,10 @@ export function UiButton({
 export function UiIconButton({ className = '', active = false, ...props }: UiIconButtonProps) {
   return (
     <button
-      className={`inline-flex h-9 w-9 items-center justify-center rounded-[var(--ui-radius-lg)] border transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[rgba(var(--accent-rgb),0.26)] ${
+      className={`inline-flex h-9 w-9 items-center justify-center rounded-[var(--ui-radius-lg)] border transition-[transform,border-color,background-color,color,box-shadow] duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[rgba(var(--accent-rgb),0.26)] ${
         active
-          ? 'border-[rgba(var(--accent-rgb),0.42)] bg-[rgba(var(--accent-rgb),0.12)] text-text-dark'
-          : 'border-[var(--ui-border-soft)] bg-[var(--ui-surface-field)] text-text-muted hover:border-[var(--ui-border-strong)] hover:bg-white/85 hover:text-text-dark dark:hover:bg-white/[0.06]'
+          ? 'border-[rgba(var(--accent-rgb),0.42)] bg-[rgba(var(--accent-rgb),0.12)] text-text-dark shadow-[0_0_0_1px_rgba(var(--accent-rgb),0.2)]'
+          : 'border-[var(--ui-border-soft)] bg-[var(--ui-surface-field)] text-text-muted hover:-translate-y-px hover:border-[var(--ui-border-strong)] hover:bg-white/85 hover:text-text-dark dark:hover:bg-white/[0.08]'
       } ${className}`}
       {...props}
     />
@@ -139,10 +139,10 @@ export const UiChipButton = forwardRef<HTMLButtonElement, UiChipButtonProps>(
   ({ className = '', active = false, ...props }, ref) => (
     <button
       ref={ref}
-      className={`inline-flex h-9 items-center gap-2 rounded-full border px-3 text-xs tracking-[0.01em] transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[rgba(var(--accent-rgb),0.24)] ${
+      className={`inline-flex h-8 items-center gap-2 rounded-full border px-3 text-xs tracking-[0.01em] transition-[transform,border-color,background-color,color,box-shadow] duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[rgba(var(--accent-rgb),0.24)] ${
         active
           ? 'border-[rgba(var(--accent-rgb),0.46)] bg-[rgba(var(--accent-rgb),0.13)] text-text-dark shadow-[0_8px_18px_rgba(var(--accent-rgb),0.18)]'
-          : 'border-[var(--ui-border-soft)] bg-[var(--ui-surface-field)] text-text-muted hover:border-[var(--ui-border-strong)] hover:bg-white/80 hover:text-text-dark dark:hover:bg-white/[0.06]'
+          : 'border-[var(--ui-border-soft)] bg-[var(--ui-surface-field)] text-text-muted hover:-translate-y-px hover:border-[var(--ui-border-strong)] hover:bg-white/80 hover:text-text-dark dark:hover:bg-white/[0.08]'
       } ${className}`}
       {...props}
     />
@@ -152,7 +152,7 @@ export const UiChipButton = forwardRef<HTMLButtonElement, UiChipButtonProps>(
 UiChipButton.displayName = 'UiChipButton';
 
 export function UiPanel({ className = '', ...props }: HTMLAttributes<HTMLDivElement>) {
-  return <div className={`ui-panel border p-0 ${className}`} {...props} />;
+  return <div className={`ui-panel border p-0 overflow-hidden ${className}`} {...props} />;
 }
 
 export function UiTextArea({
@@ -161,7 +161,7 @@ export function UiTextArea({
 }: TextareaHTMLAttributes<HTMLTextAreaElement>) {
   return (
     <textarea
-      className={`w-full resize-none rounded-[var(--ui-radius-lg)] border border-[var(--ui-border-soft)] bg-[var(--ui-surface-field)] px-3 py-2.5 text-sm text-text-dark outline-none transition-[border-color,box-shadow,background-color] duration-150 placeholder:text-text-muted/70 focus:border-[rgba(var(--accent-rgb),0.6)] focus:ring-2 focus:ring-[rgba(var(--accent-rgb),0.12)] ${className}`}
+      className={`w-full resize-none rounded-[var(--ui-radius-lg)] border border-[var(--ui-border-soft)] bg-[var(--ui-surface-field)] px-3 py-2.5 text-sm leading-6 text-text-dark outline-none transition-[border-color,box-shadow,background-color] duration-150 placeholder:text-text-muted/70 focus:border-[rgba(var(--accent-rgb),0.6)] focus:ring-2 focus:ring-[rgba(var(--accent-rgb),0.12)] ${className}`}
       {...props}
     />
   );
@@ -173,7 +173,7 @@ export const UiTextAreaField = forwardRef<
 >(({ className = '', ...props }, ref) => (
   <textarea
     ref={ref}
-    className={`w-full resize-none rounded-[var(--ui-radius-lg)] border border-[var(--ui-border-soft)] bg-[var(--ui-surface-field)] px-3 py-2.5 text-sm text-text-dark outline-none transition-[border-color,box-shadow,background-color] duration-150 placeholder:text-text-muted/70 focus:border-[rgba(var(--accent-rgb),0.6)] focus:ring-2 focus:ring-[rgba(var(--accent-rgb),0.12)] ${className}`}
+    className={`w-full resize-none rounded-[var(--ui-radius-lg)] border border-[var(--ui-border-soft)] bg-[var(--ui-surface-field)] px-3 py-2.5 text-sm leading-6 text-text-dark outline-none transition-[border-color,box-shadow,background-color] duration-150 placeholder:text-text-muted/70 focus:border-[rgba(var(--accent-rgb),0.6)] focus:ring-2 focus:ring-[rgba(var(--accent-rgb),0.12)] ${className}`}
     {...props}
   />
 ));
@@ -184,7 +184,7 @@ export const UiInput = forwardRef<HTMLInputElement, InputHTMLAttributes<HTMLInpu
   ({ className = '', ...props }, ref) => (
     <input
       ref={ref}
-      className={`w-full rounded-[var(--ui-radius-lg)] border border-[var(--ui-border-soft)] bg-[var(--ui-surface-field)] px-3 py-2 text-sm text-text-dark outline-none transition-[border-color,box-shadow,background-color] duration-150 placeholder:text-text-muted/70 focus:border-[rgba(var(--accent-rgb),0.6)] focus:ring-2 focus:ring-[rgba(var(--accent-rgb),0.12)] ${className}`}
+      className={`h-9 w-full rounded-[var(--ui-radius-lg)] border border-[var(--ui-border-soft)] bg-[var(--ui-surface-field)] px-3 text-sm text-text-dark outline-none transition-[border-color,box-shadow,background-color] duration-150 placeholder:text-text-muted/70 focus:border-[rgba(var(--accent-rgb),0.6)] focus:ring-2 focus:ring-[rgba(var(--accent-rgb),0.12)] ${className}`}
       {...props}
     />
   )
@@ -422,7 +422,7 @@ export function UiSelect({ className = '', children, invalid = false, ...props }
         aria-expanded={isOpen}
         aria-controls={listboxIdRef.current}
         disabled={disabled}
-        className={`group inline-flex h-9 w-full items-center justify-between rounded-[var(--ui-radius-lg)] border bg-[var(--ui-surface-field)] px-3 text-left text-xs font-medium text-text-dark outline-none transition-[border-color,background-color,box-shadow,color] duration-150 hover:border-[var(--ui-border-strong)] hover:bg-white/80 focus-visible:ring-2 focus-visible:ring-[rgba(var(--accent-rgb),0.2)] disabled:cursor-not-allowed disabled:opacity-55 ${
+        className={`group inline-flex h-9 w-full items-center justify-between rounded-[var(--ui-radius-lg)] border bg-[var(--ui-surface-field)] px-3 text-left text-sm font-medium text-text-dark outline-none transition-[border-color,background-color,box-shadow,color] duration-150 hover:border-[var(--ui-border-strong)] hover:bg-white/80 focus-visible:ring-2 focus-visible:ring-[rgba(var(--accent-rgb),0.2)] disabled:cursor-not-allowed disabled:opacity-55 ${
           invalid
             ? 'border-[rgba(239,68,68,0.42)]'
             : 'border-[var(--ui-border-soft)]'
@@ -451,7 +451,7 @@ export function UiSelect({ className = '', children, invalid = false, ...props }
               id={listboxIdRef.current}
               role="listbox"
               aria-label={ariaLabel}
-              className={`fixed z-[140] overflow-hidden rounded-[var(--ui-radius-lg)] border border-[var(--ui-border-soft)] bg-[var(--ui-surface-panel)] p-1 shadow-[var(--ui-shadow-panel)] transition-[opacity,transform] ease-out ${
+              className={`fixed z-[140] overflow-hidden rounded-[var(--ui-radius-lg)] border border-[var(--ui-border-soft)] bg-[var(--ui-surface-panel)] p-1 shadow-[var(--ui-elevation-3)] transition-[opacity,transform] ease-out ${
                 isMenuVisible
                   ? 'opacity-100 translate-y-0'
                   : 'pointer-events-none opacity-0 -translate-y-1'
@@ -474,7 +474,7 @@ export function UiSelect({ className = '', children, invalid = false, ...props }
                       role="option"
                       aria-selected={isSelected}
                       disabled={option.disabled}
-                      className={`flex w-full items-center justify-between rounded-[10px] px-3 py-2 text-sm transition-colors ${
+                      className={`flex w-full items-center justify-between rounded-[var(--ui-radius-sm)] px-3 py-2 text-sm transition-colors ${
                         option.disabled
                           ? 'cursor-not-allowed opacity-40'
                           : isSelected
@@ -510,7 +510,7 @@ export function UiModal({
   onClose,
   children,
   footer,
-  widthClassName = 'w-[min(92vw,520px)]',
+  widthClassName = 'w-[min(92vw,560px)]',
   containerClassName = '',
 }: UiModalProps) {
   const { shouldRender, isVisible } = useDialogTransition(isOpen, UI_DIALOG_TRANSITION_MS);
@@ -520,30 +520,30 @@ export function UiModal({
   }
 
   return (
-    <div className={`fixed ${UI_CONTENT_OVERLAY_INSET_CLASS} z-[120] flex items-center justify-center p-4 ${containerClassName}`}>
+    <div className={`fixed ${UI_CONTENT_OVERLAY_INSET_CLASS} z-[120] flex items-center justify-center p-3 md:p-4 ${containerClassName}`}>
       <div
-        className={`absolute inset-0 bg-black/58 backdrop-blur-[2px] transition-opacity duration-200 ${
+        className={`absolute inset-0 bg-black/56 backdrop-blur-[2px] transition-opacity duration-200 ${
           isVisible ? 'opacity-100' : 'opacity-0'
         }`}
         onClick={onClose}
       />
 
       <UiPanel
-        className={`relative transition-[opacity,transform] duration-200 ${
+        className={`relative max-h-[min(86vh,900px)] transition-[opacity,transform] duration-200 ${
           isVisible ? 'translate-y-0 opacity-100' : 'translate-y-2 opacity-0'
         } ${widthClassName}`}
       >
-        <div className="flex items-center justify-between border-b border-[var(--ui-border-soft)] px-4 py-3">
-          <h2 className="ui-display-title text-[13px] uppercase tracking-[0.06em] text-text-dark">{title}</h2>
+        <div className="flex items-center justify-between border-b border-[var(--ui-border-soft)] px-4 py-3 md:px-5">
+          <h2 className="ui-display-title ui-safe-text text-[13px] uppercase tracking-[0.06em] text-text-dark">{title}</h2>
           <UiIconButton className="h-8 w-8" onClick={onClose} aria-label="Close">
             <X className="h-4 w-4" />
           </UiIconButton>
         </div>
 
-        <div className="px-4 py-4">{children}</div>
+        <div className="ui-scrollbar max-h-[calc(min(86vh,900px)-120px)] overflow-y-auto px-4 py-4 md:px-5">{children}</div>
 
         {footer ? (
-          <div className="flex flex-wrap justify-end gap-2 border-t border-[var(--ui-border-soft)] px-4 py-3">
+          <div className="flex flex-wrap justify-end gap-2 border-t border-[var(--ui-border-soft)] px-4 py-3 md:px-5">
             {footer}
           </div>
         ) : null}

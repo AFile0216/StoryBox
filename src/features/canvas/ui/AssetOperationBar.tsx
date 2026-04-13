@@ -42,11 +42,11 @@ export const AssetOperationBar = memo(() => {
   }
 
   return (
-    <div className="pointer-events-none absolute bottom-4 left-1/2 z-30 -translate-x-1/2">
-      <div className="pointer-events-auto flex items-center gap-2 rounded-2xl border border-[var(--ui-border-soft)] bg-[var(--ui-surface-panel)] px-2 py-1.5 shadow-[0_14px_36px_rgba(2,6,23,0.28)] backdrop-blur-xl">
+    <div className="pointer-events-none absolute bottom-4 left-1/2 z-30 w-[min(98vw,1160px)] -translate-x-1/2 px-2">
+      <div className="pointer-events-auto flex flex-wrap items-center gap-2 rounded-2xl border border-[var(--ui-border-soft)] bg-[var(--ui-surface-panel)] px-2 py-2 shadow-[var(--ui-elevation-2)] backdrop-blur-xl">
         <select
           value="default"
-          className="h-9 min-w-[200px] rounded-xl border border-[var(--ui-border-soft)] bg-[var(--ui-surface-field)] px-3 text-xs text-text-dark outline-none"
+          className="h-9 min-w-[160px] flex-1 rounded-xl border border-[var(--ui-border-soft)] bg-[var(--ui-surface-field)] px-3 text-xs text-text-dark outline-none sm:min-w-[220px] sm:flex-none"
           onChange={() => {
             // reserved for multi-library extension
           }}
@@ -54,7 +54,7 @@ export const AssetOperationBar = memo(() => {
           <option value="default">{t('asset.library.default', { defaultValue: '选择编辑资产库' })}</option>
         </select>
 
-        <div className="flex items-center gap-1">
+        <div className="flex min-w-0 flex-1 flex-wrap items-center gap-1">
           {CATEGORY_META.map((item) => {
             const Icon = item.icon;
             const isActive = activeCategory === item.id;
@@ -72,7 +72,7 @@ export const AssetOperationBar = memo(() => {
               >
                 <Icon className="h-3.5 w-3.5" />
                 <span>{t(item.labelKey, { defaultValue: item.fallback })}</span>
-                <span className="rounded-md bg-black/20 px-1.5 py-0.5 text-[10px]">{count}</span>
+                <span className="rounded-md border border-[var(--ui-border-soft)] bg-black/20 px-1.5 py-0.5 text-[10px]">{count}</span>
               </button>
             );
           })}
@@ -95,13 +95,13 @@ export const AssetOperationBar = memo(() => {
             }
             window.setTimeout(() => setHint(''), 1400);
           }}
-          className="inline-flex h-9 items-center rounded-xl border border-[var(--ui-border-soft)] bg-[var(--ui-surface-field)] px-3 text-xs font-medium text-text-dark transition-colors hover:border-accent/35 hover:text-accent disabled:cursor-not-allowed disabled:opacity-45"
+          className="inline-flex h-9 items-center rounded-xl border border-[var(--ui-border-soft)] bg-[var(--ui-surface-field)] px-3 text-xs font-medium text-text-dark transition-colors hover:border-accent/35 hover:text-accent disabled:cursor-not-allowed disabled:opacity-45 sm:ml-auto"
         >
           {t('asset.archiveSelected', { defaultValue: '归档选中节点' })}
         </button>
       </div>
       {hint ? (
-        <div className="mt-1 text-center text-[11px] text-text-muted">{hint}</div>
+        <div className="mt-1 px-2 text-center text-[11px] text-text-muted">{hint}</div>
       ) : null}
     </div>
   );
