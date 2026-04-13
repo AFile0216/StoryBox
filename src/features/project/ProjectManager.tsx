@@ -87,7 +87,7 @@ export function ProjectManager() {
               </p>
             </div>
 
-            <div className="grid w-full gap-2 sm:grid-cols-3 lg:w-auto lg:min-w-[420px]">
+            <div className="grid w-full gap-2 sm:grid-cols-[minmax(126px,1fr)_minmax(108px,1fr)_auto] lg:w-auto lg:min-w-[456px]">
               <UiSelect
                 aria-label={t('project.sortBy')}
                 value={sortField}
@@ -109,7 +109,7 @@ export function ProjectManager() {
                 <option value="desc">{t('project.sortDesc')}</option>
               </UiSelect>
 
-              <UiButton type="button" variant="primary" onClick={handleCreateProject} className="w-full">
+              <UiButton type="button" variant="primary" onClick={handleCreateProject} className="w-auto px-4">
                 <Plus className="h-4 w-4" />
                 {t('project.newProject')}
               </UiButton>

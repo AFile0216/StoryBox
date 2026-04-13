@@ -164,8 +164,10 @@ export const AiSidePanel = memo(() => {
 
   return (
     <div
-      className={`absolute right-0 top-0 z-40 h-full border-l border-[var(--ui-border-soft)] bg-[var(--ui-surface-panel)] shadow-[var(--ui-elevation-2)] backdrop-blur-xl transition-[width] duration-200 ${
-        collapsed ? 'w-10' : 'w-[clamp(300px,32vw,420px)] max-w-[52vw]'
+      className={`absolute right-0 top-0 z-40 h-full overflow-visible transition-[width] duration-200 ${
+        collapsed
+          ? 'w-0 border-l-0 bg-transparent shadow-none backdrop-blur-0'
+          : 'w-[clamp(300px,32vw,420px)] max-w-[52vw] border-l border-[var(--ui-border-soft)] bg-[var(--ui-surface-panel)] shadow-[var(--ui-elevation-2)] backdrop-blur-xl'
       }`}
     >
       <button

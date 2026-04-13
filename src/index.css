@@ -28,6 +28,10 @@
   --ui-elevation-2: 0 12px 28px rgba(15, 23, 42, 0.14);
   --ui-elevation-3: 0 20px 46px rgba(15, 23, 42, 0.2);
   --ui-content-max-width: 1280px;
+  --minimap-bg: rgba(255, 255, 255, 0.86);
+  --minimap-border: rgba(15, 23, 42, 0.18);
+  --minimap-mask-fill: rgba(15, 23, 42, 0.14);
+  --minimap-mask-stroke: rgba(52, 75, 106, 0.64);
   --group-node-bg: color-mix(in srgb, rgb(var(--accent-rgb) / 0.18) 24%, rgb(var(--surface-rgb)));
   --ui-radius-sm: 8px;
   --ui-radius-lg: 10px;
@@ -97,6 +101,10 @@
   --ui-elevation-2: 0 14px 30px rgba(2, 7, 13, 0.42);
   --ui-elevation-3: 0 22px 52px rgba(2, 7, 13, 0.5);
   --group-node-bg: color-mix(in srgb, rgb(var(--accent-rgb) / 0.25) 36%, rgb(var(--surface-rgb)));
+  --minimap-bg: rgba(11, 17, 24, 0.9);
+  --minimap-border: rgba(198, 214, 233, 0.26);
+  --minimap-mask-fill: rgba(4, 10, 18, 0.52);
+  --minimap-mask-stroke: rgba(216, 230, 248, 0.58);
   --ui-radius-sm: 8px;
   --ui-radius-lg: 10px;
   --ui-radius-xl: 14px;
@@ -195,6 +203,9 @@
   --tapnow-node-button-border: rgba(11, 25, 43, 0.28);
   --app-bg-radial-a: rgba(249, 115, 22, 0.12);
   --app-bg-radial-b: rgba(59, 130, 246, 0.12);
+  --minimap-border: rgba(15, 23, 42, 0.28);
+  --minimap-mask-fill: rgba(15, 23, 42, 0.18);
+  --minimap-mask-stroke: rgba(35, 54, 82, 0.82);
 }
 
 :root.dark[data-theme-contrast='high'] {
@@ -212,6 +223,9 @@
   --tapnow-node-button-border: rgba(214, 229, 248, 0.28);
   --app-bg-radial-a: rgba(255, 138, 31, 0.13);
   --app-bg-radial-b: rgba(67, 147, 255, 0.12);
+  --minimap-border: rgba(214, 229, 248, 0.34);
+  --minimap-mask-fill: rgba(3, 8, 16, 0.58);
+  --minimap-mask-stroke: rgba(229, 240, 255, 0.72);
 }
 
 :root[data-theme-contrast='soft'] {
@@ -226,6 +240,9 @@
   --tapnow-node-button-border: rgba(11, 25, 43, 0.13);
   --app-bg-radial-a: rgba(255, 138, 31, 0.07);
   --app-bg-radial-b: rgba(74, 155, 255, 0.07);
+  --minimap-border: rgba(15, 23, 42, 0.14);
+  --minimap-mask-fill: rgba(15, 23, 42, 0.1);
+  --minimap-mask-stroke: rgba(60, 82, 113, 0.54);
 }
 
 :root.dark[data-theme-contrast='soft'] {
@@ -244,6 +261,9 @@
   --tapnow-node-button-border: rgba(207, 223, 243, 0.14);
   --app-bg-radial-a: rgba(255, 138, 31, 0.07);
   --app-bg-radial-b: rgba(67, 147, 255, 0.07);
+  --minimap-border: rgba(198, 214, 233, 0.2);
+  --minimap-mask-fill: rgba(4, 10, 18, 0.44);
+  --minimap-mask-stroke: rgba(200, 219, 242, 0.48);
 }
 
 * {
@@ -484,7 +504,11 @@ html[data-platform='macos'] #root {
 .canvas-minimap {
   border-radius: 12px;
   overflow: hidden;
+  border: 1px solid var(--minimap-border);
+  background: var(--minimap-bg);
+  box-shadow: var(--ui-elevation-1);
   pointer-events: auto !important;
+  transition: background-color 180ms ease, border-color 180ms ease, box-shadow 180ms ease;
 }
 
 .canvas-minimap .react-flow__minimap-svg,
@@ -505,9 +529,9 @@ html[data-platform='macos'] #root {
 
 .canvas-minimap .react-flow__minimap-mask {
   cursor: grab;
-  stroke: rgba(160, 160, 160, 0.92);
+  stroke: var(--minimap-mask-stroke);
   stroke-width: 1.4px;
-  fill: rgba(90, 90, 90, 0.2);
+  fill: var(--minimap-mask-fill);
 }
 
 .canvas-minimap .react-flow__minimap-mask:active {

@@ -30,6 +30,7 @@ import { useCanvasViewportStore } from '@/stores/canvasViewportStore';
 import { useImageViewerStore } from '@/stores/imageViewerStore';
 import { useProjectStore } from '@/stores/projectStore';
 import { useAssetStore } from '@/stores/assetStore';
+import { useThemeStore } from '@/stores/themeStore';
 import { getConfiguredProviderCount, useSettingsStore } from '@/stores/settingsStore';
 import { useToolDialogStore } from '@/stores/toolDialogStore';
 import { canvasEventBus } from '@/features/canvas/application/canvasServices';
@@ -284,6 +285,7 @@ export function Canvas() {
   const navigateImageViewer = useImageViewerStore((state) => state.navigateImageViewer);
   const apiKeys = useSettingsStore((state) => state.apiKeys);
   const configuredApiKeyCount = useSettingsStore((state) => getConfiguredProviderCount(state));
+  const theme = useThemeStore((state) => state.theme);
 
   const getCurrentProject = useProjectStore((state) => state.getCurrentProject);
   const currentProjectId = useProjectStore((state) => state.currentProjectId);
@@ -1199,6 +1201,21 @@ export function Canvas() {
     [configuredApiKeyCount, t]
   );
 
+  const minimapColors = useMemo(
+    () => (
+      theme === 'dark'
+        ? {
+            node: 'rgba(255, 170, 86, 0.82)',
+            mask: 'rgba(4, 10, 18, 0.52)',
+          }
+        : {
+            node: 'rgba(249, 115, 22, 0.72)',
+            mask: 'rgba(15, 23, 42, 0.14)',
+          }
+    ),
+    [theme]
+  );
+
   return (
     <div
       ref={wrapperRef}
@@ -1250,14 +1267,16 @@ export function Canvas() {
         className="tapnow-canvas"
       >
         <Background variant={BackgroundVariant.Dots} gap={24} size={1.2} color="rgba(148,163,184,0.14)" />
-        <MiniMap
-          className="canvas-minimap nopan nowheel !border-[var(--ui-border-soft)] !bg-[var(--ui-surface-panel)]"
-          style={{ pointerEvents: 'all', zIndex: 10000 }}
-          nodeColor="rgba(var(--accent-rgb), 0.72)"
-          maskColor="rgba(2, 6, 23, 0.44)"
-          pannable
-          zoomable
-        />
+        {nodes.length > 0 ? (
+          <MiniMap
+            className="canvas-minimap nopan nowheel"
+            style={{ pointerEvents: 'all', zIndex: 10000 }}
+            nodeColor={minimapColors.node}
+            maskColor={minimapColors.mask}
+            pannable
+            zoomable
+          />
+        ) : null}
 
         <SelectedNodeOverlay />
       </ReactFlow>

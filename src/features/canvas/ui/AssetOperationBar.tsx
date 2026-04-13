@@ -43,18 +43,18 @@ export const AssetOperationBar = memo(() => {
 
   return (
     <div className="pointer-events-none absolute bottom-4 left-1/2 z-30 w-[min(98vw,1160px)] -translate-x-1/2 px-2">
-      <div className="pointer-events-auto flex flex-wrap items-center gap-2 rounded-2xl border border-[var(--ui-border-soft)] bg-[var(--ui-surface-panel)] px-2 py-2 shadow-[var(--ui-elevation-2)] backdrop-blur-xl">
+      <div className="pointer-events-auto flex flex-wrap items-center gap-2 rounded-2xl border border-[var(--ui-border-soft)] bg-[var(--ui-surface-panel)] px-2 py-2 shadow-[var(--ui-elevation-2)] backdrop-blur-xl md:flex-nowrap">
         <select
           value="default"
-          className="h-9 min-w-[160px] flex-1 rounded-xl border border-[var(--ui-border-soft)] bg-[var(--ui-surface-field)] px-3 text-xs text-text-dark outline-none sm:min-w-[220px] sm:flex-none"
+          className="h-9 min-w-[168px] flex-1 rounded-xl border border-[var(--ui-border-soft)] bg-[var(--ui-surface-field)] px-3 text-xs text-text-dark outline-none sm:min-w-[220px] sm:max-w-[280px] sm:flex-none"
           onChange={() => {
             // reserved for multi-library extension
           }}
         >
-          <option value="default">{t('asset.library.default', { defaultValue: '选择编辑资产库' })}</option>
+          <option value="default">{t('asset.library.default', { defaultValue: '选择资产库' })}</option>
         </select>
 
-        <div className="flex min-w-0 flex-1 flex-wrap items-center gap-1">
+        <div className="ui-scrollbar flex min-w-0 flex-1 items-center gap-1 overflow-x-auto whitespace-nowrap pr-1">
           {CATEGORY_META.map((item) => {
             const Icon = item.icon;
             const isActive = activeCategory === item.id;
@@ -64,7 +64,7 @@ export const AssetOperationBar = memo(() => {
                 key={item.id}
                 type="button"
                 onClick={() => setActiveCategory(currentProjectId, item.id)}
-                className={`inline-flex h-9 items-center gap-1.5 rounded-xl border px-2.5 text-xs transition-colors ${
+                className={`inline-flex h-9 shrink-0 items-center gap-1.5 rounded-xl border px-2.5 text-xs transition-colors ${
                   isActive
                     ? 'border-accent/40 bg-accent/14 text-accent'
                     : 'border-transparent text-text-muted hover:border-[var(--ui-border-soft)] hover:bg-[var(--ui-surface-field)] hover:text-text-dark'
