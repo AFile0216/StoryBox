@@ -7,7 +7,7 @@
     "clearHistory": "清空历史",
     "clearHistoryConfirm": "确定清空全部历史记录吗？",
     "noPrompt": "无内容",
-    "assetManager": "????"
+    "assetManager": "资产管理"
   },
   "common": {
     "save": "保存",
@@ -45,7 +45,7 @@
       "lock": "锁定画布",
       "unlock": "解锁画布"
     },
-    "quickCreate": "????"
+    "quickCreate": "快速创建"
   },
   "tool": {
     "crop": "裁剪",
@@ -163,11 +163,11 @@
     "chat": {
       "emptyHint": "发送消息开始对话",
       "inputPlaceholder": "输入消息...",
-      "sidePanelTitle": "AI ????",
-      "expand": "?? AI ??",
-      "collapse": "?? AI ??",
-      "searchCanvasImages": "??????",
-      "canvasScope": "??"
+      "sidePanelTitle": "AI 对话助手",
+      "expand": "展开 AI 面板",
+      "collapse": "收起 AI 面板",
+      "searchCanvasImages": "检索画布图片",
+      "canvasScope": "画布"
     },
     "storyboardNode": {
       "title": "分镜节点",
@@ -199,10 +199,10 @@
         "text-to-music-prompt": "文生音乐提示词",
         "text-to-video-prompt": "文生视频提示词",
         "reverse-prompt": "图片反推提示词",
-        "text-to-image": "???"
+        "text-to-image": "文生图"
       },
-      "needImage": "????????????",
-      "reversePlaceholder": "?? @??1 ?????????? JSON"
+      "needImage": "请先提供一张图片用于反推",
+      "reversePlaceholder": "输入 @图片1 后点击生成，输出固定 JSON"
     },
     "media": {
       "selectFile": "选择文件",
@@ -302,8 +302,8 @@
       "noTextToExport": "文本轨暂无可导出内容",
       "snapOn": "吸附：开",
       "snapOff": "吸附：关",
-      "play": "?????",
-      "pause": "????"
+      "play": "播放时间线",
+      "pause": "暂停播放"
     }
   },
   "viewer": {
@@ -475,19 +475,19 @@
     "checkUpdateHasUpdate": "检测到新版本。",
     "checkUpdateUpToDate": "当前已经是最新版本。",
     "checkUpdateFailed": "检查更新失败，请稍后重试。",
-    "promptAutoEnhanceTitle": "????",
-    "promptEnhanceEnable": "???????",
-    "promptEnhanceEnableDesc": "?????????????????",
-    "promptAutoQuality": "????????",
-    "promptAutoQualityDesc": "?????????????????",
-    "promptQualityTags": "????",
-    "promptCustomPrefix": "?????",
-    "promptCustomPrefixPlaceholder": "???????????8k wallpaper",
-    "promptCustomSuffix": "?????",
-    "promptCustomSuffixPlaceholder": "???????????trending on artstation",
-    "promptTemplateLibraryTitle": "??????",
-    "promptTemplateLibraryDesc": "??????????????????????",
-    "promptTemplateManage": "????"
+    "promptAutoEnhanceTitle": "自动增强",
+    "promptEnhanceEnable": "启用提示词增强",
+    "promptEnhanceEnableDesc": "生成时自动附加质量词、前缀与后缀。",
+    "promptAutoQuality": "自动附加质量标签",
+    "promptAutoQualityDesc": "在提示词末尾自动追加质量增强描述。",
+    "promptQualityTags": "质量标签",
+    "promptCustomPrefix": "自定义前缀",
+    "promptCustomPrefixPlaceholder": "插入到提示词前，例如：8k wallpaper",
+    "promptCustomSuffix": "自定义后缀",
+    "promptCustomSuffixPlaceholder": "插入到提示词后，例如：trending on artstation",
+    "promptTemplateLibraryTitle": "提示词模板库",
+    "promptTemplateLibraryDesc": "管理内置与自定义模板，支持在节点中快速插入。",
+    "promptTemplateManage": "管理模板"
   },
   "update": {
     "dialogTitle": "发现新版本",
@@ -507,32 +507,32 @@
   },
   "asset": {
     "category": {
-      "all": "??",
-      "local": "??",
-      "character": "??",
-      "scene": "??",
-      "prop": "??"
+      "all": "全部",
+      "local": "本地",
+      "character": "角色",
+      "scene": "场景",
+      "prop": "道具"
     },
     "source": {
-      "local": "??",
-      "generated": "??",
-      "linked": "??"
+      "local": "本地",
+      "generated": "生成",
+      "linked": "引用"
     },
     "library": {
-      "default": "?????"
+      "default": "选择资产库"
     },
     "token": {
-      "image": "?",
-      "video": "??",
-      "audio": "??"
+      "image": "图",
+      "video": "视频",
+      "audio": "音频"
     },
-    "archiveSelected": "??????",
-    "archiveSuccess": "??? {{count}} ???",
-    "archiveEmpty": "??????????",
-    "clear": "????",
-    "clearConfirm": "????????????",
-    "empty": "??????????",
-    "noProject": "?????????????",
-    "emptySearch": "??????"
+    "archiveSelected": "归档选中节点",
+    "archiveSuccess": "已归档 {{count}} 条素材",
+    "archiveEmpty": "该节点没有可归档素材",
+    "clear": "清空资产",
+    "clearConfirm": "确定清空当前项目资产吗？",
+    "empty": "当前分类下暂无资产。",
+    "noProject": "请先打开一个项目查看资产。",
+    "emptySearch": "没有匹配素材"
   }
 }
