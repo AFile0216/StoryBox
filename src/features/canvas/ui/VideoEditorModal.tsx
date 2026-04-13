@@ -58,6 +58,8 @@ const MIN_CLIP_DURATION_SEC = 0.5;
 const SNAP_THRESHOLD_RATIO = 0.01;
 const SNAP_THRESHOLD_MIN_SEC = 0.08;
 const SNAP_THRESHOLD_MAX_SEC = 0.4;
+const SOURCE_CLIP_TRANSFER_KEY = 'storybox/source-clip-id';
+const SOURCE_CLIP_TRANSFER_KEY_FALLBACK = 'application/x-storybox-source-clip-id';
 
 function createSequenceClipId(): string {
   return `video-seq-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
@@ -101,6 +103,21 @@ function formatSeconds(value: number | null | undefined): string {
     return '0.0s';
   }
   return `${Math.max(0, value).toFixed(1)}s`;
+}
+
+function resolveDroppedSourceClipId(event: ReactDragEvent<HTMLElement>): string | null {
+  const candidates = [
+    event.dataTransfer.getData(SOURCE_CLIP_TRANSFER_KEY),
+    event.dataTransfer.getData(SOURCE_CLIP_TRANSFER_KEY_FALLBACK),
+    event.dataTransfer.getData('text/plain'),
+  ];
+  for (const candidate of candidates) {
+    const normalized = typeof candidate === 'string' ? candidate.trim() : '';
+    if (normalized.length > 0) {
+      return normalized;
+    }
+  }
+  return null;
 }
 
 function sortTrackClips<T extends TimelineClipLike>(clips: T[]): T[] {
@@ -364,7 +381,6 @@ export const VideoEditorModal = memo(({
 }: VideoEditorModalProps) => {
   const { t } = useTranslation();
   const timelineTrackRef = useRef<HTMLDivElement | null>(null);
-  const videoTrackRef = useRef<HTMLDivElement | null>(null);
   const tickerRef = useRef<number | null>(null);
   const timelineClipsRef = useRef<VideoEditorTimelineClip[]>([]);
   const textClipsRef = useRef<VideoEditorTextClip[]>([]);
@@ -574,12 +590,12 @@ export const VideoEditorModal = memo(({
     event.preventDefault();
     event.stopPropagation();
 
-    const sourceClipId = event.dataTransfer.getData('storybox/source-clip-id');
+    const sourceClipId = resolveDroppedSourceClipId(event);
     if (!sourceClipId || !sourceClipMap.has(sourceClipId)) {
       return;
     }
 
-    const rect = videoTrackRef.current?.getBoundingClientRect();
+    const rect = timelineTrackRef.current?.getBoundingClientRect();
     const safeTimelineSec = Math.max(2, toFiniteNumber(timelineMaxSec, 2));
     let startSec = timelineClips.length > 0
       ? Math.max(...timelineClips.map((clip) => resolveClipEndSec(clip)))
@@ -600,6 +616,7 @@ export const VideoEditorModal = memo(({
         ? findClosestAnchor(startSec, snapAnchors, snapThresholdSec)?.anchor ?? startSec
         : startSec;
       const safeStart = findAvailableStartSec(previous, snappedStart, DEFAULT_CLIP_DURATION_SEC);
+      setPlayheadSec(clamp(safeStart, 0, safeTimelineSec));
       return normalizeTrackClips([
         ...previous,
         {
@@ -615,6 +632,10 @@ export const VideoEditorModal = memo(({
   const handleTimelineDragOver = useCallback((event: ReactDragEvent<HTMLDivElement>) => {
     event.preventDefault();
     event.dataTransfer.dropEffect = 'copy';
+  }, []);
+
+  const handleModalDropGuard = useCallback((event: ReactDragEvent<HTMLDivElement>) => {
+    event.preventDefault();
   }, []);
 
   const handleTrackMouseDown = useCallback((event: ReactMouseEvent<HTMLDivElement>) => {
@@ -716,6 +737,8 @@ export const VideoEditorModal = memo(({
     <div
       className="nodrag nowheel fixed inset-0 z-50 p-3 md:p-5 lg:p-6"
       onMouseDown={(event) => event.stopPropagation()}
+      onDragOverCapture={handleModalDropGuard}
+      onDropCapture={handleModalDropGuard}
     >
       <div className="flex h-full flex-col overflow-hidden rounded-[var(--ui-radius-2xl)] border border-[var(--ui-border-soft)] bg-[var(--ui-surface-panel)] shadow-[var(--ui-elevation-3)]">
         <div className="flex min-h-12 shrink-0 flex-wrap items-center justify-between gap-2 border-b border-[var(--ui-border-soft)] px-4 py-2">
@@ -852,6 +875,8 @@ export const VideoEditorModal = memo(({
                 ref={timelineTrackRef}
                 className="relative overflow-hidden rounded-xl border border-[var(--ui-border-soft)] bg-[var(--ui-track-bg)]"
                 onMouseDown={handleTrackMouseDown}
+                onDragOver={handleTimelineDragOver}
+                onDrop={handleTimelineDrop}
               >
                 <div className="pointer-events-none absolute inset-0 bg-[repeating-linear-gradient(90deg,var(--ui-track-grid)_0,var(--ui-track-grid)_1px,transparent_1px,transparent_56px)] opacity-35" />
 
@@ -886,14 +911,17 @@ export const VideoEditorModal = memo(({
                   })}
 
                   <div
-                    ref={videoTrackRef}
                     className="nodrag nowheel absolute left-0 right-0 top-0 h-[60px] border-b border-[var(--ui-border-soft)] bg-[linear-gradient(180deg,rgba(56,189,248,0.12),rgba(var(--surface-rgb),0.14))]"
-                    onDragOver={handleTimelineDragOver}
-                    onDrop={handleTimelineDrop}
                   >
                     <div className="ui-timecode absolute left-2 top-1 rounded border border-cyan-300/30 bg-cyan-500/15 px-1.5 py-0.5 text-[10px] uppercase tracking-[0.08em] text-cyan-100/90">
                       {t('node.videoEditor.videoTrack', { defaultValue: '视频轨' })}
                     </div>
+
+                    {timelineClips.length === 0 ? (
+                      <div className="pointer-events-none absolute inset-x-0 top-7 flex items-center justify-center text-[10px] text-text-muted">
+                        {t('node.videoEditor.dropHint', { defaultValue: '拖入分镜到视频轨' })}
+                      </div>
+                    ) : null}
 
                     {timelineClips.map((clip) => {
                       const source = sourceClipMap.get(clip.sourceClipId);
@@ -951,6 +979,12 @@ export const VideoEditorModal = memo(({
                     <div className="ui-timecode absolute left-2 top-1 rounded border border-amber-300/30 bg-amber-500/15 px-1.5 py-0.5 text-[10px] uppercase tracking-[0.08em] text-amber-100/90">
                       {t('node.videoEditor.textTrack', { defaultValue: '文字轨' })}
                     </div>
+
+                    {textClips.length === 0 ? (
+                      <div className="pointer-events-none absolute inset-x-0 top-7 flex items-center justify-center text-[10px] text-text-muted">
+                        {t('node.videoEditor.textTrackHint', { defaultValue: '添加文字后可在此调整时序' })}
+                      </div>
+                    ) : null}
 
                     {textClips.map((clip) => {
                       const left = `${toTimelinePercent(clip.startSec, safeTimelineMaxSec)}%`;
@@ -1048,7 +1082,9 @@ export const VideoEditorModal = memo(({
                         key={clip.id}
                         draggable
                         onDragStart={(event) => {
-                          event.dataTransfer.setData('storybox/source-clip-id', clip.id);
+                          event.dataTransfer.setData(SOURCE_CLIP_TRANSFER_KEY, clip.id);
+                          event.dataTransfer.setData(SOURCE_CLIP_TRANSFER_KEY_FALLBACK, clip.id);
+                          event.dataTransfer.setData('text/plain', clip.id);
                           event.dataTransfer.effectAllowed = 'copy';
                         }}
                         className="nodrag nowheel cursor-grab rounded-xl border border-[var(--ui-border-soft)] bg-[var(--ui-muted-surface)] p-2 transition-colors hover:border-[var(--ui-border-strong)] hover:bg-[var(--ui-hover-surface)] active:cursor-grabbing"

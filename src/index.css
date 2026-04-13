@@ -7,35 +7,35 @@
   --font-family-ui-macos: "PingFang SC", "Hiragino Sans GB", "Source Han Sans SC", sans-serif;
   --font-family-ui-display: "Bahnschrift SemiCondensed", "DIN Condensed", "Oswald", "Source Han Sans SC", sans-serif;
   --font-family-ui-mono: "JetBrains Mono", "Cascadia Mono", "SF Mono", "Consolas", monospace;
-  --bg: #e8eef5;
-  --bg-rgb: 232 238 245;
+  --bg: #f0f5fb;
+  --bg-rgb: 240 245 251;
   --surface: #ffffff;
   --surface-rgb: 255 255 255;
-  --border: #c4cfdb;
-  --border-rgb: 196 207 219;
-  --text: #101a28;
-  --text-rgb: 16 26 40;
-  --text-muted: #5f7088;
-  --text-muted-rgb: 95 112 136;
+  --border: #bcc9d9;
+  --border-rgb: 188 201 217;
+  --text: #111e2f;
+  --text-rgb: 17 30 47;
+  --text-muted: #596d89;
+  --text-muted-rgb: 89 109 137;
   --accent: #f97316;
   --accent-rgb: 249 115 22;
-  --ui-surface-panel: rgba(255, 255, 255, 0.94);
-  --ui-surface-field: rgba(246, 250, 255, 0.96);
+  --ui-surface-panel: rgba(255, 255, 255, 0.96);
+  --ui-surface-field: rgba(250, 253, 255, 0.98);
   --ui-border-soft: rgba(15, 23, 42, 0.15);
   --ui-border-strong: rgba(15, 23, 42, 0.3);
   --ui-overlay-scrim: rgba(7, 14, 24, 0.42);
   --ui-overlay-blur: 4px;
-  --ui-overlay-panel: rgba(255, 255, 255, 0.82);
+  --ui-overlay-panel: rgba(255, 255, 255, 0.9);
   --ui-overlay-inverse: rgba(8, 14, 22, 0.64);
   --ui-overlay-inverse-strong: rgba(8, 14, 22, 0.78);
   --ui-overlay-inverse-border: rgba(255, 255, 255, 0.24);
-  --ui-hover-surface: rgba(15, 23, 42, 0.06);
-  --ui-hover-surface-strong: rgba(15, 23, 42, 0.12);
+  --ui-hover-surface: rgba(15, 23, 42, 0.055);
+  --ui-hover-surface-strong: rgba(15, 23, 42, 0.11);
   --ui-pressed-surface: rgba(15, 23, 42, 0.18);
-  --ui-muted-surface: rgba(255, 255, 255, 0.68);
-  --ui-track-bg: rgba(15, 23, 42, 0.14);
-  --ui-track-grid: rgba(15, 23, 42, 0.18);
-  --ui-track-mark: rgba(15, 23, 42, 0.38);
+  --ui-muted-surface: rgba(255, 255, 255, 0.78);
+  --ui-track-bg: rgba(15, 23, 42, 0.1);
+  --ui-track-grid: rgba(15, 23, 42, 0.14);
+  --ui-track-mark: rgba(15, 23, 42, 0.32);
   --ui-media-chip: rgba(6, 12, 20, 0.56);
   --ui-media-chip-border: rgba(255, 255, 255, 0.28);
   --ui-accent-soft: rgba(var(--accent-rgb), 0.16);
@@ -78,9 +78,9 @@
   --tapnow-node-button-bg: rgba(255, 255, 255, 0.88);
   --tapnow-node-button-bg-hover: rgba(255, 255, 255, 0.98);
   --tapnow-node-button-text: rgba(14, 25, 40, 0.92);
-  --app-bg-radial-a: rgba(255, 138, 31, 0.09);
-  --app-bg-radial-b: rgba(74, 155, 255, 0.09);
-  --app-bg-sheen: rgba(255, 255, 255, 0.03);
+  --app-bg-radial-a: rgba(255, 138, 31, 0.1);
+  --app-bg-radial-b: rgba(74, 155, 255, 0.1);
+  --app-bg-sheen: rgba(255, 255, 255, 0.12);
   --status-success-rgb: 34 197 94;
   --status-warning-rgb: 245 158 11;
   --status-error-rgb: 239 68 68;
@@ -174,6 +174,11 @@
   --status-warning-rgb: 245 158 11;
   --status-error-rgb: 248 113 113;
   --status-info-rgb: 96 165 250;
+  color-scheme: dark;
+}
+
+:root {
+  color-scheme: light;
 }
 
 :root[data-ui-radius='compact'] {
