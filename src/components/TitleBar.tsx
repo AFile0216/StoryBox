@@ -1,4 +1,4 @@
-import { useCallback, type ReactNode } from 'react';
+﻿import { useCallback, type ReactNode } from 'react';
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import { ArrowLeft, History, Languages, Maximize2, Minus, Moon, Settings, Sun, X } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
@@ -94,7 +94,7 @@ export function TitleBar({ onSettingsClick, showBackButton, onBackClick, onHisto
     : t('app.subtitle');
 
   return (
-    <div className="relative z-50 flex h-12 items-center justify-between border-b border-[var(--ui-border-soft)] bg-[linear-gradient(180deg,rgba(var(--bg-rgb),0.97),rgba(var(--bg-rgb),0.9))]">
+    <div className="relative z-50 flex h-12 items-center justify-between border-b border-[var(--ui-border-soft)] bg-[linear-gradient(180deg,rgba(var(--titlebar-bg-rgb),0.98),rgba(var(--titlebar-bg-rgb),0.92))]">
       {isMac ? (
         <div className="group flex h-full items-center gap-2 pl-3 pr-2" data-no-drag="true">
           <button
@@ -159,7 +159,7 @@ export function TitleBar({ onSettingsClick, showBackButton, onBackClick, onHisto
       </div>
 
       <div className="flex h-full items-center gap-2 pr-2.5" data-no-drag="true">
-        <div className="flex items-center rounded-[var(--ui-radius-xl)] border border-[var(--ui-border-soft)] bg-[var(--ui-surface-panel)] px-1.5 shadow-[0_10px_24px_rgba(2,6,23,0.14)]">
+        <div className="flex items-center rounded-[var(--ui-radius-xl)] border border-[var(--ui-border-soft)] bg-[var(--ui-surface-panel)] px-1.5 shadow-[var(--ui-elevation-1)]">
           <TitlebarToolButton
             title={isZh ? t('titleBar.switchToEnglish') : t('titleBar.switchToChinese')}
             onClick={handleLanguageClick}
@@ -192,7 +192,7 @@ export function TitleBar({ onSettingsClick, showBackButton, onBackClick, onHisto
         </div>
 
         {!isMac ? (
-          <div className="flex items-center rounded-[var(--ui-radius-xl)] border border-[var(--ui-border-soft)] bg-[var(--ui-surface-panel)] p-1 shadow-[0_10px_24px_rgba(2,6,23,0.14)]">
+          <div className="flex items-center rounded-[var(--ui-radius-xl)] border border-[var(--ui-border-soft)] bg-[var(--ui-surface-panel)] p-1 shadow-[var(--ui-elevation-1)]">
             <TitlebarToolButton title={t('titleBar.minimize')} onClick={() => void handleMinimize()}>
               <Minus className="h-4 w-4" />
             </TitlebarToolButton>
@@ -215,4 +215,5 @@ export function TitleBar({ onSettingsClick, showBackButton, onBackClick, onHisto
     </div>
   );
 }
+
 

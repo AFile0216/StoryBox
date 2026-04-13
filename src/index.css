@@ -1,4 +1,4 @@
-@tailwind base;
+﻿@tailwind base;
 @tailwind components;
 @tailwind utilities;
 
@@ -7,36 +7,37 @@
   --font-family-ui-macos: "PingFang SC", "Hiragino Sans GB", "Source Han Sans SC", sans-serif;
   --font-family-ui-display: "Bahnschrift SemiCondensed", "DIN Condensed", "Oswald", "Source Han Sans SC", sans-serif;
   --font-family-ui-mono: "JetBrains Mono", "Cascadia Mono", "SF Mono", "Consolas", monospace;
-  --bg: #f4f7fb;
-  --bg-rgb: 244 247 251;
+  --bg: #f5f7fa;
+  --bg-rgb: 245 247 250;
   --surface: #ffffff;
   --surface-rgb: 255 255 255;
-  --border: #c9d3e1;
-  --border-rgb: 201 211 225;
-  --text: #162033;
-  --text-rgb: 22 32 51;
-  --text-muted: #637894;
-  --text-muted-rgb: 99 120 148;
-  --accent: #f97316;
-  --accent-rgb: 249 115 22;
+  --titlebar-bg-rgb: 234 239 245;
+  --border: #cfd8e5;
+  --border-rgb: 207 216 229;
+  --text: #1b2430;
+  --text-rgb: 27 36 48;
+  --text-muted: #5d6d80;
+  --text-muted-rgb: 93 109 128;
+  --accent: #2f6fed;
+  --accent-rgb: 47 111 237;
   --ui-surface-panel: rgb(var(--surface-rgb));
   --ui-surface-field: rgb(var(--surface-rgb));
-  --ui-border-soft: rgba(22, 37, 64, 0.14);
-  --ui-border-strong: rgba(22, 37, 64, 0.28);
+  --ui-border-soft: rgba(27, 36, 48, 0.14);
+  --ui-border-strong: rgba(27, 36, 48, 0.24);
   --ui-overlay-scrim: rgba(14, 22, 35, 0.48);
   --ui-overlay-blur: 0px;
   --ui-overlay-panel: rgb(var(--surface-rgb));
   --ui-overlay-inverse: rgba(22, 33, 50, 0.78);
   --ui-overlay-inverse-strong: rgba(15, 24, 38, 0.88);
   --ui-overlay-inverse-border: rgba(226, 236, 248, 0.58);
-  --ui-hover-surface: rgba(20, 40, 74, 0.055);
-  --ui-hover-surface-strong: rgba(20, 40, 74, 0.1);
-  --ui-pressed-surface: rgba(20, 40, 74, 0.16);
-  --ui-muted-surface: rgba(243, 248, 255, 0.94);
-  --ui-track-bg: rgba(33, 58, 94, 0.08);
-  --ui-track-grid: rgba(33, 58, 94, 0.12);
-  --ui-track-mark: rgba(33, 58, 94, 0.26);
-  --ui-media-chip: rgba(14, 27, 45, 0.72);
+  --ui-hover-surface: rgba(47, 111, 237, 0.08);
+  --ui-hover-surface-strong: rgba(47, 111, 237, 0.14);
+  --ui-pressed-surface: rgba(47, 111, 237, 0.2);
+  --ui-muted-surface: rgba(239, 244, 250, 0.96);
+  --ui-track-bg: rgba(32, 58, 96, 0.08);
+  --ui-track-grid: rgba(32, 58, 96, 0.13);
+  --ui-track-mark: rgba(32, 58, 96, 0.24);
+  --ui-media-chip: rgba(20, 34, 56, 0.74);
   --ui-media-chip-border: rgba(226, 236, 248, 0.58);
   --ui-accent-soft: rgba(var(--accent-rgb), 0.16);
   --ui-accent-strong: rgba(var(--accent-rgb), 0.9);
@@ -46,9 +47,9 @@
   --ui-elevation-3: 0 18px 40px rgba(16, 33, 58, 0.2);
   --ui-content-max-width: 1280px;
   --minimap-bg: rgba(255, 255, 255, 0.98);
-  --minimap-border: rgba(33, 58, 94, 0.24);
-  --minimap-mask-fill: rgba(33, 58, 94, 0.12);
-  --minimap-mask-stroke: rgba(48, 79, 122, 0.62);
+  --minimap-border: rgba(32, 58, 96, 0.22);
+  --minimap-mask-fill: rgba(32, 58, 96, 0.11);
+  --minimap-mask-stroke: rgba(47, 88, 147, 0.58);
   --group-node-bg: color-mix(in srgb, rgb(var(--accent-rgb) / 0.18) 24%, rgb(var(--surface-rgb)));
   --ui-radius-sm: 8px;
   --ui-radius-lg: 10px;
@@ -56,8 +57,8 @@
   --ui-radius-2xl: 18px;
   --node-radius: 12px;
   --node-inner-radius: var(--node-radius);
-  --tapnow-canvas-radial-a: rgba(255, 122, 26, 0.09);
-  --tapnow-canvas-radial-b: rgba(38, 143, 255, 0.08);
+  --tapnow-canvas-radial-a: rgba(53, 112, 236, 0.11);
+  --tapnow-canvas-radial-b: rgba(101, 150, 238, 0.1);
   --tapnow-node-card-border: rgba(29, 51, 82, 0.14);
   --tapnow-node-card-bg-top: rgba(255, 255, 255, 0.99);
   --tapnow-node-card-bg-bottom: rgba(244, 249, 255, 0.98);
@@ -78,9 +79,9 @@
   --tapnow-node-button-bg: rgba(252, 254, 255, 0.96);
   --tapnow-node-button-bg-hover: rgba(255, 255, 255, 1);
   --tapnow-node-button-text: rgba(20, 36, 58, 0.94);
-  --app-bg-radial-a: rgba(255, 151, 57, 0.12);
-  --app-bg-radial-b: rgba(83, 161, 255, 0.14);
-  --app-bg-sheen: rgba(255, 255, 255, 0.26);
+  --app-bg-radial-a: rgba(53, 112, 236, 0.12);
+  --app-bg-radial-b: rgba(108, 154, 236, 0.14);
+  --app-bg-sheen: rgba(255, 255, 255, 0.42);
   --status-success-rgb: 34 197 94;
   --status-warning-rgb: 245 158 11;
   --status-error-rgb: 239 68 68;
@@ -102,13 +103,14 @@
   --bg-rgb: 11 17 24;
   --surface: #121b27;
   --surface-rgb: 18 27 39;
+  --titlebar-bg-rgb: 14 20 28;
   --border: #2b3c52;
   --border-rgb: 43 60 82;
   --text: #e8eff8;
   --text-rgb: 232 239 248;
   --text-muted: #91a7c2;
   --text-muted-rgb: 145 167 194;
-  --accent-rgb: 255 138 31;
+  --accent-rgb: 84 145 255;
   --ui-surface-panel: rgb(var(--surface-rgb));
   --ui-surface-field: rgb(var(--surface-rgb));
   --ui-border-soft: rgba(198, 214, 233, 0.19);
@@ -145,7 +147,7 @@
   --ui-radius-2xl: 18px;
   --node-radius: 12px;
   --node-inner-radius: var(--node-radius);
-  --tapnow-canvas-radial-a: rgba(255, 138, 31, 0.09);
+  --tapnow-canvas-radial-a: rgba(84, 145, 255, 0.1);
   --tapnow-canvas-radial-b: rgba(67, 147, 255, 0.08);
   --tapnow-node-card-border: rgba(189, 211, 236, 0.2);
   --tapnow-node-card-bg-top: rgba(255, 255, 255, 0.075);
@@ -167,7 +169,7 @@
   --tapnow-node-button-bg: rgba(255, 255, 255, 0.06);
   --tapnow-node-button-bg-hover: rgba(255, 255, 255, 0.11);
   --tapnow-node-button-text: rgba(235, 242, 249, 0.96);
-  --app-bg-radial-a: rgba(255, 138, 31, 0.08);
+  --app-bg-radial-a: rgba(84, 145, 255, 0.1);
   --app-bg-radial-b: rgba(67, 147, 255, 0.08);
   --app-bg-sheen: rgba(255, 255, 255, 0.02);
   --status-success-rgb: 34 197 94;
@@ -212,19 +214,21 @@
 }
 
 :root[data-theme-tone='cool'] {
-  --bg-rgb: 246 250 255;
-  --surface-rgb: 236 243 252;
-  --border-rgb: 203 216 235;
-  --text-rgb: 19 30 45;
-  --text-muted-rgb: 86 105 130;
+  --bg-rgb: 245 247 250;
+  --surface-rgb: 236 241 248;
+  --border-rgb: 205 216 231;
+  --text-rgb: 27 36 48;
+  --text-muted-rgb: 93 109 128;
+  --titlebar-bg-rgb: 234 239 245;
 }
 
 :root.dark[data-theme-tone='cool'] {
-  --bg-rgb: 10 16 24;
-  --surface-rgb: 17 27 39;
-  --border-rgb: 42 58 78;
-  --text-rgb: 235 244 255;
+  --bg-rgb: 11 17 26;
+  --surface-rgb: 18 29 42;
+  --border-rgb: 44 61 82;
+  --text-rgb: 236 244 255;
   --text-muted-rgb: 140 163 194;
+  --titlebar-bg-rgb: 12 20 30;
 }
 
 :root[data-theme-contrast='high'] {
@@ -240,7 +244,7 @@
   --tapnow-node-surface-border: rgba(9, 22, 38, 0.22);
   --tapnow-node-panel-border: rgba(9, 22, 38, 0.2);
   --tapnow-node-button-border: rgba(11, 25, 43, 0.28);
-  --app-bg-radial-a: rgba(249, 115, 22, 0.12);
+  --app-bg-radial-a: rgba(47, 111, 237, 0.12);
   --app-bg-radial-b: rgba(59, 130, 246, 0.12);
   --minimap-border: rgba(15, 23, 42, 0.28);
   --minimap-mask-fill: rgba(15, 23, 42, 0.18);
@@ -260,7 +264,7 @@
   --tapnow-node-surface-border: rgba(208, 224, 247, 0.22);
   --tapnow-node-panel-border: rgba(208, 224, 247, 0.2);
   --tapnow-node-button-border: rgba(214, 229, 248, 0.28);
-  --app-bg-radial-a: rgba(255, 138, 31, 0.13);
+  --app-bg-radial-a: rgba(84, 145, 255, 0.13);
   --app-bg-radial-b: rgba(67, 147, 255, 0.12);
   --minimap-border: rgba(214, 229, 248, 0.34);
   --minimap-mask-fill: rgba(3, 8, 16, 0.58);
@@ -277,7 +281,7 @@
   --tapnow-node-card-border: rgba(12, 25, 43, 0.11);
   --tapnow-node-card-shadow: 0 14px 30px rgba(8, 18, 30, 0.11);
   --tapnow-node-button-border: rgba(11, 25, 43, 0.13);
-  --app-bg-radial-a: rgba(255, 138, 31, 0.07);
+  --app-bg-radial-a: rgba(84, 145, 255, 0.08);
   --app-bg-radial-b: rgba(74, 155, 255, 0.07);
   --minimap-border: rgba(15, 23, 42, 0.14);
   --minimap-mask-fill: rgba(15, 23, 42, 0.1);
@@ -298,7 +302,7 @@
   --tapnow-node-surface-border: rgba(195, 212, 235, 0.1);
   --tapnow-node-panel-border: rgba(191, 211, 236, 0.1);
   --tapnow-node-button-border: rgba(207, 223, 243, 0.14);
-  --app-bg-radial-a: rgba(255, 138, 31, 0.07);
+  --app-bg-radial-a: rgba(84, 145, 255, 0.08);
   --app-bg-radial-b: rgba(67, 147, 255, 0.07);
   --minimap-border: rgba(198, 214, 233, 0.2);
   --minimap-mask-fill: rgba(4, 10, 18, 0.44);
@@ -725,3 +729,6 @@ html[data-platform='macos'] #root {
     animation: none;
   }
 }
+
+
+
