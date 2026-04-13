@@ -1,30 +1,27 @@
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Handle, Position, type NodeProps } from '@xyflow/react';
 import { Copy, FileText, LoaderCircle, Wand2 } from 'lucide-react';
-import ReactMarkdown from 'react-markdown';
-import remarkBreaks from 'remark-breaks';
-import remarkGfm from 'remark-gfm';
 import { useTranslation } from 'react-i18next';
-import { openUrl } from '@tauri-apps/plugin-opener';
 
 import {
   CANVAS_NODE_TYPES,
   type TextAnnotationMode,
   type TextAnnotationNodeData,
 } from '@/features/canvas/domain/canvasNodes';
-import { graphImageResolver } from '@/features/canvas/application/canvasServices';
 import {
-  filterReferencedImages,
-  filterReferencedVideos,
-} from '@/features/canvas/application/referenceTokenEditing';
+  canvasAiGateway,
+  graphImageResolver,
+} from '@/features/canvas/application/canvasServices';
+import { filterReferencedImages } from '@/features/canvas/application/referenceTokenEditing';
+import { imageUrlToDataUrl, resolveImageDisplayUrl } from '@/features/canvas/application/imageData';
+import { parseAndNormalizeReversePromptResult } from '@/features/canvas/application/reversePromptSchema';
 import { resolveNodeDisplayName } from '@/features/canvas/domain/nodeDisplay';
 import { NodeHeader, NODE_HEADER_FLOATING_POSITION_CLASS } from '@/features/canvas/ui/NodeHeader';
 import { resolveAdaptiveHandleStyle, resolveResponsiveNodeClasses } from '@/features/canvas/ui/nodeMetrics';
 import { NodeResizeHandle } from '@/features/canvas/ui/NodeResizeHandle';
 import { ReferenceAwareTextarea } from '@/features/canvas/ui/ReferenceAwareTextarea';
-import { UiSelect } from '@/components/ui';
+import { NodeMaterialStrip } from '@/features/canvas/ui/NodeMaterialStrip';
 import { useCanvasStore } from '@/stores/canvasStore';
-import { useHistoryStore } from '@/stores/historyStore';
 import { useSettingsStore } from '@/stores/settingsStore';
 
 type TextAnnotationNodeProps = NodeProps & {
@@ -33,38 +30,17 @@ type TextAnnotationNodeProps = NodeProps & {
   selected?: boolean;
 };
 
-const DEFAULT_WIDTH = 360;
-const DEFAULT_HEIGHT = 300;
-const MIN_WIDTH = 240;
-const MIN_HEIGHT = 180;
+const DEFAULT_WIDTH = 380;
+const DEFAULT_HEIGHT = 360;
+const MIN_WIDTH = 280;
+const MIN_HEIGHT = 240;
 const MAX_WIDTH = 960;
 const MAX_HEIGHT = 960;
 
-const TEXT_MODES: TextAnnotationMode[] = [
-  'plain-text',
-  'text-to-image-prompt',
-  'text-to-music-prompt',
-  'text-to-video-prompt',
-  'reverse-prompt',
-];
+const TEXT_MODES: TextAnnotationMode[] = ['text-to-image', 'reverse-prompt'];
 
-function stripReferenceTokens(prompt: string): string {
-  return prompt.replace(/@(?:\u56FE\u7247|\u56FE|\u89C6\u9891)\d+/gu, '').replace(/\s{2,}/gu, ' ').trim();
-}
-
-function resolveModeInstruction(mode: TextAnnotationMode): string {
-  switch (mode) {
-    case 'text-to-image-prompt':
-      return 'Generate high-quality prompts ready for image generation.';
-    case 'text-to-music-prompt':
-      return 'Generate high-quality prompts ready for music generation.';
-    case 'text-to-video-prompt':
-      return 'Generate high-quality prompts ready for video generation.';
-    case 'reverse-prompt':
-      return 'Generate reverse prompts from context with clear constraints and negatives.';
-    default:
-      return 'Expand and optimize text while keeping it readable and well structured.';
-  }
+function buildCustomModelId(interfaceId: string, modelId: string): string {
+  return `openai-compatible/${interfaceId}/${encodeURIComponent(modelId)}`;
 }
 
 function extractChatContent(payload: unknown): string {
@@ -77,28 +53,34 @@ function extractChatContent(payload: unknown): string {
   if (!first) {
     return '';
   }
-
   const message = first.message as Record<string, unknown> | undefined;
   if (message && typeof message.content === 'string') {
     return message.content;
   }
-
   const content = first.content;
   if (typeof content === 'string') {
     return content;
   }
   if (Array.isArray(content)) {
-    const text = content
+    return content
       .map((item) => (item && typeof item === 'object' ? (item as Record<string, unknown>).text : ''))
-      .filter((value): value is string => typeof value === 'string' && value.trim().length > 0)
-      .join('\n');
-    if (text.trim()) {
-      return text;
-    }
+      .filter((item): item is string => typeof item === 'string' && item.trim().length > 0)
+      .join('\n')
+      .trim();
   }
+  return '';
+}
 
-  const plainText = first.text;
-  return typeof plainText === 'string' ? plainText : '';
+function buildReverseSystemPrompt(): string {
+  return [
+    '你是专业影视画面反推提示词引擎。',
+    '任务：先对图像进行细节分析，再输出可复现提示词。',
+    '分析必须覆盖：画面细节、环境、人物服饰与配饰、风格、构图、色彩。',
+    '最终必须仅返回 JSON，不要返回其他文本。',
+    'JSON结构必须固定为：',
+    '{ "analysis": "...", "prompts": { "mj": {...}, "nanobanana": {...}, "jimeng": {...} } }',
+    '其中 prompts 下三个对象都必须存在。',
+  ].join('\n');
 }
 
 export const TextAnnotationNode = memo(({
@@ -113,27 +95,35 @@ export const TextAnnotationNode = memo(({
   const updateNodeData = useCanvasStore((state) => state.updateNodeData);
   const nodes = useCanvasStore((state) => state.nodes);
   const edges = useCanvasStore((state) => state.edges);
-  const addHistoryRecord = useHistoryStore((state) => state.addRecord);
   const customApiInterfaces = useSettingsStore((state) => state.customApiInterfaces);
-  const content = typeof data.content === 'string' ? data.content : '';
-  const mode = (data.mode ?? 'plain-text') as TextAnnotationMode;
+  const copyTimerRef = useRef<number | null>(null);
+  const [copyState, setCopyState] = useState<'idle' | 'copied' | 'error'>('idle');
+
+  const mode = TEXT_MODES.includes(data.mode) ? data.mode : 'text-to-image';
+  const prompt = typeof data.content === 'string' ? data.content : '';
   const isGenerating = data.isGenerating === true;
+  const resolvedTitle = resolveNodeDisplayName(CANVAS_NODE_TYPES.textAnnotation, data);
+  const resolvedWidth = Math.max(MIN_WIDTH, Math.round(width ?? DEFAULT_WIDTH));
+  const resolvedHeight = Math.max(MIN_HEIGHT, Math.round(height ?? DEFAULT_HEIGHT));
+  const uiDensity = resolveResponsiveNodeClasses(resolvedWidth, resolvedHeight);
+  const targetHandleStyle = resolveAdaptiveHandleStyle(resolvedWidth, resolvedHeight, 'left');
+  const sourceHandleStyle = resolveAdaptiveHandleStyle(resolvedWidth, resolvedHeight, 'right');
+  const selectGridClass = resolvedWidth < 560 ? 'grid-cols-1' : 'grid-cols-3';
+
   const selectedInterface = useMemo(() => {
     const byId = customApiInterfaces.find((item) => item.id === data.interfaceId);
     return byId ?? customApiInterfaces[0] ?? null;
   }, [customApiInterfaces, data.interfaceId]);
   const selectedModel = data.modelId || selectedInterface?.modelIds[0] || '';
-  const [copyState, setCopyState] = useState<'idle' | 'copied' | 'error'>('idle');
-  const copyResetTimerRef = useRef<number | null>(null);
-  const resolvedTitle = resolveNodeDisplayName(CANVAS_NODE_TYPES.textAnnotation, data);
-  const resolvedWidth = Math.max(MIN_WIDTH, Math.round(width ?? DEFAULT_WIDTH));
-  const resolvedHeight = Math.max(MIN_HEIGHT, Math.round(height ?? DEFAULT_HEIGHT));
-  const uiDensity = resolveResponsiveNodeClasses(resolvedWidth, resolvedHeight);
-  const selectGridClass =
-    resolvedWidth < 620 ? 'grid-cols-1' : resolvedWidth < 860 ? 'grid-cols-2' : 'grid-cols-3';
-  const actionGridClass = resolvedWidth < 620 ? 'grid-cols-1' : 'grid-cols-2';
-  const targetHandleStyle = resolveAdaptiveHandleStyle(resolvedWidth, resolvedHeight, 'left');
-  const sourceHandleStyle = resolveAdaptiveHandleStyle(resolvedWidth, resolvedHeight, 'right');
+
+  const incomingImages = useMemo(
+    () => graphImageResolver.collectInputImages(id, nodes, edges),
+    [edges, id, nodes]
+  );
+  const referencedImages = useMemo(
+    () => filterReferencedImages(incomingImages, prompt),
+    [incomingImages, prompt]
+  );
 
   useEffect(() => {
     if (!data.interfaceId && selectedInterface) {
@@ -144,65 +134,53 @@ export const TextAnnotationNode = memo(({
     }
   }, [data.interfaceId, id, selectedInterface, selectedModel, updateNodeData]);
 
-  useEffect(() => () => {
-    if (copyResetTimerRef.current !== null) {
-      clearTimeout(copyResetTimerRef.current);
-    }
-  }, []);
+  useEffect(
+    () => () => {
+      if (copyTimerRef.current !== null) {
+        clearTimeout(copyTimerRef.current);
+      }
+    },
+    []
+  );
 
-  const handleMarkdownLinkClick = useCallback((href?: string) => {
-    if (!href) {
-      return;
-    }
-    void openUrl(href);
-  }, []);
-
-  const scheduleCopyReset = useCallback(() => {
-    if (copyResetTimerRef.current !== null) {
-      clearTimeout(copyResetTimerRef.current);
-    }
-    copyResetTimerRef.current = window.setTimeout(() => {
-      setCopyState('idle');
-      copyResetTimerRef.current = null;
-    }, 1600);
-  }, []);
-
-  const handleCopyText = useCallback(async () => {
-    if (!content.trim()) {
+  const handleCopy = useCallback(async () => {
+    const value = mode === 'reverse-prompt'
+      ? data.reversePromptJson || ''
+      : prompt;
+    if (!value.trim()) {
       return;
     }
     try {
-      await navigator.clipboard.writeText(content);
+      await navigator.clipboard.writeText(value);
       setCopyState('copied');
     } catch {
       setCopyState('error');
     }
-    scheduleCopyReset();
-  }, [content, scheduleCopyReset]);
+    if (copyTimerRef.current !== null) {
+      clearTimeout(copyTimerRef.current);
+    }
+    copyTimerRef.current = window.setTimeout(() => {
+      setCopyState('idle');
+      copyTimerRef.current = null;
+    }, 1400);
+  }, [data.reversePromptJson, mode, prompt]);
 
-  const handleGenerate = useCallback(async () => {
-    const prompt = content.trim();
-    if (!prompt || !selectedInterface || !selectedModel || !selectedInterface.apiKey.trim()) {
+  const handleGenerateTextToImage = useCallback(async () => {
+    const cleanedPrompt = prompt.trim();
+    if (!cleanedPrompt || !selectedInterface || !selectedModel) {
       updateNodeData(id, {
-        generationError: !prompt
-          ? t('node.imageEdit.promptRequired', { defaultValue: 'Please enter a prompt' })
-          : !selectedModel
-            ? t('node.imageEdit.modelRequired', { defaultValue: 'Please select an available model first' })
-            : t('node.imageEdit.apiKeyRequired', { defaultValue: 'Please complete API settings first' }),
+        generationError: !cleanedPrompt
+          ? t('node.imageEdit.promptRequired', { defaultValue: '请输入提示词' })
+          : t('node.imageEdit.modelRequired', { defaultValue: '请先选择可用模型' }),
       });
       return;
     }
-
-    const incomingImages = graphImageResolver.collectInputImages(id, nodes, edges);
-    const incomingVideos = graphImageResolver.collectInputVideos(id, nodes, edges);
-    const referencedImages = filterReferencedImages(incomingImages, prompt);
-    const referencedVideos = filterReferencedVideos(incomingVideos, prompt);
-    const cleanedPrompt = stripReferenceTokens(prompt);
-    const referenceLines = [
-      ...referencedImages.map((url, index) => `Reference image ${index + 1}: ${url}`),
-      ...referencedVideos.map((url, index) => `Reference video ${index + 1}: ${url}`),
-    ];
-    const userPrompt = [cleanedPrompt, ...referenceLines].filter(Boolean).join('\n');
+    if (!selectedInterface.apiKey.trim()) {
+      updateNodeData(id, {
+        generationError: t('node.imageEdit.apiKeyRequired', { defaultValue: '请先完成接口配置' }),
+      });
+      return;
+    }
 
     updateNodeData(id, {
       isGenerating: true,
@@ -212,6 +190,70 @@ export const TextAnnotationNode = memo(({
     });
 
     try {
+      const outputImage = await canvasAiGateway.generateImage({
+        prompt: cleanedPrompt,
+        model: buildCustomModelId(selectedInterface.id, selectedModel),
+        size: '1K',
+        aspectRatio: '1:1',
+        referenceImages: referencedImages,
+        runtimeConfig: {
+          providerType: 'custom-api',
+          interfaceId: selectedInterface.id,
+          interfaceName: selectedInterface.name,
+          apiKey: selectedInterface.apiKey,
+          baseUrl: selectedInterface.baseUrl,
+          apiModel: selectedModel,
+          omitSizeParams: selectedInterface.omitSizeParams,
+          requestMode: selectedInterface.requestMode,
+        },
+      });
+
+      updateNodeData(id, {
+        generatedImageUrl: outputImage,
+        generatedPreviewImageUrl: outputImage,
+        isGenerating: false,
+        generationError: null,
+        lastGeneratedAt: Date.now(),
+      });
+    } catch (error) {
+      updateNodeData(id, {
+        isGenerating: false,
+        generationError: error instanceof Error ? error.message : String(error),
+      });
+    }
+  }, [id, prompt, referencedImages, selectedInterface, selectedModel, t, updateNodeData]);
+
+  const handleGenerateReversePrompt = useCallback(async () => {
+    if (!selectedInterface || !selectedModel) {
+      updateNodeData(id, {
+        generationError: t('node.imageEdit.modelRequired', { defaultValue: '请先选择可用模型' }),
+      });
+      return;
+    }
+    if (!selectedInterface.apiKey.trim()) {
+      updateNodeData(id, {
+        generationError: t('node.imageEdit.apiKeyRequired', { defaultValue: '请先完成接口配置' }),
+      });
+      return;
+    }
+
+    const imageSource = data.generatedImageUrl || referencedImages[0] || incomingImages[0] || null;
+    if (!imageSource) {
+      updateNodeData(id, {
+        generationError: t('node.textAnnotation.needImage', { defaultValue: '请先提供图片用于反推' }),
+      });
+      return;
+    }
+
+    updateNodeData(id, {
+      isGenerating: true,
+      generationError: null,
+      interfaceId: selectedInterface.id,
+      modelId: selectedModel,
+    });
+
+    try {
+      const imageDataUrl = await imageUrlToDataUrl(imageSource);
       const response = await fetch(`${selectedInterface.baseUrl}/chat/completions`, {
         method: 'POST',
         headers: {
@@ -222,8 +264,20 @@ export const TextAnnotationNode = memo(({
           model: selectedModel,
           stream: false,
           messages: [
-            { role: 'system', content: resolveModeInstruction(mode) },
-            { role: 'user', content: userPrompt },
+            { role: 'system', content: buildReverseSystemPrompt() },
+            {
+              role: 'user',
+              content: [
+                {
+                  type: 'text',
+                  text: '请分析这张图并输出固定 JSON，必须含 analysis 和 prompts.mj/nanobanana/jimeng。',
+                },
+                {
+                  type: 'image_url',
+                  image_url: { url: imageDataUrl },
+                },
+              ],
+            },
           ],
         }),
       });
@@ -234,23 +288,20 @@ export const TextAnnotationNode = memo(({
       }
 
       const payload = await response.json().catch(() => null);
-      const generatedText = extractChatContent(payload).trim();
-      if (!generatedText) {
-        throw new Error(t('common.error', { defaultValue: 'No usable text returned' }));
-      }
+      const rawText = extractChatContent(payload);
+      const normalized = parseAndNormalizeReversePromptResult(
+        rawText,
+        '模型未返回有效 JSON，已输出固定结构空结果。'
+      );
+      const normalizedJson = JSON.stringify(normalized, null, 2);
 
       updateNodeData(id, {
-        content: generatedText,
+        content: normalizedJson,
+        reversePromptJson: normalizedJson,
+        reversePromptResult: normalized,
         isGenerating: false,
         generationError: null,
         lastGeneratedAt: Date.now(),
-      });
-      addHistoryRecord({
-        nodeId: id,
-        type: 'text',
-        prompt,
-        outputText: generatedText,
-        model: selectedModel,
       });
     } catch (error) {
       updateNodeData(id, {
@@ -258,7 +309,29 @@ export const TextAnnotationNode = memo(({
         generationError: error instanceof Error ? error.message : String(error),
       });
     }
-  }, [addHistoryRecord, content, edges, id, mode, nodes, selectedInterface, selectedModel, t, updateNodeData]);
+  }, [
+    data.generatedImageUrl,
+    id,
+    incomingImages,
+    referencedImages,
+    selectedInterface,
+    selectedModel,
+    t,
+    updateNodeData,
+  ]);
+
+  const handleGenerate = useCallback(async () => {
+    if (mode === 'reverse-prompt') {
+      await handleGenerateReversePrompt();
+      return;
+    }
+    await handleGenerateTextToImage();
+  }, [handleGenerateReversePrompt, handleGenerateTextToImage, mode]);
+
+  const previewImage = data.generatedPreviewImageUrl || data.generatedImageUrl || null;
+  const modeLabel = t(`node.textAnnotation.mode.${mode}`, {
+    defaultValue: mode === 'text-to-image' ? '文生图' : '图片反推提示词',
+  });
 
   return (
     <div
@@ -277,25 +350,30 @@ export const TextAnnotationNode = memo(({
         onTitleChange={(nextTitle) => updateNodeData(id, { displayName: nextTitle })}
       />
 
-      <div className={`mt-6 flex min-h-0 flex-1 flex-col ${uiDensity.stackGap}`}>
+      <NodeMaterialStrip nodeId={id} className="mt-6" />
+
+      <div className={`mt-2 flex min-h-0 flex-1 flex-col ${uiDensity.stackGap}`}>
         <div className={`grid ${selectGridClass} ${uiDensity.sectionGap}`}>
-          <UiSelect
+          <select
             value={mode}
             onChange={(event) =>
               updateNodeData(id, {
                 mode: event.target.value as TextAnnotationMode,
+                generationError: null,
               })
             }
-            className="h-8 text-xs"
+            className="h-8 rounded-lg border border-[var(--ui-border-soft)] bg-[var(--ui-surface-field)] px-2 text-xs text-text-dark outline-none"
           >
             {TEXT_MODES.map((item) => (
               <option key={item} value={item}>
-                {t(`node.textAnnotation.mode.${item}`)}
+                {t(`node.textAnnotation.mode.${item}`, {
+                  defaultValue: item === 'text-to-image' ? '文生图' : '图片反推提示词',
+                })}
               </option>
             ))}
-          </UiSelect>
+          </select>
 
-          <UiSelect
+          <select
             value={selectedInterface?.id ?? ''}
             onChange={(event) => {
               const nextInterface = customApiInterfaces.find((item) => item.id === event.target.value);
@@ -304,41 +382,67 @@ export const TextAnnotationNode = memo(({
                 modelId: nextInterface?.modelIds[0] ?? '',
               });
             }}
-            className="h-8 text-xs"
+            className="h-8 rounded-lg border border-[var(--ui-border-soft)] bg-[var(--ui-surface-field)] px-2 text-xs text-text-dark outline-none"
           >
-            {customApiInterfaces.length === 0 ? <option value="">No interface configured</option> : null}
+            {customApiInterfaces.length === 0 ? <option value="">{t('settings.providers')}</option> : null}
             {customApiInterfaces.map((item) => (
               <option key={item.id} value={item.id}>
                 {item.name}
               </option>
             ))}
-          </UiSelect>
+          </select>
 
-          <UiSelect
+          <select
             value={selectedModel}
             onChange={(event) => updateNodeData(id, { modelId: event.target.value })}
-            className="h-8 text-xs"
+            className="h-8 rounded-lg border border-[var(--ui-border-soft)] bg-[var(--ui-surface-field)] px-2 text-xs text-text-dark outline-none"
           >
             {(selectedInterface?.modelIds ?? []).map((modelId) => (
               <option key={modelId} value={modelId}>
                 {modelId}
               </option>
             ))}
-            {selectedInterface?.modelIds?.length === 0 ? (
-              <option value="">{t('node.imageEdit.modelRequired', { defaultValue: 'Please configure a model first' })}</option>
-            ) : null}
-          </UiSelect>
+          </select>
         </div>
 
-        <div className={`grid ${actionGridClass} ${uiDensity.sectionGap}`}>
+        {previewImage ? (
+          <div className="tapnow-node-surface h-[130px] overflow-hidden">
+            <img
+              src={resolveImageDisplayUrl(previewImage)}
+              alt="text-node-generated"
+              className="h-full w-full object-contain"
+              draggable={false}
+            />
+          </div>
+        ) : null}
+
+        <div className="min-h-0 flex-1">
+          <ReferenceAwareTextarea
+            nodeId={id}
+            value={prompt}
+            onChange={(value) => updateNodeData(id, { content: value, generationError: null })}
+            placeholder={
+              mode === 'reverse-prompt'
+                ? t('node.textAnnotation.reversePlaceholder', {
+                  defaultValue: '输入 @图片1 引用后点击生成，输出固定 JSON 结构',
+                })
+                : t('node.textAnnotation.placeholder', { mode: modeLabel })
+            }
+            minHeightClassName="min-h-[120px]"
+            className={`h-full ${uiDensity.panelPadding} ${uiDensity.bodyText}`}
+            referenceMediaTypes={['image']}
+          />
+        </div>
+
+        <div className={`grid grid-cols-2 ${uiDensity.sectionGap}`}>
           <button
             type="button"
             className={`inline-flex h-8 items-center justify-center gap-1.5 rounded-lg border border-[var(--ui-border-soft)] px-3 text-xs font-medium text-text-dark hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-60 ${uiDensity.buttonText}`}
             onClick={(event) => {
               event.stopPropagation();
-              void handleCopyText();
+              void handleCopy();
             }}
-            disabled={!content.trim()}
+            disabled={!prompt.trim()}
           >
             <Copy className="h-3.5 w-3.5" />
             {copyState === 'copied'
@@ -358,67 +462,16 @@ export const TextAnnotationNode = memo(({
             disabled={isGenerating || !selectedInterface || !selectedModel}
           >
             {isGenerating ? <LoaderCircle className="h-3.5 w-3.5 animate-spin" /> : <Wand2 className="h-3.5 w-3.5" />}
-            Generate
+            {t('canvas.generate', { defaultValue: '生成' })}
           </button>
         </div>
 
-        <div className="min-h-0 flex-1">
-          {selected ? (
-            <ReferenceAwareTextarea
-              nodeId={id}
-              autoFocus
-              value={content}
-              onChange={(value) => {
-                updateNodeData(id, { content: value, generationError: null });
-              }}
-              placeholder={t('node.textAnnotation.placeholder', {
-                mode: t(`node.textAnnotation.mode.${mode}`),
-              })}
-              minHeightClassName="min-h-0"
-              className={`h-full ${uiDensity.panelPadding} ${uiDensity.bodyText}`}
-              referenceMediaTypes={['image', 'video']}
-            />
-          ) : (
-            <div className={`tapnow-node-panel nodrag nowheel h-full overflow-auto ${uiDensity.panelPadding} ${uiDensity.bodyText} text-text-dark`}>
-              <div className={`tapnow-node-pill mb-2 px-2 py-0.5 uppercase tracking-[0.12em] ${uiDensity.metaText}`}>
-                {t(`node.textAnnotation.mode.${mode}`)}
-              </div>
-              {content.trim().length > 0 ? (
-                <div className="markdown-body break-words [&_a]:text-accent [&_blockquote]:border-l-2 [&_blockquote]:border-white/20 [&_blockquote]:pl-3 [&_code]:rounded [&_code]:bg-white/10 [&_code]:px-1 [&_code]:py-0.5 [&_h1]:text-base [&_h1]:font-semibold [&_h2]:text-[15px] [&_h2]:font-semibold [&_h3]:text-sm [&_h3]:font-semibold [&_hr]:border-white/10 [&_li]:my-0.5 [&_ol]:list-decimal [&_ol]:pl-5 [&_p]:my-0 [&_p+_p]:mt-4 [&_pre]:overflow-auto [&_pre]:rounded-md [&_pre]:bg-black/30 [&_pre]:p-2 [&_table]:w-full [&_table]:border-collapse [&_table]:text-xs [&_td]:border [&_td]:border-white/10 [&_td]:px-2 [&_td]:py-1 [&_th]:border [&_th]:border-white/10 [&_th]:px-2 [&_th]:py-1 [&_ul]:list-disc [&_ul]:pl-5">
-                  <ReactMarkdown
-                    remarkPlugins={[remarkGfm, remarkBreaks]}
-                    components={{
-                      a: ({ href, children, ...props }) => (
-                        <a
-                          {...props}
-                          href={href}
-                          target="_blank"
-                          rel="noreferrer"
-                          onClick={(event) => {
-                            event.preventDefault();
-                            handleMarkdownLinkClick(href);
-                          }}
-                        >
-                          {children}
-                        </a>
-                      ),
-                    }}
-                  >
-                    {content}
-                  </ReactMarkdown>
-                </div>
-              ) : (
-                <div className="pt-1 text-text-muted">{t('node.textAnnotation.empty')}</div>
-              )}
-            </div>
-          )}
-        </div>
+        {data.generationError ? (
+          <div className="rounded-lg border border-red-500/30 bg-red-500/10 px-2 py-1 text-xs text-red-300">
+            {data.generationError}
+          </div>
+        ) : null}
       </div>
-      {data.generationError ? (
-        <div className="mt-1 rounded-lg border border-red-500/30 bg-red-500/10 px-2 py-1 text-xs text-red-300">
-          {data.generationError}
-        </div>
-      ) : null}
 
       <Handle
         type="target"
@@ -446,8 +499,4 @@ export const TextAnnotationNode = memo(({
 });
 
 TextAnnotationNode.displayName = 'TextAnnotationNode';
-
-
-
-
 

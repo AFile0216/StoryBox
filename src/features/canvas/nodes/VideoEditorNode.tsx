@@ -17,6 +17,7 @@ import { resolveNodeDisplayName } from '@/features/canvas/domain/nodeDisplay';
 import { resolveAdaptiveHandleStyle, resolveResponsiveNodeClasses } from '@/features/canvas/ui/nodeMetrics';
 import { NodeHeader, NODE_HEADER_FLOATING_POSITION_CLASS } from '@/features/canvas/ui/NodeHeader';
 import { NodeResizeHandle } from '@/features/canvas/ui/NodeResizeHandle';
+import { NodeMaterialStrip } from '@/features/canvas/ui/NodeMaterialStrip';
 import { resolveImageDisplayUrl } from '@/features/canvas/application/imageData';
 import { graphImageResolver } from '@/features/canvas/application/canvasServices';
 import { VideoEditorModal, type VideoEditorSourceClipItem } from '@/features/canvas/ui/VideoEditorModal';
@@ -250,7 +251,9 @@ export const VideoEditorNode = memo(({ id, data, selected, width, height }: Vide
           onTitleChange={(nextTitle) => updateNodeData(id, { displayName: nextTitle })}
         />
 
-        <div className={`mt-6 flex min-h-0 flex-1 flex-col ${uiDensity.stackGap}`}>
+        <NodeMaterialStrip nodeId={id} className="mt-6" />
+
+        <div className={`mt-2 flex min-h-0 flex-1 flex-col ${uiDensity.stackGap}`}>
           <div className="flex items-center justify-between gap-2">
             <div className={`tapnow-node-pill ui-display-title px-2 py-1 uppercase tracking-[0.12em] ${uiDensity.metaText}`}>
               {t('node.videoEditor.title', { defaultValue: '视频编辑' })}

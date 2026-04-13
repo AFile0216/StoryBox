@@ -29,6 +29,7 @@ import { useCanvasStore } from '@/stores/canvasStore';
 import { useCanvasViewportStore } from '@/stores/canvasViewportStore';
 import { useImageViewerStore } from '@/stores/imageViewerStore';
 import { useProjectStore } from '@/stores/projectStore';
+import { useAssetStore } from '@/stores/assetStore';
 import { getConfiguredProviderCount, useSettingsStore } from '@/stores/settingsStore';
 import { useToolDialogStore } from '@/stores/toolDialogStore';
 import { canvasEventBus } from '@/features/canvas/application/canvasServices';
@@ -50,6 +51,8 @@ import { NodeSelectionMenu } from './NodeSelectionMenu';
 import { SelectedNodeOverlay } from './ui/SelectedNodeOverlay';
 import { NodeToolDialog } from './ui/NodeToolDialog';
 import { ImageViewerModal } from './ui/ImageViewerModal';
+import { AiSidePanel } from './ui/AiSidePanel';
+import { AssetOperationBar } from './ui/AssetOperationBar';
 import { MissingApiKeyHint } from '@/features/settings/MissingApiKeyHint';
 import { useCanvasMediaDrop } from './hooks/useCanvasMediaDrop';
 import { useGenerationPolling } from './hooks/useGenerationPolling';
@@ -283,11 +286,13 @@ export function Canvas() {
   const configuredApiKeyCount = useSettingsStore((state) => getConfiguredProviderCount(state));
 
   const getCurrentProject = useProjectStore((state) => state.getCurrentProject);
+  const currentProjectId = useProjectStore((state) => state.currentProjectId);
   const saveCurrentProject = useProjectStore((state) => state.saveCurrentProject);
   const saveCurrentProjectViewport = useProjectStore((state) => state.saveCurrentProjectViewport);
   const cancelPendingViewportPersist = useProjectStore(
     (state) => state.cancelPendingViewportPersist
   );
+  const syncProjectAssetsFromNodes = useAssetStore((state) => state.syncProjectAssetsFromNodes);
 
   const {
     scheduleCanvasPersist,
@@ -332,6 +337,13 @@ export function Canvas() {
     updateNodeData,
     t,
   });
+
+  useEffect(() => {
+    if (!currentProjectId) {
+      return;
+    }
+    syncProjectAssetsFromNodes(currentProjectId, nodes);
+  }, [currentProjectId, nodes, syncProjectAssetsFromNodes]);
 
   useEffect(() => {
     const element = wrapperRef.current;
@@ -1250,16 +1262,7 @@ export function Canvas() {
         <SelectedNodeOverlay />
       </ReactFlow>
 
-      <div className="pointer-events-none absolute bottom-4 left-1/2 z-30 -translate-x-1/2">
-        <div className="flex items-center gap-3 rounded-full border border-[var(--ui-border-soft)] bg-[var(--ui-surface-panel)] px-4 py-2 text-[11px] text-text-muted shadow-[0_16px_40px_rgba(2,6,23,0.24)] backdrop-blur-xl">
-          <span className="ui-timecode font-medium text-text-dark">
-            {Math.round((reactFlowInstance.getViewport().zoom ?? 1) * 100)}%
-          </span>
-          <span>{t('canvas.hud.doubleClickCreate', { defaultValue: 'Double-click to create' })}</span>
-          <span>{t('canvas.hud.wheelToZoom', { defaultValue: 'Wheel to zoom' })}</span>
-          <span>{t('canvas.hud.middleDragToPan', { defaultValue: 'Middle-drag to pan' })}</span>
-        </div>
-      </div>
+      <AssetOperationBar />
 
       {nodes.length === 0 && emptyHint}
       {nodes.length > 0 && configuredApiKeyCount === 0 && (
@@ -1315,6 +1318,8 @@ export function Canvas() {
         onClose={closeImageViewer}
         onNavigate={navigateImageViewer}
       />
+
+      <AiSidePanel />
     </div>
   );
 }

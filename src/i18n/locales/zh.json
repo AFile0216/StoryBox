@@ -6,7 +6,8 @@
     "historyEmpty": "暂无历史记录",
     "clearHistory": "清空历史",
     "clearHistoryConfirm": "确定清空全部历史记录吗？",
-    "noPrompt": "无内容"
+    "noPrompt": "无内容",
+    "assetManager": "????"
   },
   "common": {
     "save": "保存",
@@ -43,7 +44,8 @@
       "fitView": "适应视图",
       "lock": "锁定画布",
       "unlock": "解锁画布"
-    }
+    },
+    "quickCreate": "????"
   },
   "tool": {
     "crop": "裁剪",
@@ -160,7 +162,12 @@
     },
     "chat": {
       "emptyHint": "发送消息开始对话",
-      "inputPlaceholder": "输入消息..."
+      "inputPlaceholder": "输入消息...",
+      "sidePanelTitle": "AI ????",
+      "expand": "?? AI ??",
+      "collapse": "?? AI ??",
+      "searchCanvasImages": "??????",
+      "canvasScope": "??"
     },
     "storyboardNode": {
       "title": "分镜节点",
@@ -191,8 +198,11 @@
         "text-to-image-prompt": "文生图提示词",
         "text-to-music-prompt": "文生音乐提示词",
         "text-to-video-prompt": "文生视频提示词",
-        "reverse-prompt": "图片反推提示词"
-      }
+        "reverse-prompt": "图片反推提示词",
+        "text-to-image": "???"
+      },
+      "needImage": "????????????",
+      "reversePlaceholder": "?? @??1 ?????????? JSON"
     },
     "media": {
       "selectFile": "选择文件",
@@ -291,7 +301,9 @@
       "noSelectedClipForNote": "请先在时间轴选择一个分镜片段",
       "noTextToExport": "文本轨暂无可导出内容",
       "snapOn": "吸附：开",
-      "snapOff": "吸附：关"
+      "snapOff": "吸附：关",
+      "play": "?????",
+      "pause": "????"
     }
   },
   "viewer": {
@@ -462,7 +474,20 @@
     "checkingUpdate": "正在检查更新...",
     "checkUpdateHasUpdate": "检测到新版本。",
     "checkUpdateUpToDate": "当前已经是最新版本。",
-    "checkUpdateFailed": "检查更新失败，请稍后重试。"
+    "checkUpdateFailed": "检查更新失败，请稍后重试。",
+    "promptAutoEnhanceTitle": "????",
+    "promptEnhanceEnable": "???????",
+    "promptEnhanceEnableDesc": "?????????????????",
+    "promptAutoQuality": "????????",
+    "promptAutoQualityDesc": "?????????????????",
+    "promptQualityTags": "????",
+    "promptCustomPrefix": "?????",
+    "promptCustomPrefixPlaceholder": "???????????8k wallpaper",
+    "promptCustomSuffix": "?????",
+    "promptCustomSuffixPlaceholder": "???????????trending on artstation",
+    "promptTemplateLibraryTitle": "??????",
+    "promptTemplateLibraryDesc": "??????????????????????",
+    "promptTemplateManage": "????"
   },
   "update": {
     "dialogTitle": "发现新版本",
@@ -479,5 +504,35 @@
   "errorDialog": {
     "detailsTitle": "错误详情",
     "copyReport": "复制错误报告"
+  },
+  "asset": {
+    "category": {
+      "all": "??",
+      "local": "??",
+      "character": "??",
+      "scene": "??",
+      "prop": "??"
+    },
+    "source": {
+      "local": "??",
+      "generated": "??",
+      "linked": "??"
+    },
+    "library": {
+      "default": "?????"
+    },
+    "token": {
+      "image": "?",
+      "video": "??",
+      "audio": "??"
+    },
+    "archiveSelected": "??????",
+    "archiveSuccess": "??? {{count}} ???",
+    "archiveEmpty": "??????????",
+    "clear": "????",
+    "clearConfirm": "????????????",
+    "empty": "??????????",
+    "noProject": "?????????????",
+    "emptySearch": "??????"
   }
 }

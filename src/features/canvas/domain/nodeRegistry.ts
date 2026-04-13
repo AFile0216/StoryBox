@@ -159,13 +159,17 @@ const textAnnotationNodeDefinition: CanvasNodeDefinition<TextAnnotationNodeData>
   createDefaultData: () => ({
     displayName: DEFAULT_NODE_DISPLAY_NAME[CANVAS_NODE_TYPES.textAnnotation],
     content: '',
-    mode: 'plain-text',
+    mode: 'text-to-image',
     lastAppliedTaskType: null,
     interfaceId: '',
     modelId: '',
     isGenerating: false,
     lastGeneratedAt: null,
     generationError: null,
+    generatedImageUrl: null,
+    generatedPreviewImageUrl: null,
+    reversePromptJson: null,
+    reversePromptResult: null,
   }),
 };
 
@@ -470,12 +474,12 @@ const chatNodeDefinition: CanvasNodeDefinition<ChatNodeData> = {
   type: CANVAS_NODE_TYPES.chat,
   menuLabelKey: 'node.menu.chat',
   menuIcon: 'sparkles',
-  visibleInMenu: true,
+  visibleInMenu: false,
   capabilities: { toolbar: true, promptInput: false },
   connectivity: {
-    sourceHandle: true,
-    targetHandle: true,
-    connectMenu: { fromSource: true, fromTarget: false },
+    sourceHandle: false,
+    targetHandle: false,
+    connectMenu: { fromSource: false, fromTarget: false },
   },
   createDefaultData: () => ({
     displayName: DEFAULT_NODE_DISPLAY_NAME[CANVAS_NODE_TYPES.chat],

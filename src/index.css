@@ -55,6 +55,20 @@
   --app-bg-radial-a: rgba(255, 138, 31, 0.09);
   --app-bg-radial-b: rgba(74, 155, 255, 0.09);
   --app-bg-sheen: rgba(255, 255, 255, 0.03);
+  --status-success-rgb: 34 197 94;
+  --status-warning-rgb: 245 158 11;
+  --status-error-rgb: 239 68 68;
+  --status-info-rgb: 59 130 246;
+  --space-2xs: 4px;
+  --space-xs: 8px;
+  --space-sm: 12px;
+  --space-md: 16px;
+  --space-lg: 20px;
+  --space-xl: 28px;
+  --ui-ease-standard: cubic-bezier(.2,.7,.2,1);
+  --ui-duration-fast: 120ms;
+  --ui-duration-normal: 180ms;
+  --ui-duration-slow: 240ms;
 }
 
 .dark {
@@ -105,6 +119,10 @@
   --app-bg-radial-a: rgba(255, 138, 31, 0.08);
   --app-bg-radial-b: rgba(67, 147, 255, 0.08);
   --app-bg-sheen: rgba(255, 255, 255, 0.02);
+  --status-success-rgb: 34 197 94;
+  --status-warning-rgb: 245 158 11;
+  --status-error-rgb: 248 113 113;
+  --status-info-rgb: 96 165 250;
 }
 
 :root[data-ui-radius='compact'] {
@@ -242,6 +260,18 @@ body {
   letter-spacing: 0.01em;
 }
 
+button,
+input,
+select,
+textarea {
+  font-family: inherit;
+}
+
+:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(var(--accent-rgb), 0.2);
+}
+
 #boot-screen {
   font-family: var(--font-family-ui-default);
 }
@@ -320,6 +350,43 @@ html[data-platform='macos'] #root {
   background: var(--ui-surface-field);
   border-color: var(--ui-border-soft);
   border-radius: var(--ui-radius-lg);
+}
+
+.ui-card {
+  border: 1px solid var(--ui-border-soft);
+  border-radius: var(--ui-radius-xl);
+  background: linear-gradient(180deg, rgba(var(--surface-rgb), 0.85), rgba(var(--surface-rgb), 0.72));
+  box-shadow: var(--ui-shadow-panel);
+}
+
+.ui-empty-state {
+  border: 1px dashed var(--ui-border-soft);
+  border-radius: var(--ui-radius-xl);
+  background: rgba(var(--surface-rgb), 0.45);
+}
+
+.ui-status-success {
+  border: 1px solid rgba(var(--status-success-rgb), 0.28);
+  background: rgba(var(--status-success-rgb), 0.12);
+  color: rgb(var(--status-success-rgb));
+}
+
+.ui-status-warning {
+  border: 1px solid rgba(var(--status-warning-rgb), 0.3);
+  background: rgba(var(--status-warning-rgb), 0.12);
+  color: rgb(var(--status-warning-rgb));
+}
+
+.ui-status-error {
+  border: 1px solid rgba(var(--status-error-rgb), 0.32);
+  background: rgba(var(--status-error-rgb), 0.12);
+  color: rgb(var(--status-error-rgb));
+}
+
+.ui-status-info {
+  border: 1px solid rgba(var(--status-info-rgb), 0.3);
+  background: rgba(var(--status-info-rgb), 0.12);
+  color: rgb(var(--status-info-rgb));
 }
 
 .panel-anim-enter {
@@ -497,6 +564,17 @@ html[data-platform='macos'] #root {
 
   to {
     stroke-dashoffset: -36;
+  }
+}
+
+@keyframes ui-fade-slide-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
   }
 }
 

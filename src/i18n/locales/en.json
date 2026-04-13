@@ -3,6 +3,7 @@
     "title": "StoryBox",
     "subtitle": "StoryBox",
     "history": "History",
+    "assetManager": "Asset Manager",
     "historyEmpty": "No history yet",
     "clearHistory": "Clear History",
     "clearHistoryConfirm": "Clear all history records?",
@@ -35,6 +36,7 @@
     "addImage": "Add Image",
     "splitStoryboard": "Split Storyboard",
     "generate": "Generate",
+    "quickCreate": "Quick Create",
     "emptyHintTitle": "Double-click to add a node",
     "emptyHintSubtitle": "Build an editable multimodal canvas from here.",
     "toolbar": {
@@ -166,7 +168,12 @@
     },
     "chat": {
       "emptyHint": "Send a message to start chatting",
-      "inputPlaceholder": "Type a message..."
+      "inputPlaceholder": "Type a message...",
+      "sidePanelTitle": "AI Assistant",
+      "expand": "Expand AI panel",
+      "collapse": "Collapse AI panel",
+      "searchCanvasImages": "Search canvas images",
+      "canvasScope": "Canvas"
     },
     "storyboardNode": {
       "title": "Storyboard Node",
@@ -192,7 +199,10 @@
       "modeLabel": "Mode",
       "placeholder": "Write content for {{mode}}",
       "empty": "Empty note",
+      "needImage": "Please provide an image for reverse prompt",
+      "reversePlaceholder": "Use @image1 then click Generate to output fixed JSON",
       "mode": {
+        "text-to-image": "Text to Image",
         "plain-text": "Plain Text",
         "text-to-image-prompt": "Text to Image Prompt",
         "text-to-music-prompt": "Text to Music Prompt",
@@ -298,7 +308,9 @@
       "noSelectedClipForNote": "Select a storyboard clip in timeline first",
       "noTextToExport": "No text clips available for export",
       "snapOn": "Snap: On",
-      "snapOff": "Snap: Off"
+      "snapOff": "Snap: Off",
+      "play": "Play Timeline",
+      "pause": "Pause Playback"
     }
   },
   "viewer": {
@@ -321,6 +333,36 @@
     "generating": "Generating...",
     "success": "Generated successfully",
     "error": "Generation failed"
+  },
+  "asset": {
+    "category": {
+      "all": "All",
+      "local": "Local",
+      "character": "Character",
+      "scene": "Scene",
+      "prop": "Prop"
+    },
+    "source": {
+      "local": "Local",
+      "generated": "Generated",
+      "linked": "Linked"
+    },
+    "library": {
+      "default": "Select asset library"
+    },
+    "archiveSelected": "Archive Selected Node",
+    "archiveSuccess": "Archived {{count}} item(s)",
+    "archiveEmpty": "No materials to archive in this node",
+    "clear": "Clear Assets",
+    "clearConfirm": "Clear all assets for current project?",
+    "empty": "No assets in this category.",
+    "noProject": "Open a project to view assets.",
+    "emptySearch": "No matching assets",
+    "token": {
+      "image": "Image",
+      "video": "Video",
+      "audio": "Audio"
+    }
   },
   "project": {
     "title": "Projects",
@@ -469,7 +511,20 @@
     "checkingUpdate": "Checking for updates...",
     "checkUpdateHasUpdate": "A newer version is available.",
     "checkUpdateUpToDate": "You are already on the latest version.",
-    "checkUpdateFailed": "Update check failed. Please try again later."
+    "checkUpdateFailed": "Update check failed. Please try again later.",
+    "promptAutoEnhanceTitle": "Auto Enhancement",
+    "promptEnhanceEnable": "Enable prompt enhancement",
+    "promptEnhanceEnableDesc": "Append quality tags, prefix and suffix during generation.",
+    "promptAutoQuality": "Auto append quality tags",
+    "promptAutoQualityDesc": "Automatically append quality hints at the end of prompts.",
+    "promptQualityTags": "Quality tags",
+    "promptCustomPrefix": "Custom Prefix",
+    "promptCustomPrefixPlaceholder": "Inserted before prompt, e.g. 8k wallpaper",
+    "promptCustomSuffix": "Custom Suffix",
+    "promptCustomSuffixPlaceholder": "Inserted after prompt, e.g. trending on artstation",
+    "promptTemplateLibraryTitle": "Prompt Template Library",
+    "promptTemplateLibraryDesc": "Manage built-in and custom templates for fast insertion.",
+    "promptTemplateManage": "Manage Templates"
   },
   "update": {
     "dialogTitle": "Update Available",

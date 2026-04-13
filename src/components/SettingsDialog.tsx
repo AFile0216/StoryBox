@@ -3,7 +3,7 @@ import { X, Eye, EyeOff, FolderOpen, Plus, RefreshCw, Trash2, BookOpen } from 'l
 import { useTranslation } from 'react-i18next';
 import { getVersion } from '@tauri-apps/api/app';
 import { open } from '@tauri-apps/plugin-dialog';
-import { UiCheckbox, UiSelect } from '@/components/ui';
+import { UiButton, UiCheckbox, UiInput, UiSelect } from '@/components/ui';
 import {
   createDefaultCustomApiInterface,
   createDefaultComfyWorkflow,
@@ -67,7 +67,7 @@ function SettingsCheckboxCard({
           onCheckedChange(!checked);
         }
       }}
-      className="w-full rounded-lg border border-border-dark bg-bg-dark p-4 text-left transition-colors hover:border-[rgba(255,255,255,0.2)]"
+      className="ui-card w-full p-4 text-left transition-[transform,border-color,box-shadow] duration-150 hover:-translate-y-px hover:border-[var(--ui-border-strong)]"
     >
       <div className="flex items-start gap-3">
         <UiCheckbox
@@ -209,6 +209,8 @@ export function SettingsDialog({
   const [localEnableUpdateDialog, setLocalEnableUpdateDialog] = useState(enableUpdateDialog);
   const [localVersionFeed, setLocalVersionFeed] = useState(versionFeed);
   const [checkUpdateStatus, setCheckUpdateStatus] = useState<'' | 'checking' | 'has-update' | 'up-to-date' | 'failed'>('');
+  const [saveStatus, setSaveStatus] = useState<'' | 'saved' | 'failed'>('');
+  const [isSaving, setIsSaving] = useState(false);
   const [revealedApiKeys, setRevealedApiKeys] = useState<Record<string, boolean>>({});
   const [providerHealth, setProviderHealth] = useState<Record<string, string>>({});
   const { shouldRender, isVisible } = useDialogTransition(isOpen, UI_DIALOG_TRANSITION_MS);
@@ -257,6 +259,8 @@ export function SettingsDialog({
     setLocalVersionFeed(versionFeed);
     setLocalDownloadPathInput('');
     setCheckUpdateStatus('');
+    setSaveStatus('');
+    setIsSaving(false);
     setRevealedApiKeys({});
     setProviderHealth({});
   }, [
@@ -284,6 +288,8 @@ export function SettingsDialog({
   ]);
 
   const handleSave = useCallback(async () => {
+    setIsSaving(true);
+    setSaveStatus('');
     setCustomApiInterfaces(localCustomApiInterfaces);
     setComfyUi(localComfyUi);
     setProviderRoutes(localProviderRoutes);
@@ -328,11 +334,14 @@ export function SettingsDialog({
           enableUpdateDialog: localEnableUpdateDialog,
         })
       );
+      setSaveStatus('saved');
+      window.setTimeout(() => setSaveStatus(''), 1500);
     } catch (error) {
       console.error('Failed to save app settings', error);
+      setSaveStatus('failed');
+    } finally {
+      setIsSaving(false);
     }
-
-    onClose();
   }, [
     localAccentColor,
     localAutoCheckAppUpdateOnLaunch,
@@ -353,7 +362,6 @@ export function SettingsDialog({
     localUiRadiusPreset,
     localUseUploadFilenameAsNodeTitle,
     localVersionFeed,
-    onClose,
     setAccentColor,
     setAutoCheckAppUpdateOnLaunch,
     setCanvasEdgeRoutingMode,
@@ -442,22 +450,22 @@ export function SettingsDialog({
 
   return (
     <>
-      <div className={`fixed ${UI_CONTENT_OVERLAY_INSET_CLASS} z-50 flex items-center justify-center`}>
+      <div className={`fixed ${UI_CONTENT_OVERLAY_INSET_CLASS} z-50 flex items-center justify-center p-3 md:p-5`}>
       <div
-        className={`absolute inset-0 bg-black/90 transition-opacity duration-200 ${isVisible ? 'opacity-100' : 'opacity-0'}`}
+        className={`absolute inset-0 bg-black/68 backdrop-blur-[2px] transition-opacity duration-200 ${isVisible ? 'opacity-100' : 'opacity-0'}`}
         onClick={onClose}
       />
-      <div className="relative w-[min(96vw,1180px)]">
+      <div className="relative w-[min(96vw,1220px)]">
         <div
-          className={`relative mx-auto flex h-[min(88vh,760px)] w-full overflow-hidden rounded-lg border border-border-dark bg-surface-dark shadow-xl transition-opacity duration-200 ${isVisible ? 'opacity-100' : 'opacity-0'}`}
+          className={`relative mx-auto flex h-[min(90vh,800px)] w-full overflow-hidden rounded-[var(--ui-radius-2xl)] border border-[var(--ui-border-soft)] bg-[var(--ui-surface-panel)] shadow-[var(--ui-shadow-panel)] transition-[opacity,transform] duration-200 ${isVisible ? 'translate-y-0 opacity-100' : 'translate-y-2 opacity-0'}`}
         >
-          <button onClick={onClose} className="absolute right-3 top-3 z-10 rounded p-1 hover:bg-bg-dark">
+          <button onClick={onClose} className="absolute right-3 top-3 z-10 inline-flex h-8 w-8 items-center justify-center rounded-[var(--ui-radius-lg)] border border-transparent text-text-muted transition-colors hover:border-[var(--ui-border-soft)] hover:bg-[var(--ui-surface-field)] hover:text-text-dark">
             <X className="h-5 w-5 text-text-muted" />
           </button>
 
-          <div className="w-[190px] border-r border-border-dark bg-bg-dark">
-            <div className="px-4 py-4">
-              <span className="text-xs font-medium uppercase tracking-wider text-text-muted">
+          <div className="w-[210px] border-r border-[var(--ui-border-soft)] bg-[rgba(var(--bg-rgb),0.52)] px-3 py-3">
+            <div className="px-2 py-3">
+              <span className="ui-display-title text-[11px] font-medium uppercase tracking-[0.14em] text-text-muted">
                 {t('settings.title')}
               </span>
             </div>
@@ -465,10 +473,10 @@ export function SettingsDialog({
               <button
                 key={category}
                 onClick={() => setActiveCategory(category)}
-                className={`w-full px-4 py-2.5 text-left transition-colors ${
+                className={`mb-1 w-full rounded-[var(--ui-radius-lg)] px-3 py-2.5 text-left transition-all duration-150 ${
                   activeCategory === category
-                    ? 'border-l-2 border-accent bg-accent/10 text-text-dark'
-                    : 'text-text-muted hover:bg-bg-dark hover:text-text-dark'
+                    ? 'border border-[rgba(var(--accent-rgb),0.45)] bg-[rgba(var(--accent-rgb),0.15)] text-text-dark shadow-[0_8px_20px_rgba(var(--accent-rgb),0.14)]'
+                    : 'border border-transparent text-text-muted hover:border-[var(--ui-border-soft)] hover:bg-[var(--ui-surface-field)] hover:text-text-dark'
                 }`}
               >
                 <span className="text-sm">{t(`settings.${category}`)}</span>
@@ -477,8 +485,8 @@ export function SettingsDialog({
           </div>
 
           <div className="flex min-w-0 flex-1 flex-col">
-            <div className="border-b border-border-dark px-6 py-5">
-              <h2 className="text-lg font-semibold text-text-dark">{t(`settings.${activeCategory}`)}</h2>
+            <div className="border-b border-[var(--ui-border-soft)] px-6 py-5">
+              <h2 className="ui-display-title text-[14px] uppercase tracking-[0.08em] text-text-dark">{t(`settings.${activeCategory}`)}</h2>
               <p className="mt-1 text-sm text-text-muted">{t(`settings.${activeCategory}Desc`)}</p>
             </div>
 
@@ -509,7 +517,7 @@ export function SettingsDialog({
                     title={t('settings.useUploadFilenameAsNodeTitle')}
                     description={t('settings.useUploadFilenameAsNodeTitleDesc')}
                   />
-                  <div className="rounded-lg border border-border-dark bg-bg-dark p-4">
+                  <div className="ui-card p-4">
                     <h3 className="text-sm font-medium text-text-dark">{t('settings.downloadPresetPaths')}</h3>
                     <p className="mt-1 text-xs text-text-muted">{t('settings.downloadPresetPathsDesc')}</p>
                     <div className="mb-2 mt-3 flex items-center gap-2">
@@ -517,11 +525,11 @@ export function SettingsDialog({
                         value={localDownloadPathInput}
                         onChange={(event) => setLocalDownloadPathInput(event.target.value)}
                         placeholder={t('settings.downloadPathPlaceholder')}
-                        className="h-9 flex-1 rounded border border-border-dark bg-surface-dark px-3 text-sm text-text-dark"
+                        className="h-9 flex-1 rounded-[var(--ui-radius-lg)] border border-[var(--ui-border-soft)] bg-[var(--ui-surface-field)] px-3 text-sm text-text-dark"
                       />
                       <button
                         type="button"
-                        className="inline-flex h-9 items-center justify-center rounded border border-border-dark bg-surface-dark px-3 text-xs text-text-dark"
+                        className="inline-flex h-9 items-center justify-center rounded-[var(--ui-radius-lg)] border border-[var(--ui-border-soft)] bg-[var(--ui-surface-field)] px-3 text-xs text-text-dark"
                         onClick={handleAddDownloadPathFromInput}
                       >
                         <Plus className="mr-1 h-3.5 w-3.5" />
@@ -529,7 +537,7 @@ export function SettingsDialog({
                       </button>
                       <button
                         type="button"
-                        className="inline-flex h-9 items-center justify-center rounded border border-border-dark bg-surface-dark px-3 text-xs text-text-dark"
+                        className="inline-flex h-9 items-center justify-center rounded-[var(--ui-radius-lg)] border border-[var(--ui-border-soft)] bg-[var(--ui-surface-field)] px-3 text-xs text-text-dark"
                         onClick={() => void handlePickDownloadPath()}
                       >
                         <FolderOpen className="mr-1 h-3.5 w-3.5" />
@@ -538,16 +546,16 @@ export function SettingsDialog({
                     </div>
                     <div className="space-y-2">
                       {localDownloadPresetPaths.length === 0 ? (
-                        <div className="rounded border border-dashed border-border-dark px-3 py-2 text-xs text-text-muted">
+                        <div className="rounded-[var(--ui-radius-lg)] border border-dashed border-[var(--ui-border-soft)] px-3 py-2 text-xs text-text-muted">
                           {t('settings.noDownloadPresetPaths')}
                         </div>
                       ) : (
                         localDownloadPresetPaths.map((path) => (
-                          <div key={path} className="flex items-center justify-between gap-3 rounded border border-border-dark bg-surface-dark px-3 py-2">
+                          <div key={path} className="flex items-center justify-between gap-3 rounded-[var(--ui-radius-lg)] border border-[var(--ui-border-soft)] bg-[var(--ui-surface-field)] px-3 py-2">
                             <span className="truncate text-xs text-text-dark">{path}</span>
                             <button
                               type="button"
-                              className="inline-flex h-7 w-7 items-center justify-center rounded text-text-muted hover:bg-bg-dark"
+                              className="inline-flex h-7 w-7 items-center justify-center rounded text-text-muted hover:bg-[var(--ui-surface-field)]"
                               onClick={() =>
                                 setLocalDownloadPresetPaths((previous) => previous.filter((item) => item !== path))
                               }
@@ -563,7 +571,7 @@ export function SettingsDialog({
               )}
               {activeCategory === 'providers' && (
                 <>
-                  <div className="rounded-lg border border-border-dark bg-bg-dark p-4">
+                  <div className="ui-card p-4">
                     <div className="flex items-start justify-between gap-4">
                       <div>
                         <h3 className="text-sm font-medium text-text-dark">{t('settings.customApiListTitle')}</h3>
@@ -571,7 +579,7 @@ export function SettingsDialog({
                       </div>
                       <button
                         type="button"
-                        className="inline-flex h-8 items-center justify-center rounded border border-border-dark bg-surface-dark px-3 text-xs text-text-dark"
+                        className="inline-flex h-8 items-center justify-center rounded-[var(--ui-radius-lg)] border border-[var(--ui-border-soft)] bg-[var(--ui-surface-field)] px-3 text-xs text-text-dark"
                         onClick={handleAddCustomApiInterface}
                       >
                         <Plus className="mr-1 h-3.5 w-3.5" />
@@ -582,7 +590,7 @@ export function SettingsDialog({
                   {localCustomApiInterfaces.map((apiInterface, index) => {
                     const isRevealed = Boolean(revealedApiKeys[apiInterface.id]);
                     return (
-                      <div key={apiInterface.id} className="rounded-lg border border-border-dark bg-bg-dark p-4">
+                      <div key={apiInterface.id} className="ui-card p-4">
                         <div className="mb-3 flex items-center justify-between gap-3">
                           <div>
                             <h3 className="text-sm font-medium text-text-dark">
@@ -593,7 +601,7 @@ export function SettingsDialog({
                           <div className="flex items-center gap-2">
                             <button
                               type="button"
-                              className="inline-flex h-8 items-center justify-center rounded border border-border-dark bg-surface-dark px-3 text-xs text-text-dark"
+                              className="inline-flex h-8 items-center justify-center rounded-[var(--ui-radius-lg)] border border-[var(--ui-border-soft)] bg-[var(--ui-surface-field)] px-3 text-xs text-text-dark"
                               onClick={() =>
                                 void checkProviderHealth('custom-api', apiInterface.baseUrl).then((result) =>
                                   setProviderHealth((previous) => ({ ...previous, [apiInterface.id]: result.message }))
@@ -627,7 +635,7 @@ export function SettingsDialog({
                               )
                             }
                             placeholder={t('settings.customApiNamePlaceholder')}
-                            className="rounded border border-border-dark bg-surface-dark px-3 py-2 text-sm text-text-dark"
+                            className="rounded-[var(--ui-radius-lg)] border border-[var(--ui-border-soft)] bg-[var(--ui-surface-field)] px-3 py-2 text-sm text-text-dark"
                           />
                           <input
                             value={apiInterface.baseUrl}
@@ -639,7 +647,7 @@ export function SettingsDialog({
                               )
                             }
                             placeholder={DEFAULT_CUSTOM_API_BASE_URL}
-                            className="rounded border border-border-dark bg-surface-dark px-3 py-2 text-sm text-text-dark"
+                            className="rounded-[var(--ui-radius-lg)] border border-[var(--ui-border-soft)] bg-[var(--ui-surface-field)] px-3 py-2 text-sm text-text-dark"
                           />
                         </div>
                         <div className="mt-3 grid gap-3 md:grid-cols-2">
@@ -671,11 +679,11 @@ export function SettingsDialog({
                                 )
                               }
                               placeholder={t('settings.enterApiKey')}
-                              className="w-full rounded border border-border-dark bg-surface-dark px-3 py-2 pr-10 text-sm text-text-dark"
+                              className="w-full rounded-[var(--ui-radius-lg)] border border-[var(--ui-border-soft)] bg-[var(--ui-surface-field)] px-3 py-2 pr-10 text-sm text-text-dark"
                             />
                             <button
                               type="button"
-                              className="absolute right-2 top-2 rounded p-1 hover:bg-bg-dark"
+                              className="absolute right-2 top-2 rounded p-1 hover:bg-[var(--ui-surface-field)]"
                               onClick={() =>
                                 setRevealedApiKeys((previous) => ({
                                   ...previous,
@@ -687,7 +695,7 @@ export function SettingsDialog({
                             </button>
                           </div>
                         </div>
-                        <label className="mt-3 flex items-start gap-3 rounded border border-border-dark bg-surface-dark px-3 py-2.5">
+                        <label className="mt-3 flex items-start gap-3 rounded-[var(--ui-radius-lg)] border border-[var(--ui-border-soft)] bg-[var(--ui-surface-field)] px-3 py-2.5">
                           <UiCheckbox
                             checked={apiInterface.omitSizeParams}
                             onCheckedChange={(checked) =>
@@ -715,12 +723,12 @@ export function SettingsDialog({
                           }
                           rows={5}
                           placeholder={t('settings.customApiModelsPlaceholder')}
-                          className="ui-scrollbar mt-3 w-full resize-y rounded border border-border-dark bg-surface-dark px-3 py-2 text-sm text-text-dark"
+                          className="ui-scrollbar mt-3 w-full resize-y rounded-[var(--ui-radius-lg)] border border-[var(--ui-border-soft)] bg-[var(--ui-surface-field)] px-3 py-2 text-sm text-text-dark"
                         />
                       </div>
                     );
                   })}
-                  <div className="rounded-lg border border-border-dark bg-bg-dark p-4">
+                  <div className="ui-card p-4">
                     <div className="mb-3 flex items-start justify-between gap-3">
                       <div>
                         <h3 className="text-sm font-medium text-text-dark">{t('settings.comfyTitle')}</h3>
@@ -728,7 +736,7 @@ export function SettingsDialog({
                       </div>
                       <button
                         type="button"
-                        className="inline-flex h-8 items-center justify-center rounded border border-border-dark bg-surface-dark px-3 text-xs text-text-dark"
+                        className="inline-flex h-8 items-center justify-center rounded-[var(--ui-radius-lg)] border border-[var(--ui-border-soft)] bg-[var(--ui-surface-field)] px-3 text-xs text-text-dark"
                         onClick={() =>
                           void checkProviderHealth('comfyui', localComfyUi.baseUrl).then((result) =>
                             setProviderHealth((previous) => ({ ...previous, comfyui: result.message }))
@@ -755,13 +763,13 @@ export function SettingsDialog({
                         setLocalComfyUi((previous) => ({ ...previous, baseUrl: event.target.value }))
                       }
                       placeholder={DEFAULT_COMFYUI_BASE_URL}
-                      className="mt-3 w-full rounded border border-border-dark bg-surface-dark px-3 py-2 text-sm text-text-dark"
+                      className="mt-3 w-full rounded-[var(--ui-radius-lg)] border border-[var(--ui-border-soft)] bg-[var(--ui-surface-field)] px-3 py-2 text-sm text-text-dark"
                     />
                     <div className="mt-3 flex items-center justify-between gap-3">
                       <div className="text-xs text-text-muted">{t('settings.comfyWorkflowHint')}</div>
                       <button
                         type="button"
-                        className="inline-flex h-8 items-center justify-center rounded border border-border-dark bg-surface-dark px-3 text-xs text-text-dark"
+                        className="inline-flex h-8 items-center justify-center rounded-[var(--ui-radius-lg)] border border-[var(--ui-border-soft)] bg-[var(--ui-surface-field)] px-3 text-xs text-text-dark"
                         onClick={() =>
                           setLocalComfyUi((previous) => ({
                             ...previous,
@@ -780,7 +788,7 @@ export function SettingsDialog({
                     </div>
                     <div className="mt-3 space-y-3">
                       {localComfyUi.workflows.map((workflow, index) => (
-                        <div key={workflow.id} className="rounded border border-border-dark bg-surface-dark p-3">
+                        <div key={workflow.id} className="rounded-[var(--ui-radius-lg)] border border-[var(--ui-border-soft)] bg-[var(--ui-surface-field)] p-3">
                           <div className="mb-3 flex items-center justify-between gap-3">
                             <div>
                               <div className="text-sm font-medium text-text-dark">
@@ -790,7 +798,7 @@ export function SettingsDialog({
                             </div>
                             <button
                               type="button"
-                              className="inline-flex h-8 w-8 items-center justify-center rounded text-text-muted hover:bg-bg-dark"
+                              className="inline-flex h-8 w-8 items-center justify-center rounded text-text-muted hover:bg-[var(--ui-surface-field)]"
                               onClick={() =>
                                 setLocalComfyUi((previous) => ({
                                   ...previous,
@@ -813,7 +821,7 @@ export function SettingsDialog({
                                 }))
                               }
                               placeholder={t('settings.comfyWorkflowName')}
-                              className="rounded border border-border-dark bg-bg-dark px-3 py-2 text-sm text-text-dark"
+                              className="rounded-[var(--ui-radius-lg)] border border-[var(--ui-border-soft)] bg-[var(--ui-surface-field)] px-3 py-2 text-sm text-text-dark"
                             />
                             <UiSelect
                               value={workflow.taskType}
@@ -848,7 +856,7 @@ export function SettingsDialog({
                                 }))
                               }
                               placeholder={t('settings.comfyOutputNodeId')}
-                              className="rounded border border-border-dark bg-bg-dark px-3 py-2 text-sm text-text-dark"
+                              className="rounded-[var(--ui-radius-lg)] border border-[var(--ui-border-soft)] bg-[var(--ui-surface-field)] px-3 py-2 text-sm text-text-dark"
                             />
                             <input
                               value={workflow.imageInputNodeId}
@@ -861,7 +869,7 @@ export function SettingsDialog({
                                 }))
                               }
                               placeholder={t('settings.comfyImageInputNodeId')}
-                              className="rounded border border-border-dark bg-bg-dark px-3 py-2 text-sm text-text-dark"
+                              className="rounded-[var(--ui-radius-lg)] border border-[var(--ui-border-soft)] bg-[var(--ui-surface-field)] px-3 py-2 text-sm text-text-dark"
                             />
                           </div>
                           <div className="mt-3 grid gap-3 md:grid-cols-2">
@@ -876,7 +884,7 @@ export function SettingsDialog({
                                 }))
                               }
                               placeholder={t('settings.comfyPositivePromptNodes')}
-                              className="rounded border border-border-dark bg-bg-dark px-3 py-2 text-sm text-text-dark"
+                              className="rounded-[var(--ui-radius-lg)] border border-[var(--ui-border-soft)] bg-[var(--ui-surface-field)] px-3 py-2 text-sm text-text-dark"
                             />
                             <input
                               value={stringifyNodeIdList(workflow.negativePromptNodeIds)}
@@ -889,7 +897,7 @@ export function SettingsDialog({
                                 }))
                               }
                               placeholder={t('settings.comfyNegativePromptNodes')}
-                              className="rounded border border-border-dark bg-bg-dark px-3 py-2 text-sm text-text-dark"
+                              className="rounded-[var(--ui-radius-lg)] border border-[var(--ui-border-soft)] bg-[var(--ui-surface-field)] px-3 py-2 text-sm text-text-dark"
                             />
                           </div>
                           <textarea
@@ -904,18 +912,18 @@ export function SettingsDialog({
                             }
                             rows={8}
                             placeholder={t('settings.comfyPromptApiJson')}
-                            className="ui-scrollbar mt-3 w-full resize-y rounded border border-border-dark bg-bg-dark px-3 py-2 text-sm text-text-dark"
+                            className="ui-scrollbar mt-3 w-full resize-y rounded-[var(--ui-radius-lg)] border border-[var(--ui-border-soft)] bg-[var(--ui-surface-field)] px-3 py-2 text-sm text-text-dark"
                           />
                         </div>
                       ))}
                     </div>
                   </div>
-                  <div className="rounded-lg border border-border-dark bg-bg-dark p-4">
+                  <div className="ui-card p-4">
                     <h3 className="text-sm font-medium text-text-dark">{t('settings.providerRoutingTitle')}</h3>
                     <p className="mt-1 text-xs text-text-muted">{t('settings.providerRoutingDesc')}</p>
                     <div className="mt-3 space-y-3">
                       {localProviderRoutes.map((route) => (
-                        <div key={route.taskType} className="grid gap-3 rounded border border-border-dark bg-surface-dark p-3 md:grid-cols-[180px_160px_1fr]">
+                        <div key={route.taskType} className="grid gap-3 rounded-[var(--ui-radius-lg)] border border-[var(--ui-border-soft)] bg-[var(--ui-surface-field)] p-3 md:grid-cols-[180px_160px_1fr]">
                           <div className="text-sm text-text-dark">
                             {t(TASK_TYPES.find((item) => item.value === route.taskType)?.key ?? '')}
                           </div>
@@ -961,7 +969,7 @@ export function SettingsDialog({
               )}
               {activeCategory === 'appearance' && (
                 <>
-                  <div className="rounded-lg border border-border-dark bg-bg-dark p-4">
+                  <div className="ui-card p-4">
                     <h3 className="text-sm font-medium text-text-dark">{t('settings.radiusPreset')}</h3>
                     <p className="mt-1 text-xs text-text-muted">{t('settings.radiusPresetDesc')}</p>
                     <UiSelect
@@ -974,7 +982,7 @@ export function SettingsDialog({
                       <option value="large">{t('settings.radiusLarge')}</option>
                     </UiSelect>
                   </div>
-                  <div className="rounded-lg border border-border-dark bg-bg-dark p-4">
+                  <div className="ui-card p-4">
                     <h3 className="text-sm font-medium text-text-dark">{t('settings.themeTone')}</h3>
                     <p className="mt-1 text-xs text-text-muted">{t('settings.themeToneDesc')}</p>
                     <UiSelect
@@ -989,7 +997,7 @@ export function SettingsDialog({
                       <option value="cool">{t('settings.toneCool')}</option>
                     </UiSelect>
                   </div>
-                  <div className="rounded-lg border border-border-dark bg-bg-dark p-4">
+                  <div className="ui-card p-4">
                     <h3 className="text-sm font-medium text-text-dark">{t('settings.themeContrast')}</h3>
                     <p className="mt-1 text-xs text-text-muted">{t('settings.themeContrastDesc')}</p>
                     <UiSelect
@@ -1008,86 +1016,88 @@ export function SettingsDialog({
               )}
               {activeCategory === 'prompt' && (
                 <>
-                  {/* 提示词增强基础设置 */}
-                  <div className="rounded-lg border border-border-dark bg-bg-dark p-4">
-                    <h3 className="mb-3 text-sm font-medium text-text-dark">自动增强</h3>
+                  <div className="ui-card p-4">
+                    <h3 className="mb-3 text-sm font-medium text-text-dark">{t('settings.promptAutoEnhanceTitle', { defaultValue: 'Auto Enhancement' })}</h3>
                     <div className="space-y-3">
                       <label className="flex items-center justify-between gap-3">
                         <div>
-                          <span className="text-sm text-text-dark">启用提示词增强</span>
-                          <p className="mt-0.5 text-xs text-text-muted">生成时自动在提示词中添加质量词、前缀或后缀</p>
+                          <span className="text-sm text-text-dark">{t('settings.promptEnhanceEnable', { defaultValue: 'Enable prompt enhancement' })}</span>
+                          <p className="mt-0.5 text-xs text-text-muted">{t('settings.promptEnhanceEnableDesc', { defaultValue: 'Append quality tags, prefix and suffix during generation.' })}</p>
                         </div>
                         <UiCheckbox
                           checked={promptEnhancement.enabled}
                           onCheckedChange={(checked) => setPromptEnhancement({ enabled: checked })}
                         />
                       </label>
-                      {promptEnhancement.enabled && (
+
+                      {promptEnhancement.enabled ? (
                         <>
                           <label className="flex items-center justify-between gap-3">
                             <div>
-                              <span className="text-sm text-text-dark">自动添加质量标签</span>
-                              <p className="mt-0.5 text-xs text-text-muted">在提示词末尾自动附加质量增强词</p>
+                              <span className="text-sm text-text-dark">{t('settings.promptAutoQuality', { defaultValue: 'Auto append quality tags' })}</span>
+                              <p className="mt-0.5 text-xs text-text-muted">{t('settings.promptAutoQualityDesc', { defaultValue: 'Automatically append quality hints at the end of prompts.' })}</p>
                             </div>
                             <UiCheckbox
                               checked={promptEnhancement.autoAppendQualityTags}
                               onCheckedChange={(checked) => setPromptEnhancement({ autoAppendQualityTags: checked })}
                             />
                           </label>
-                          {promptEnhancement.autoAppendQualityTags && (
+
+                          {promptEnhancement.autoAppendQualityTags ? (
                             <div>
-                              <label className="mb-1.5 block text-xs text-text-muted">质量标签</label>
+                              <label className="mb-1.5 block text-xs text-text-muted">{t('settings.promptQualityTags', { defaultValue: 'Quality tags' })}</label>
                               <textarea
                                 value={promptEnhancement.qualityTags}
-                                onChange={(e) => setPromptEnhancement({ qualityTags: e.target.value })}
+                                onChange={(event) => setPromptEnhancement({ qualityTags: event.target.value })}
                                 placeholder="masterpiece, best quality, highly detailed"
                                 rows={2}
-                                className="w-full resize-none rounded-lg border border-border-dark bg-surface px-3 py-2 text-sm text-text-dark placeholder:text-text-muted/50 focus:border-accent focus:outline-none"
+                                className="w-full resize-none rounded-[var(--ui-radius-lg)] border border-[var(--ui-border-soft)] bg-[var(--ui-surface-field)] px-3 py-2 text-sm text-text-dark placeholder:text-text-muted/50 focus:border-[rgba(var(--accent-rgb),0.6)] focus:outline-none"
                               />
                             </div>
-                          )}
+                          ) : null}
+
                           <div>
-                            <label className="mb-1.5 block text-xs text-text-muted">自定义前缀</label>
-                            <input
+                            <label className="mb-1.5 block text-xs text-text-muted">{t('settings.promptCustomPrefix', { defaultValue: 'Custom Prefix' })}</label>
+                            <UiInput
                               value={promptEnhancement.customPrefix}
-                              onChange={(e) => setPromptEnhancement({ customPrefix: e.target.value })}
-                              placeholder="在提示词前插入的内容，例如：8k wallpaper"
-                              className="w-full rounded-lg border border-border-dark bg-surface px-3 py-2 text-sm text-text-dark placeholder:text-text-muted/50 focus:border-accent focus:outline-none"
+                              onChange={(event) => setPromptEnhancement({ customPrefix: event.target.value })}
+                              placeholder={t('settings.promptCustomPrefixPlaceholder', { defaultValue: 'Inserted before prompt, e.g. 8k wallpaper' })}
                             />
                           </div>
+
                           <div>
-                            <label className="mb-1.5 block text-xs text-text-muted">自定义后缀</label>
-                            <input
+                            <label className="mb-1.5 block text-xs text-text-muted">{t('settings.promptCustomSuffix', { defaultValue: 'Custom Suffix' })}</label>
+                            <UiInput
                               value={promptEnhancement.customSuffix}
-                              onChange={(e) => setPromptEnhancement({ customSuffix: e.target.value })}
-                              placeholder="在提示词后插入的内容，例如：trending on artstation"
-                              className="w-full rounded-lg border border-border-dark bg-surface px-3 py-2 text-sm text-text-dark placeholder:text-text-muted/50 focus:border-accent focus:outline-none"
+                              onChange={(event) => setPromptEnhancement({ customSuffix: event.target.value })}
+                              placeholder={t('settings.promptCustomSuffixPlaceholder', { defaultValue: 'Inserted after prompt, e.g. trending on artstation' })}
                             />
                           </div>
                         </>
-                      )}
+                      ) : null}
                     </div>
                   </div>
 
-                  {/* 模板库管理 */}
-                  <div className="rounded-lg border border-border-dark bg-bg-dark p-4">
-                    <div className="flex items-start justify-between">
+                  <div className="ui-card p-4">
+                    <div className="flex items-start justify-between gap-3">
                       <div>
-                        <h3 className="text-sm font-medium text-text-dark">提示词模板库</h3>
-                        <p className="mt-1 text-xs text-text-muted">管理内置和自定义的提示词模板，在节点中快速插入</p>
+                        <h3 className="text-sm font-medium text-text-dark">{t('settings.promptTemplateLibraryTitle', { defaultValue: 'Prompt Template Library' })}</h3>
+                        <p className="mt-1 text-xs text-text-muted">{t('settings.promptTemplateLibraryDesc', { defaultValue: 'Manage built-in and custom templates for fast insertion.' })}</p>
                       </div>
-                      <button
+                      <UiButton
+                        type="button"
+                        variant="muted"
+                        size="sm"
                         onClick={() => setShowTemplateDialog(true)}
-                        className="flex items-center gap-1.5 rounded-lg border border-border-dark px-3 py-1.5 text-xs text-text-muted transition-colors hover:border-accent/50 hover:text-accent"
                       >
                         <BookOpen className="h-3.5 w-3.5" />
-                        管理模板
-                      </button>
+                        {t('settings.promptTemplateManage', { defaultValue: 'Manage Templates' })}
+                      </UiButton>
                     </div>
                   </div>
                 </>
               )}
-              {activeCategory === 'experimental' && (
+{activeCategory === 'experimental' && (
                 <>
                   <SettingsCheckboxCard
                     checked={localEnableStoryboardGenGridPreviewShortcut}
@@ -1111,7 +1121,7 @@ export function SettingsDialog({
               )}
               {activeCategory === 'about' && (
                 <>
-                  <div className="rounded-lg border border-border-dark bg-bg-dark p-4 space-y-2 text-sm">
+                  <div className="ui-card p-4 space-y-2 text-sm">
                     <p className="text-text-dark">
                       {t('settings.aboutVersionLabel')}:{' '}
                       <span className="text-text-muted">{appVersion || t('settings.aboutVersionUnknown')}</span>
@@ -1121,7 +1131,7 @@ export function SettingsDialog({
                       <span className="break-all text-text-muted">{localVersionFeed.githubRepo}</span>
                     </p>
                   </div>
-                  <div className="rounded-lg border border-border-dark bg-bg-dark p-4">
+                  <div className="ui-card p-4">
                     <h3 className="text-sm font-medium text-text-dark">{t('settings.versionFeedTitle')}</h3>
                     <p className="mt-1 text-xs text-text-muted">{t('settings.versionFeedDesc')}</p>
                     <div className="mt-3 grid gap-3 md:grid-cols-2">
@@ -1144,7 +1154,7 @@ export function SettingsDialog({
                           setLocalVersionFeed((previous) => ({ ...previous, githubRepo: event.target.value }))
                         }
                         placeholder={t('settings.versionFeedGithubRepo')}
-                        className="rounded border border-border-dark bg-surface-dark px-3 py-2 text-sm text-text-dark"
+                        className="rounded-[var(--ui-radius-lg)] border border-[var(--ui-border-soft)] bg-[var(--ui-surface-field)] px-3 py-2 text-sm text-text-dark"
                       />
                     </div>
                     <input
@@ -1153,7 +1163,7 @@ export function SettingsDialog({
                         setLocalVersionFeed((previous) => ({ ...previous, customFeedUrl: event.target.value }))
                       }
                       placeholder={t('settings.versionFeedCustomUrl')}
-                      className="mt-3 w-full rounded border border-border-dark bg-surface-dark px-3 py-2 text-sm text-text-dark"
+                      className="mt-3 w-full rounded-[var(--ui-radius-lg)] border border-[var(--ui-border-soft)] bg-[var(--ui-surface-field)] px-3 py-2 text-sm text-text-dark"
                     />
                   </div>
                   <SettingsCheckboxCard
@@ -1169,16 +1179,22 @@ export function SettingsDialog({
                     description={t('settings.enableUpdateDialogDesc')}
                   />
                   <div className="pt-1">
-                    <button
+                    <UiButton
                       type="button"
+                      variant="muted"
                       onClick={() => void handleCheckUpdate()}
-                      className="rounded border border-border-dark bg-surface-dark px-3 py-2 text-sm text-text-dark disabled:opacity-50"
                       disabled={checkUpdateStatus === 'checking'}
                     >
                       {checkUpdateStatus === 'checking' ? t('settings.checkingUpdate') : t('settings.checkUpdateNow')}
-                    </button>
+                    </UiButton>
                     {checkUpdateStatus !== '' && (
-                      <p className="mt-2 text-xs text-text-muted">
+                      <p className={`mt-2 rounded-[var(--ui-radius-lg)] px-2 py-1 text-xs ${
+                        checkUpdateStatus === 'failed'
+                          ? 'ui-status-error'
+                          : checkUpdateStatus === 'has-update'
+                            ? 'ui-status-warning'
+                            : 'ui-status-info'
+                      }`}>
                         {checkUpdateStatus === 'has-update' && t('settings.checkUpdateHasUpdate')}
                         {checkUpdateStatus === 'up-to-date' && t('settings.checkUpdateUpToDate')}
                         {checkUpdateStatus === 'failed' && t('settings.checkUpdateFailed')}
@@ -1189,13 +1205,23 @@ export function SettingsDialog({
                 </>
               )}
             </div>
-            <div className="flex justify-end gap-2 border-t border-border-dark px-6 py-4">
-              <button onClick={onClose} className="rounded border border-border-dark px-4 py-2 text-sm font-medium text-text-dark">
+            <div className="flex justify-end gap-2 border-t border-[var(--ui-border-soft)] px-6 py-4">
+              {saveStatus === 'saved' ? (
+                <span className="ui-status-success mr-auto rounded-[var(--ui-radius-lg)] px-2 py-1 text-xs">
+                  {t('common.success', { defaultValue: 'Success' })}
+                </span>
+              ) : null}
+              {saveStatus === 'failed' ? (
+                <span className="ui-status-error mr-auto rounded-[var(--ui-radius-lg)] px-2 py-1 text-xs">
+                  {t('common.error', { defaultValue: 'Error' })}
+                </span>
+              ) : null}
+              <UiButton type="button" variant="ghost" onClick={onClose} disabled={isSaving}>
                 {t('common.close')}
-              </button>
-              <button onClick={() => void handleSave()} className="rounded bg-accent px-4 py-2 text-sm font-medium text-white">
+              </UiButton>
+              <UiButton type="button" variant="primary" onClick={() => void handleSave()} loading={isSaving}>
                 {t('common.save')}
-              </button>
+              </UiButton>
             </div>
           </div>
         </div>
@@ -1209,3 +1235,6 @@ export function SettingsDialog({
     </>
   );
 }
+
+
+

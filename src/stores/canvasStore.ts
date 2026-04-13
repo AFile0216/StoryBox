@@ -1,4 +1,3 @@
-import { useHistoryStore } from './historyStore';
 import { create } from 'zustand';
 import {
   Connection,
@@ -331,7 +330,9 @@ function normalizeHistory(history?: CanvasHistoryState): CanvasHistoryState {
   }
 
   const normalizeSnapshot = (snapshot: CanvasHistorySnapshot): CanvasHistorySnapshot => {
-    const normalizedNodes = normalizeNodes(snapshot.nodes);
+    const normalizedNodes = normalizeNodes(
+      snapshot.nodes.filter((node) => node.type !== CANVAS_NODE_TYPES.chat)
+    );
     return {
       nodes: normalizedNodes,
       edges: normalizeEdgesWithNodes(snapshot.edges, normalizedNodes),
@@ -734,7 +735,8 @@ export const useCanvasStore = create<CanvasState>((set, get) => ({
   },
 
   setCanvasData: (nodes, edges, history) => {
-    const normalizedNodes = normalizeNodes(nodes);
+    const filteredNodes = nodes.filter((node) => node.type !== CANVAS_NODE_TYPES.chat);
+    const normalizedNodes = normalizeNodes(filteredNodes);
     const normalizedEdges = normalizeEdgesWithNodes(edges, normalizedNodes);
     useToolDialogStore.getState().closeToolDialog();
 
@@ -1094,26 +1096,6 @@ export const useCanvasStore = create<CanvasState>((set, get) => ({
     set((state) => {
       let changed = false;
       const nextNodes = state.nodes.map((node) => {
-        if (node.id === nodeId) {
-          // Hook into image generation success
-          if (
-            (node.type === CANVAS_NODE_TYPES.imageEdit || node.type === CANVAS_NODE_TYPES.storyboardGen) &&
-            'imageUrl' in data &&
-            data.imageUrl &&
-            data.imageUrl !== (node.data as any).imageUrl &&
-            (node.data as any).generationJobId
-          ) {
-            useHistoryStore.getState().addRecord({
-              nodeId: node.id,
-              type: 'image',
-              imageUrl: data.imageUrl as string,
-              mediaUrl: data.imageUrl as string,
-              prompt: (node.data as any).prompt ?? '',
-              model: String((node.data as any).generationProviderId || 'unknown') as string,
-              filePath: typeof data.imageUrl === 'string' ? data.imageUrl : undefined,
-            });
-          }
-        }
         if (node.id !== nodeId) {
           return node;
         }

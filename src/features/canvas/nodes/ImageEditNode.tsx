@@ -30,6 +30,7 @@ import { resolveNodeDisplayName } from '@/features/canvas/domain/nodeDisplay';
 import { NodeHeader, NODE_HEADER_FLOATING_POSITION_CLASS } from '@/features/canvas/ui/NodeHeader';
 import { resolveAdaptiveHandleStyle, resolveResponsiveNodeClasses } from '@/features/canvas/ui/nodeMetrics';
 import { NodeResizeHandle } from '@/features/canvas/ui/NodeResizeHandle';
+import { NodeMaterialStrip } from '@/features/canvas/ui/NodeMaterialStrip';
 import {
   canvasAiGateway,
   graphImageResolver,
@@ -756,7 +757,9 @@ export const ImageEditNode = memo(({ id, data, selected, width, height }: ImageE
         onTitleChange={(nextTitle) => updateNodeData(id, { displayName: nextTitle })}
       />
 
-      <div className={`tapnow-node-panel relative mt-7 min-h-0 flex-1 ${uiDensity.panelPadding}`}>
+      <NodeMaterialStrip nodeId={id} className="mt-6" />
+
+      <div className={`tapnow-node-panel relative mt-2 min-h-0 flex-1 ${uiDensity.panelPadding}`}>
         <div className="relative h-full min-h-0">
           <div
             ref={promptHighlightRef}

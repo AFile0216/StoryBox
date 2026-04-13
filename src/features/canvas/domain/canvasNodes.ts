@@ -75,11 +75,21 @@ export interface GroupNodeData extends NodeDisplayData {
 }
 
 export type TextAnnotationMode =
+  | 'text-to-image'
+  | 'reverse-prompt'
   | 'plain-text'
   | 'text-to-image-prompt'
   | 'text-to-music-prompt'
-  | 'text-to-video-prompt'
-  | 'reverse-prompt';
+  | 'text-to-video-prompt';
+
+export interface TextReversePromptResult {
+  analysis: string;
+  prompts: {
+    mj: Record<string, unknown>;
+    nanobanana: Record<string, unknown>;
+    jimeng: Record<string, unknown>;
+  };
+}
 
 export interface TextAnnotationNodeData extends NodeDisplayData {
   content: string;
@@ -90,6 +100,10 @@ export interface TextAnnotationNodeData extends NodeDisplayData {
   isGenerating?: boolean;
   lastGeneratedAt?: number | null;
   generationError?: string | null;
+  generatedImageUrl?: string | null;
+  generatedPreviewImageUrl?: string | null;
+  reversePromptJson?: string | null;
+  reversePromptResult?: TextReversePromptResult | null;
   [key: string]: unknown;
 }
 

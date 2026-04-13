@@ -26,8 +26,8 @@ import { NodeHeader, NODE_HEADER_FLOATING_POSITION_CLASS } from '@/features/canv
 import { resolveAdaptiveHandleStyle, resolveResponsiveNodeClasses } from '@/features/canvas/ui/nodeMetrics';
 import { NodeResizeHandle } from '@/features/canvas/ui/NodeResizeHandle';
 import { ReferenceAwareTextarea } from '@/features/canvas/ui/ReferenceAwareTextarea';
+import { NodeMaterialStrip } from '@/features/canvas/ui/NodeMaterialStrip';
 import { useCanvasStore } from '@/stores/canvasStore';
-import { useHistoryStore } from '@/stores/historyStore';
 import { useSettingsStore } from '@/stores/settingsStore';
 
 type VideoNodeProps = NodeProps & { id: string; data: VideoNodeData; selected?: boolean };
@@ -103,7 +103,6 @@ export const VideoNode = memo(({ id, data, selected, width, height }: VideoNodeP
   const nodes = useCanvasStore((state) => state.nodes);
   const edges = useCanvasStore((state) => state.edges);
   const customApiInterfaces = useSettingsStore((state) => state.customApiInterfaces);
-  const addHistoryRecord = useHistoryStore((state) => state.addRecord);
   const timerRef = useRef<number | null>(null);
 
   const resolvedTitle = resolveNodeDisplayName(CANVAS_NODE_TYPES.video, data);
@@ -306,14 +305,6 @@ export const VideoNode = memo(({ id, data, selected, width, height }: VideoNodeP
       });
 
       createPreviewNodeFromPath(outputPath, data.sourceFileName ?? data.audioSourceFileName);
-      addHistoryRecord({
-        nodeId: id,
-        type: 'video',
-        mediaUrl: outputPath,
-        prompt: data.prompt ?? '',
-        model: selectedModel || 'unknown',
-        filePath: outputPath,
-      });
       timerRef.current = null;
     }, 900);
   };
@@ -338,7 +329,9 @@ export const VideoNode = memo(({ id, data, selected, width, height }: VideoNodeP
         onTitleChange={(value) => updateNodeData(id, { displayName: value })}
       />
 
-      <div className={`mt-7 flex min-h-0 flex-1 flex-col ${uiDensity.stackGap}`}>
+      <NodeMaterialStrip nodeId={id} className="mt-6" />
+
+      <div className={`mt-2 flex min-h-0 flex-1 flex-col ${uiDensity.stackGap}`}>
         <div className={`grid ${modeGridClass} ${uiDensity.sectionGap}`}>
           {MODE_OPTIONS.map((mode) => {
             const Icon = MODE_ICONS[mode] ?? Film;

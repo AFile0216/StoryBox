@@ -72,7 +72,7 @@ export function UpdateAvailableDialog({
       <div className="text-sm text-text-muted leading-6">
         <p>{t('update.dialogDescription')}</p>
         {(latestVersion || currentVersion) && (
-          <p className="mt-2 text-xs">
+          <p className="ui-status-info mt-2 rounded-[var(--ui-radius-lg)] px-2 py-1 text-xs">
             {t('update.versionLine', {
               currentVersion: currentVersion ?? '-',
               latestVersion: latestVersion ?? '-',

@@ -17,6 +17,7 @@ import {
   resolveAdaptiveHandleStyle,
   resolveResponsiveNodeClasses,
 } from '@/features/canvas/ui/nodeMetrics';
+import { NodeMaterialStrip } from '@/features/canvas/ui/NodeMaterialStrip';
 import { useCanvasStore } from '@/stores/canvasStore';
 
 type VideoPreviewNodeProps = NodeProps & {
@@ -214,7 +215,9 @@ export const VideoPreviewNode = memo(({ id, data, selected, width, height }: Vid
         onTitleChange={(nextTitle) => updateNodeData(id, { displayName: nextTitle })}
       />
 
-      <div className={`mt-6 flex min-h-0 flex-1 flex-col ${uiDensity.stackGap}`}>
+      <NodeMaterialStrip nodeId={id} className="mt-6" />
+
+      <div className={`mt-2 flex min-h-0 flex-1 flex-col ${uiDensity.stackGap}`}>
         <div className="flex items-center justify-between gap-2">
           <div className={`tapnow-node-pill px-2 py-1 uppercase tracking-[0.12em] ${uiDensity.metaText}`}>
             {t('node.video.title', { defaultValue: '视频' })}

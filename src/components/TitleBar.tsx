@@ -34,7 +34,7 @@ function TitlebarToolButton({
       data-no-drag="true"
       onMouseDown={(event) => event.stopPropagation()}
       onClick={onClick}
-      className="inline-flex h-8 w-8 items-center justify-center rounded-[8px] text-text-muted transition-all hover:bg-[var(--ui-surface-field)] hover:text-text-dark"
+      className="inline-flex h-8 w-8 items-center justify-center rounded-[var(--ui-radius-lg)] border border-transparent text-text-muted transition-all duration-150 hover:-translate-y-px hover:border-[var(--ui-border-soft)] hover:bg-[var(--ui-surface-field)] hover:text-text-dark focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[rgba(var(--accent-rgb),0.22)]"
       title={title}
       aria-label={title}
     >
@@ -94,7 +94,7 @@ export function TitleBar({ onSettingsClick, showBackButton, onBackClick, onHisto
     : t('app.subtitle');
 
   return (
-    <div className="relative z-50 flex h-11 items-center justify-between border-b border-[var(--ui-border-soft)] bg-[linear-gradient(180deg,rgba(var(--bg-rgb),0.95),rgba(var(--bg-rgb),0.9))]">
+    <div className="relative z-50 flex h-12 items-center justify-between border-b border-[var(--ui-border-soft)] bg-[linear-gradient(180deg,rgba(var(--bg-rgb),0.97),rgba(var(--bg-rgb),0.9))]">
       {isMac ? (
         <div className="group flex h-full items-center gap-2 pl-3 pr-2" data-no-drag="true">
           <button
@@ -133,14 +133,14 @@ export function TitleBar({ onSettingsClick, showBackButton, onBackClick, onHisto
         </div>
       ) : null}
 
-      <div className="flex h-full min-w-0 flex-1 items-center px-3" onMouseDown={handleDragStart}>
+      <div className="flex h-full min-w-0 flex-1 items-center px-3.5" onMouseDown={handleDragStart}>
         {showBackButton && onBackClick ? (
           <button
             type="button"
             data-no-drag="true"
             onMouseDown={(event) => event.stopPropagation()}
             onClick={onBackClick}
-            className="mr-3 inline-flex h-8 w-8 items-center justify-center rounded-[8px] text-text-muted transition-colors hover:bg-[var(--ui-surface-field)] hover:text-text-dark"
+            className="mr-3 inline-flex h-8 w-8 items-center justify-center rounded-[var(--ui-radius-lg)] border border-transparent text-text-muted transition-all duration-150 hover:-translate-y-px hover:border-[var(--ui-border-soft)] hover:bg-[var(--ui-surface-field)] hover:text-text-dark"
             title={t('titleBar.back')}
             aria-label={t('titleBar.back')}
           >
@@ -149,17 +149,17 @@ export function TitleBar({ onSettingsClick, showBackButton, onBackClick, onHisto
         ) : null}
 
         <div className="min-w-0">
-          <div className="ui-display-title truncate text-[13px] uppercase leading-4 text-text-dark">
+          <div className="ui-display-title truncate text-[13px] uppercase leading-4 tracking-[0.08em] text-text-dark">
             {titleText}
           </div>
-          <div className="truncate text-[10px] text-text-muted">
+          <div className="truncate text-[10px] tracking-[0.04em] text-text-muted">
             {subtitle}
           </div>
         </div>
       </div>
 
-      <div className="flex h-full items-center gap-2 pr-2" data-no-drag="true">
-        <div className="flex items-center rounded-[10px] border border-[var(--ui-border-soft)] bg-[var(--ui-surface-panel)] px-1 shadow-[0_8px_18px_rgba(2,6,23,0.12)]">
+      <div className="flex h-full items-center gap-2 pr-2.5" data-no-drag="true">
+        <div className="flex items-center rounded-[var(--ui-radius-xl)] border border-[var(--ui-border-soft)] bg-[var(--ui-surface-panel)] px-1.5 shadow-[0_10px_24px_rgba(2,6,23,0.14)]">
           <TitlebarToolButton
             title={isZh ? t('titleBar.switchToEnglish') : t('titleBar.switchToChinese')}
             onClick={handleLanguageClick}
@@ -176,7 +176,7 @@ export function TitleBar({ onSettingsClick, showBackButton, onBackClick, onHisto
 
           {onHistoryClick ? (
             <TitlebarToolButton
-              title={t('app.history', { defaultValue: '历史记录' })}
+              title={t('app.assetManager', { defaultValue: 'Asset Manager' })}
               onClick={onHistoryClick}
             >
               <History className="h-4 w-4" />
@@ -192,7 +192,7 @@ export function TitleBar({ onSettingsClick, showBackButton, onBackClick, onHisto
         </div>
 
         {!isMac ? (
-          <div className="flex items-center rounded-[10px] border border-[var(--ui-border-soft)] bg-[var(--ui-surface-panel)] p-1 shadow-[0_8px_18px_rgba(2,6,23,0.12)]">
+          <div className="flex items-center rounded-[var(--ui-radius-xl)] border border-[var(--ui-border-soft)] bg-[var(--ui-surface-panel)] p-1 shadow-[0_10px_24px_rgba(2,6,23,0.14)]">
             <TitlebarToolButton title={t('titleBar.minimize')} onClick={() => void handleMinimize()}>
               <Minus className="h-4 w-4" />
             </TitlebarToolButton>
@@ -203,7 +203,7 @@ export function TitleBar({ onSettingsClick, showBackButton, onBackClick, onHisto
               type="button"
               onMouseDown={(event) => event.stopPropagation()}
               onClick={() => void handleClose()}
-              className="inline-flex h-8 w-8 items-center justify-center rounded-[8px] text-text-muted transition-all hover:bg-red-500 hover:text-white"
+              className="inline-flex h-8 w-8 items-center justify-center rounded-[var(--ui-radius-lg)] border border-transparent text-text-muted transition-all duration-150 hover:border-red-500/30 hover:bg-red-500 hover:text-white"
               title={t('titleBar.close')}
               aria-label={t('titleBar.close')}
             >
@@ -215,3 +215,4 @@ export function TitleBar({ onSettingsClick, showBackButton, onBackClick, onHisto
     </div>
   );
 }
+

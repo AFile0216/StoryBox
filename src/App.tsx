@@ -222,14 +222,14 @@ function App() {
   if (!isHydrated) {
     return (
       <ReactFlowProvider>
-        <div className="w-full h-full bg-bg-dark" />
+        <div className="h-full w-full bg-[radial-gradient(circle_at_50%_0%,rgba(var(--accent-rgb),0.08),transparent_38%),rgb(var(--bg-rgb))]" />
       </ReactFlowProvider>
     );
   }
 
   return (
     <ReactFlowProvider>
-      <div className="w-full h-full flex flex-col bg-bg-dark">
+      <div className="flex h-full w-full flex-col bg-[radial-gradient(circle_at_2%_0%,rgba(var(--accent-rgb),0.08),transparent_34%),radial-gradient(circle_at_98%_100%,rgba(59,130,246,0.08),transparent_30%),rgb(var(--bg-rgb))]">
         <TitleBar
           onSettingsClick={() => {
             setSettingsInitialCategory('general');

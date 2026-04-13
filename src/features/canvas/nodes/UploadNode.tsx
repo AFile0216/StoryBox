@@ -37,6 +37,7 @@ import { canvasEventBus } from '@/features/canvas/application/canvasServices';
 import { NodeHeader, NODE_HEADER_FLOATING_POSITION_CLASS } from '@/features/canvas/ui/NodeHeader';
 import { resolveAdaptiveHandleStyle } from '@/features/canvas/ui/nodeMetrics';
 import { NodeResizeHandle } from '@/features/canvas/ui/NodeResizeHandle';
+import { NodeMaterialStrip } from '@/features/canvas/ui/NodeMaterialStrip';
 import {
   prepareNodeImageFromFile,
   resolveImageDisplayUrl,
@@ -324,6 +325,8 @@ export const UploadNode = memo(({ id, data, selected, width, height }: UploadNod
         editable
         onTitleChange={(nextTitle) => updateNodeData(id, { displayName: nextTitle })}
       />
+
+      <NodeMaterialStrip nodeId={id} className="mt-6" />
 
       {data.imageUrl || transientPreviewUrl ? (
         <div

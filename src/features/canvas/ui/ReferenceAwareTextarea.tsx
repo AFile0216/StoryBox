@@ -10,8 +10,13 @@ import {
   useState,
 } from 'react';
 import { Video } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 
 import { graphImageResolver } from '@/features/canvas/application/canvasServices';
+import {
+  collectCanvasReferenceImages,
+  collectCanvasReferenceVideos,
+} from '@/features/canvas/application/canvasMediaReferences';
 import { resolveImageDisplayUrl } from '@/features/canvas/application/imageData';
 import {
   type ReferenceMediaType,
@@ -37,6 +42,8 @@ interface ReferenceAwareTextareaProps {
   minHeightClassName?: string;
   className?: string;
   referenceMediaTypes?: ReferenceMediaType[];
+  referenceScope?: 'incoming' | 'canvas';
+  pickerSearchPlaceholder?: string;
 }
 
 interface PickerAnchor {
@@ -52,6 +59,7 @@ interface PickerItem {
   token: string;
   sourceUrl: string;
   displayUrl: string;
+  searchText: string;
 }
 
 const PICKER_FALLBACK_ANCHOR: PickerAnchor = { left: 8, top: 8 };
@@ -196,7 +204,10 @@ export function ReferenceAwareTextarea({
   minHeightClassName = 'min-h-[140px]',
   className = '',
   referenceMediaTypes = DEFAULT_REFERENCE_MEDIA_TYPES,
+  referenceScope = 'incoming',
+  pickerSearchPlaceholder,
 }: ReferenceAwareTextareaProps) {
+  const { t } = useTranslation();
   const rootRef = useRef<HTMLDivElement>(null);
   const textareaRefFallback = useRef<HTMLTextAreaElement>(null);
   const highlightRef = useRef<HTMLDivElement>(null);
@@ -204,6 +215,7 @@ export function ReferenceAwareTextarea({
   const [pickerCursor, setPickerCursor] = useState<number | null>(null);
   const [pickerActiveIndex, setPickerActiveIndex] = useState(0);
   const [pickerAnchor, setPickerAnchor] = useState<PickerAnchor>(PICKER_FALLBACK_ANCHOR);
+  const [pickerQuery, setPickerQuery] = useState('');
 
   const nodes = useCanvasStore((state) => state.nodes);
   const edges = useCanvasStore((state) => state.edges);
@@ -216,20 +228,32 @@ export function ReferenceAwareTextarea({
     [referenceMediaTypes]
   );
 
-  const incomingImages = useMemo(
-    () =>
-      normalizedMediaTypes.includes('image')
-        ? graphImageResolver.collectInputImages(nodeId, nodes, edges)
-        : [],
-    [edges, nodeId, nodes, normalizedMediaTypes]
+  const canvasImageReferences = useMemo(
+    () => (normalizedMediaTypes.includes('image') ? collectCanvasReferenceImages(nodes) : []),
+    [nodes, normalizedMediaTypes]
   );
-  const incomingVideos = useMemo(
-    () =>
-      normalizedMediaTypes.includes('video')
-        ? graphImageResolver.collectInputVideos(nodeId, nodes, edges)
-        : [],
-    [edges, nodeId, nodes, normalizedMediaTypes]
+  const canvasVideoReferences = useMemo(
+    () => (normalizedMediaTypes.includes('video') ? collectCanvasReferenceVideos(nodes) : []),
+    [nodes, normalizedMediaTypes]
   );
+  const incomingImages = useMemo(() => {
+    if (!normalizedMediaTypes.includes('image')) {
+      return [];
+    }
+    if (referenceScope === 'canvas') {
+      return canvasImageReferences.map((item) => item.sourceUrl);
+    }
+    return graphImageResolver.collectInputImages(nodeId, nodes, edges);
+  }, [canvasImageReferences, edges, nodeId, nodes, normalizedMediaTypes, referenceScope]);
+  const incomingVideos = useMemo(() => {
+    if (!normalizedMediaTypes.includes('video')) {
+      return [];
+    }
+    if (referenceScope === 'canvas') {
+      return canvasVideoReferences.map((item) => item.sourceUrl);
+    }
+    return graphImageResolver.collectInputVideos(nodeId, nodes, edges);
+  }, [canvasVideoReferences, edges, nodeId, nodes, normalizedMediaTypes, referenceScope]);
   const incomingImageViewerList = useMemo(
     () => incomingImages.map((imageUrl) => resolveImageDisplayUrl(imageUrl)),
     [incomingImages]
@@ -242,10 +266,14 @@ export function ReferenceAwareTextarea({
         key: `image-${index}-${imageUrl}`,
         mediaType: 'image',
         index,
-        label: resolveMediaLabel('image', index),
+        label:
+          referenceScope === 'canvas'
+            ? canvasImageReferences[index]?.nodeTitle || resolveMediaLabel('image', index)
+            : resolveMediaLabel('image', index),
         token: resolveMediaToken('image', index),
         sourceUrl: imageUrl,
         displayUrl: resolveImageDisplayUrl(imageUrl),
+        searchText: `${resolveMediaToken('image', index)} ${canvasImageReferences[index]?.nodeTitle ?? ''}`.toLowerCase(),
       });
     });
 
@@ -254,15 +282,32 @@ export function ReferenceAwareTextarea({
         key: `video-${index}-${videoUrl}`,
         mediaType: 'video',
         index,
-        label: resolveMediaLabel('video', index),
+        label:
+          referenceScope === 'canvas'
+            ? canvasVideoReferences[index]?.nodeTitle || resolveMediaLabel('video', index)
+            : resolveMediaLabel('video', index),
         token: resolveMediaToken('video', index),
         sourceUrl: videoUrl,
         displayUrl: resolveImageDisplayUrl(videoUrl),
+        searchText: `${resolveMediaToken('video', index)} ${canvasVideoReferences[index]?.nodeTitle ?? ''}`.toLowerCase(),
       });
     });
 
     return items;
-  }, [incomingImages, incomingVideos]);
+  }, [canvasImageReferences, canvasVideoReferences, incomingImages, incomingVideos, referenceScope]);
+  const filteredPickerItems = useMemo(() => {
+    const keyword = pickerQuery.trim().toLowerCase();
+    if (!keyword) {
+      return pickerItems;
+    }
+    return pickerItems.filter((item) => {
+      return (
+        item.token.toLowerCase().includes(keyword)
+        || item.label.toLowerCase().includes(keyword)
+        || item.searchText.includes(keyword)
+      );
+    });
+  }, [pickerItems, pickerQuery]);
 
   const resolvedTextareaRef = textareaRef ?? textareaRefFallback;
   const syncHighlightScroll = useCallback(() => {
@@ -286,6 +331,14 @@ export function ReferenceAwareTextarea({
   }, [pickerItems.length]);
 
   useEffect(() => {
+    if (filteredPickerItems.length === 0) {
+      setPickerActiveIndex(0);
+      return;
+    }
+    setPickerActiveIndex((previous) => Math.min(previous, filteredPickerItems.length - 1));
+  }, [filteredPickerItems.length]);
+
+  useEffect(() => {
     const handleOutside = (event: globalThis.MouseEvent) => {
       if (rootRef.current?.contains(event.target as Node)) {
         return;
@@ -305,6 +358,7 @@ export function ReferenceAwareTextarea({
     setShowPicker(false);
     setPickerCursor(null);
     setPickerActiveIndex(0);
+    setPickerQuery('');
   }, []);
 
   const insertResourceReference = useCallback((item: PickerItem) => {
@@ -350,24 +404,24 @@ export function ReferenceAwareTextarea({
       }
     }
 
-    if (showPicker && pickerItems.length > 0) {
+    if (showPicker && filteredPickerItems.length > 0) {
       if (event.key === 'ArrowDown') {
         event.preventDefault();
-        setPickerActiveIndex((previous) => (previous + 1) % pickerItems.length);
+        setPickerActiveIndex((previous) => (previous + 1) % filteredPickerItems.length);
         return;
       }
 
       if (event.key === 'ArrowUp') {
         event.preventDefault();
         setPickerActiveIndex((previous) =>
-          previous === 0 ? pickerItems.length - 1 : previous - 1
+          previous === 0 ? filteredPickerItems.length - 1 : previous - 1
         );
         return;
       }
 
       if (event.key === 'Enter') {
         event.preventDefault();
-        const item = pickerItems[pickerActiveIndex];
+        const item = filteredPickerItems[pickerActiveIndex];
         if (item) {
           insertResourceReference(item);
         }
@@ -382,6 +436,7 @@ export function ReferenceAwareTextarea({
       setPickerCursor(cursor);
       setShowPicker(true);
       setPickerActiveIndex(0);
+      setPickerQuery('');
       return;
     }
 
@@ -400,7 +455,8 @@ export function ReferenceAwareTextarea({
     onChange,
     onKeyDown,
     pickerActiveIndex,
-    pickerItems,
+    filteredPickerItems,
+    pickerItems.length,
     resolvedValue,
     showPicker,
     syncHighlightScroll,
@@ -450,13 +506,29 @@ export function ReferenceAwareTextarea({
 
       {showPicker && pickerItems.length > 0 && (
         <div
-          className="absolute z-30 w-[180px] overflow-hidden rounded-xl border border-[rgba(255,255,255,0.16)] bg-surface shadow-xl"
+          className="absolute z-30 w-[220px] overflow-hidden rounded-xl border border-[rgba(255,255,255,0.16)] bg-surface shadow-xl"
           style={{ left: pickerAnchor.left, top: pickerAnchor.top }}
           onMouseDown={(event) => event.stopPropagation()}
           onWheelCapture={(event) => event.stopPropagation()}
         >
+          <div className="border-b border-[var(--ui-border-soft)] p-1.5">
+            <input
+              value={pickerQuery}
+              onChange={(event) => {
+                setPickerQuery(event.target.value);
+                setPickerActiveIndex(0);
+              }}
+              placeholder={
+                pickerSearchPlaceholder
+                ?? (referenceScope === 'canvas'
+                  ? '检索当前画布素材'
+                  : '检索已连接素材')
+              }
+              className="nodrag nowheel h-8 w-full rounded-lg border border-[var(--ui-border-soft)] bg-[var(--ui-surface-field)] px-2 text-xs text-text-dark outline-none placeholder:text-text-muted/70"
+            />
+          </div>
           <div className="ui-scrollbar max-h-[220px] overflow-y-auto">
-            {pickerItems.map((item, index) => (
+            {filteredPickerItems.map((item, index) => (
               <button
                 key={item.key}
                 type="button"
@@ -487,10 +559,18 @@ export function ReferenceAwareTextarea({
                 )}
                 <div className="min-w-0 flex-1">
                   <div className="truncate">{item.label}</div>
-                  <div className="truncate text-xs text-text-muted">{item.token}</div>
+                  <div className="truncate text-xs text-text-muted">
+                    {item.token}
+                    {referenceScope === 'canvas' ? ` · ${t('node.chat.canvasScope', { defaultValue: '画布' })}` : ''}
+                  </div>
                 </div>
               </button>
             ))}
+            {filteredPickerItems.length === 0 ? (
+              <div className="px-3 py-2 text-xs text-text-muted">
+                {t('asset.emptySearch', { defaultValue: '没有匹配素材' })}
+              </div>
+            ) : null}
           </div>
         </div>
       )}

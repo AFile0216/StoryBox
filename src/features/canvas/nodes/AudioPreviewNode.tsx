@@ -12,6 +12,7 @@ import {
   resolveResponsiveNodeClasses,
 } from '@/features/canvas/ui/nodeMetrics';
 import { NodeResizeHandle } from '@/features/canvas/ui/NodeResizeHandle';
+import { NodeMaterialStrip } from '@/features/canvas/ui/NodeMaterialStrip';
 import { resolveLocalAssetUrl } from '@/features/canvas/application/imageData';
 import { useCanvasStore } from '@/stores/canvasStore';
 
@@ -101,7 +102,9 @@ export const AudioPreviewNode = memo(({ id, data, selected, width, height }: Aud
         onTitleChange={(nextTitle) => updateNodeData(id, { displayName: nextTitle })}
       />
 
-      <div className={`mt-6 flex min-h-0 flex-1 flex-col ${uiDensity.stackGap}`}>
+      <NodeMaterialStrip nodeId={id} className="mt-6" />
+
+      <div className={`mt-2 flex min-h-0 flex-1 flex-col ${uiDensity.stackGap}`}>
         <div className="flex items-center justify-between gap-2">
           <div className={`tapnow-node-pill px-2 py-1 uppercase tracking-[0.12em] ${uiDensity.metaText}`}>
             {t('node.audio.title', { defaultValue: 'Audio' })}

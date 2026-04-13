@@ -17,6 +17,7 @@ import {
 import { resolveNodeDisplayName } from '@/features/canvas/domain/nodeDisplay';
 import { NodeHeader, NODE_HEADER_FLOATING_POSITION_CLASS } from '@/features/canvas/ui/NodeHeader';
 import { NodeResizeHandle } from '@/features/canvas/ui/NodeResizeHandle';
+import { NodeMaterialStrip } from '@/features/canvas/ui/NodeMaterialStrip';
 import {
   resolveAdaptiveHandleStyle,
   resolveResponsiveNodeClasses,
@@ -265,7 +266,9 @@ export const VideoStoryboardNode = memo(({
           onTitleChange={(nextTitle) => updateNodeData(id, { displayName: nextTitle })}
         />
 
-        <div className="mb-2 mt-6 flex items-center justify-between gap-2">
+        <NodeMaterialStrip nodeId={id} className="mt-6" />
+
+        <div className="mb-2 mt-2 flex items-center justify-between gap-2">
           <div className={`tapnow-node-pill px-2 py-1 uppercase tracking-[0.12em] ${uiDensity.metaText}`}>
             {t('node.videoStoryboard.title')}
           </div>
