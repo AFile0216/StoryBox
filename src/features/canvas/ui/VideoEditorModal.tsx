@@ -626,7 +626,14 @@ export const VideoEditorModal = memo(({
     event.dataTransfer.dropEffect = 'copy';
   }, []);
 
+  const handleModalDragOverGuard = useCallback((event: ReactDragEvent<HTMLDivElement>) => {
+    // Keep browser from opening dropped files and stop bubbling to canvas-level handlers.
+    event.preventDefault();
+    event.stopPropagation();
+  }, []);
+
   const handleModalDropGuard = useCallback((event: ReactDragEvent<HTMLDivElement>) => {
+    // Do not block child drop targets (timeline/source areas); only stop bubbling upward.
     event.preventDefault();
     event.stopPropagation();
   }, []);
@@ -730,8 +737,8 @@ export const VideoEditorModal = memo(({
     <div
       className="nodrag nowheel fixed inset-0 z-50 p-3 md:p-5 lg:p-6"
       onMouseDown={(event) => event.stopPropagation()}
-      onDragOverCapture={handleModalDropGuard}
-      onDropCapture={handleModalDropGuard}
+      onDragOver={handleModalDragOverGuard}
+      onDrop={handleModalDropGuard}
     >
       <div className="flex h-full flex-col overflow-hidden rounded-[var(--ui-radius-2xl)] border border-[var(--ui-border-soft)] bg-[var(--ui-surface-panel)] shadow-[var(--ui-elevation-3)]">
         <div className="flex min-h-12 shrink-0 flex-wrap items-center justify-between gap-2 border-b border-[var(--ui-border-soft)] px-4 py-2">
