@@ -9,6 +9,7 @@ import {
   isExportImageNode,
   isGroupNode,
   isImageEditNode,
+  isStoryboardComposeNode,
   isStoryboardGenNode,
   isStoryboardSplitNode,
   isUploadNode,
@@ -55,7 +56,8 @@ export const NodeActionToolbar = memo(({ node }: NodeActionToolbarProps) => {
   const isImageEdit = isImageEditNode(node);
   const isStoryboardGen = isStoryboardGenNode(node);
   const isStoryboardSplit = isStoryboardSplitNode(node);
-  const canCopyStoryboardText = isStoryboardGen || isStoryboardSplit;
+  const isStoryboardCompose = isStoryboardComposeNode(node);
+  const canCopyStoryboardText = isStoryboardGen || isStoryboardSplit || isStoryboardCompose;
   const tools = useMemo(() => getNodeToolPlugins(node), [node]);
   const deleteNode = useCanvasStore((state) => state.deleteNode);
   const ungroupNode = useCanvasStore((state) => state.ungroupNode);
@@ -211,7 +213,7 @@ export const NodeActionToolbar = memo(({ node }: NodeActionToolbarProps) => {
         }))
         .join('\n');
     }
-    if (isStoryboardSplit) {
+    if (isStoryboardSplit || isStoryboardCompose) {
       const orderedFrames = [...node.data.frames].sort((a, b) => a.order - b.order);
       return orderedFrames
         .map((frame, index) => t('nodeToolbar.storyboardLine', {
@@ -221,7 +223,7 @@ export const NodeActionToolbar = memo(({ node }: NodeActionToolbarProps) => {
         .join('\n');
     }
     return '';
-  }, [ignoreAtTagWhenCopyingAndGenerating, isStoryboardGen, isStoryboardSplit, node, t, i18n.language]);
+  }, [ignoreAtTagWhenCopyingAndGenerating, isStoryboardCompose, isStoryboardGen, isStoryboardSplit, node, t, i18n.language]);
 
   const handleCopyStoryboardText = useCallback(async () => {
     if (!storyboardText) {

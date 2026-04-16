@@ -26,6 +26,7 @@ import {
   type NodeToolType,
   type StoryboardExportOptions,
   type StoryboardFrameItem,
+  isStoryboardComposeNode,
   isStoryboardSplitNode,
 } from '@/features/canvas/domain/canvasNodes';
 import {
@@ -199,7 +200,8 @@ function inferEdgeRelation(sourceNode: CanvasNode, targetNode: CanvasNode): Canv
     sourceNode.type === CANVAS_NODE_TYPES.imageEdit ||
     sourceNode.type === CANVAS_NODE_TYPES.exportImage ||
     sourceNode.type === CANVAS_NODE_TYPES.storyboardGen ||
-    sourceNode.type === CANVAS_NODE_TYPES.storyboardSplit
+    sourceNode.type === CANVAS_NODE_TYPES.storyboardSplit ||
+    sourceNode.type === CANVAS_NODE_TYPES.storyboardCompose
   ) {
     return 'image-flow';
   }
@@ -258,7 +260,10 @@ function normalizeNodes(rawNodes: CanvasNode[]): CanvasNode[] {
         ...(node.data as Partial<CanvasNodeData>),
       } as CanvasNodeData;
 
-      if (node.type === CANVAS_NODE_TYPES.storyboardSplit) {
+      if (
+        node.type === CANVAS_NODE_TYPES.storyboardSplit
+        || node.type === CANVAS_NODE_TYPES.storyboardCompose
+      ) {
         const frames = (mergedData as { frames?: StoryboardFrameItem[] }).frames ?? [];
         const firstFrameAspectRatio = frames.find((frame) => typeof frame.aspectRatio === 'string')
           ?.aspectRatio;
@@ -452,7 +457,10 @@ function resolveDerivedAspectRatio(
     return preferred || fallbackAspectRatio;
   }
 
-  if (sourceNode.type === CANVAS_NODE_TYPES.storyboardSplit) {
+  if (
+    sourceNode.type === CANVAS_NODE_TYPES.storyboardSplit
+    || sourceNode.type === CANVAS_NODE_TYPES.storyboardCompose
+  ) {
     const data = sourceNode.data as { frameAspectRatio?: string; aspectRatio?: string };
     return data.frameAspectRatio || data.aspectRatio || fallbackAspectRatio;
   }
@@ -1170,7 +1178,10 @@ export const useCanvasStore = create<CanvasState>((set, get) => ({
     set((state) => {
       let changed = false;
       const nextNodes = state.nodes.map((node) => {
-        if (node.id !== nodeId || !isStoryboardSplitNode(node)) {
+        if (
+          node.id !== nodeId
+          || (!isStoryboardSplitNode(node) && !isStoryboardComposeNode(node))
+        ) {
           return node;
         }
 
@@ -1224,7 +1235,10 @@ export const useCanvasStore = create<CanvasState>((set, get) => ({
     set((state) => {
       let changed = false;
       const nextNodes = state.nodes.map((node) => {
-        if (node.id !== nodeId || !isStoryboardSplitNode(node)) {
+        if (
+          node.id !== nodeId
+          || (!isStoryboardSplitNode(node) && !isStoryboardComposeNode(node))
+        ) {
           return node;
         }
 

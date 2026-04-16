@@ -106,7 +106,8 @@
       "audio": "音频节点",
       "videoStoryboard": "视频分镜",
       "group": "分组",
-      "chat": "AI 对话"
+      "chat": "AI 对话",
+      "storyboardCompose": "分镜合成"
     },
     "display": {
       "upload": "上传图片",
@@ -125,7 +126,8 @@
       "chat": "AI 对话",
       "storyboardGenOutput": "分镜输出",
       "storyboardSplitExport": "分镜导出",
-      "storyboardFrameEdit": "分镜单帧"
+      "storyboardFrameEdit": "分镜单帧",
+      "storyboardCompose": "分镜合成"
     },
     "imageNode": {
       "title": "图片节点",
@@ -304,6 +306,11 @@
       "snapOff": "吸附：关",
       "play": "播放时间线",
       "pause": "暂停播放"
+    },
+    "storyboardCompose": {
+      "gridPreset": "预设",
+      "uploadImage": "上传图片",
+      "emptyInput": "暂无输入图片"
     }
   },
   "viewer": {

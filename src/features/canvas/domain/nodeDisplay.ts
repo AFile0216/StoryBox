@@ -20,6 +20,7 @@ const DEFAULT_NODE_DISPLAY_KEY: Record<CanvasNodeType, string> = {
   [CANVAS_NODE_TYPES.videoStoryboard]: 'node.display.videoStoryboard',
   [CANVAS_NODE_TYPES.group]: 'node.display.group',
   [CANVAS_NODE_TYPES.storyboardSplit]: 'node.display.storyboardSplit',
+  [CANVAS_NODE_TYPES.storyboardCompose]: 'node.display.storyboardCompose',
   [CANVAS_NODE_TYPES.storyboardGen]: 'node.display.storyboardGen',
   [CANVAS_NODE_TYPES.chat]: 'node.display.chat',
 };
@@ -37,6 +38,7 @@ const DEFAULT_NODE_DISPLAY_FALLBACK: Record<CanvasNodeType, string> = {
   [CANVAS_NODE_TYPES.videoStoryboard]: 'Video Storyboard',
   [CANVAS_NODE_TYPES.group]: 'Group',
   [CANVAS_NODE_TYPES.storyboardSplit]: 'Storyboard',
+  [CANVAS_NODE_TYPES.storyboardCompose]: 'Storyboard Compose',
   [CANVAS_NODE_TYPES.storyboardGen]: 'Storyboard Generation',
   [CANVAS_NODE_TYPES.chat]: 'AI Chat',
 };

@@ -22,6 +22,7 @@ export const nodeTypes: NodeTypes = {
   imageNode: ImageEditNode,
   storyboardGenNode: StoryboardGenNode,
   storyboardNode: StoryboardNode,
+  storyboardComposeNode: StoryboardNode,
   textAnnotationNode: TextAnnotationNode,
   uploadNode: UploadNode,
   videoNode: VideoNode,

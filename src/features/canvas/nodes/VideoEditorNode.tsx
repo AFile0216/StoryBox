@@ -49,7 +49,13 @@ function collectIncomingStoryboardClips(
   const clips: VideoEditorSourceClipItem[] = [];
   for (const sourceNodeId of sourceNodeIds) {
     const sourceNode = nodeById.get(sourceNodeId);
-    if (!sourceNode || sourceNode.type !== CANVAS_NODE_TYPES.storyboardSplit) {
+    if (
+      !sourceNode
+      || (
+        sourceNode.type !== CANVAS_NODE_TYPES.storyboardSplit
+        && sourceNode.type !== CANVAS_NODE_TYPES.storyboardCompose
+      )
+    ) {
       continue;
     }
 

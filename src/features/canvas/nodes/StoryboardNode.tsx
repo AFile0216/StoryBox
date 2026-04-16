@@ -18,6 +18,7 @@ import { Download, FolderOpen, ImagePlus, SlidersHorizontal, SquareArrowOutUpRig
 import { open } from '@tauri-apps/plugin-dialog';
 import { openPath, revealItemInDir } from '@tauri-apps/plugin-opener';
 import { join } from '@tauri-apps/api/path';
+import { useTranslation } from 'react-i18next';
 
 import {
   embedStoryboardImageMetadata,
@@ -76,6 +77,12 @@ const EXPORT_TRACE_PREFIX = '[StoryboardExport]';
 const STORYBOARD_SPLIT_HEADER_ADJUST = { x: 0, y: 0, scale: 1 };
 const STORYBOARD_SPLIT_ICON_ADJUST = { x: 0, y: 0, scale: 1 };
 const STORYBOARD_SPLIT_TITLE_ADJUST = { x: 0, y: 0, scale: 1 };
+const STORYBOARD_COMPOSE_PRESETS = [
+  { rows: 2, cols: 2, label: '2x2' },
+  { rows: 2, cols: 3, label: '2x3' },
+  { rows: 3, cols: 3, label: '3x3' },
+  { rows: 4, cols: 4, label: '4x4' },
+] as const;
 
 function SplitResultIcon({ className }: { className?: string }) {
   return (
@@ -295,6 +302,42 @@ interface PanelAnchor {
   top: number;
 }
 
+function createStoryboardFrame(order: number, frameAspectRatio: string): StoryboardFrameItem {
+  return {
+    id: crypto.randomUUID(),
+    imageUrl: null,
+    previewImageUrl: null,
+    aspectRatio: frameAspectRatio,
+    note: '',
+    order,
+  };
+}
+
+function resizeStoryboardFrames(
+  frames: StoryboardFrameItem[],
+  frameCount: number,
+  frameAspectRatio: string
+): StoryboardFrameItem[] {
+  const ordered = [...frames].sort((a, b) => a.order - b.order);
+  const targetCount = Math.max(1, frameCount);
+
+  return Array.from({ length: targetCount }, (_, index) => {
+    const existing = ordered[index];
+    if (!existing) {
+      return createStoryboardFrame(index, frameAspectRatio);
+    }
+
+    return {
+      ...existing,
+      order: index,
+      aspectRatio:
+        typeof existing.aspectRatio === 'string' && existing.aspectRatio.trim().length > 0
+          ? existing.aspectRatio
+          : frameAspectRatio,
+    };
+  });
+}
+
 const FrameCard = memo(
   ({
     nodeId,
@@ -420,6 +463,7 @@ const FrameCard = memo(
 FrameCard.displayName = 'FrameCard';
 
 export const StoryboardNode = memo(({ id, data, selected, width, height }: StoryboardNodeProps) => {
+  const { t } = useTranslation();
   const updateNodeInternals = useUpdateNodeInternals();
   const rootRef = useRef<HTMLDivElement>(null);
   const pickerMenuRef = useRef<HTMLDivElement>(null);
@@ -448,6 +492,11 @@ export const StoryboardNode = memo(({ id, data, selected, width, height }: Story
   const [isPackDoneDialogOpen, setIsPackDoneDialogOpen] = useState(false);
   const [packOutputDir, setPackOutputDir] = useState<string>('');
   const [packRevealFilePath, setPackRevealFilePath] = useState<string>('');
+  const currentNodeType = useMemo(
+    () => nodes.find((node) => node.id === id)?.type ?? CANVAS_NODE_TYPES.storyboardSplit,
+    [id, nodes]
+  );
+  const isComposeNode = currentNodeType === CANVAS_NODE_TYPES.storyboardCompose;
 
   const orderedFrames = useMemo(
     () => [...data.frames].sort((a, b) => a.order - b.order),
@@ -483,8 +532,8 @@ export const StoryboardNode = memo(({ id, data, selected, width, height }: Story
   }, [id, resolvedNodeHeight, resolvedNodeWidth, updateNodeInternals]);
 
   const resolvedTitle = useMemo(
-    () => resolveNodeDisplayName(CANVAS_NODE_TYPES.storyboardSplit, data),
-    [data]
+    () => resolveNodeDisplayName(currentNodeType, data),
+    [currentNodeType, data]
   );
 
   const exportOptions = useMemo(
@@ -1017,6 +1066,52 @@ export const StoryboardNode = memo(({ id, data, selected, width, height }: Story
     [id, incomingImageItems, updateStoryboardFrame]
   );
 
+  const handleApplyGridPreset = useCallback(
+    (rows: number, cols: number) => {
+      const nextFrames = resizeStoryboardFrames(orderedFrames, rows * cols, frameAspectRatio);
+      updateNodeData(id, {
+        gridRows: rows,
+        gridCols: cols,
+        frameAspectRatio,
+        frames: nextFrames,
+      });
+      setPickerState(null);
+    },
+    [frameAspectRatio, id, orderedFrames, updateNodeData]
+  );
+
+  const handleUploadFrameFromLocal = useCallback(
+    async (frameId: string) => {
+      setExportError(null);
+      try {
+        const selected = await open({
+          multiple: false,
+          title: t('node.storyboardCompose.uploadImage', { defaultValue: 'Upload image' }),
+          filters: [
+            {
+              name: 'Images',
+              extensions: ['png', 'jpg', 'jpeg', 'webp', 'bmp'],
+            },
+          ],
+        });
+        if (!selected || Array.isArray(selected)) {
+          return;
+        }
+
+        const prepared = await prepareNodeImage(selected);
+        updateStoryboardFrame(id, frameId, {
+          imageUrl: prepared.imageUrl,
+          previewImageUrl: prepared.previewImageUrl ?? prepared.imageUrl,
+          aspectRatio: prepared.aspectRatio,
+        });
+        setPickerState(null);
+      } catch (error) {
+        setExportError(error instanceof Error ? error.message : t('common.error'));
+      }
+    },
+    [id, t, updateStoryboardFrame]
+  );
+
   return (
     <div
       ref={rootRef}
@@ -1042,6 +1137,29 @@ export const StoryboardNode = memo(({ id, data, selected, width, height }: Story
         className="tapnow-node-panel ui-scrollbar nowheel min-h-0 flex-1 overflow-auto p-2"
         onWheelCapture={(event) => event.stopPropagation()}
       >
+        {isComposeNode && (
+          <div className="mb-2 flex flex-wrap items-center gap-1.5">
+            <span className="text-[11px] text-text-muted/80">
+              {t('node.storyboardCompose.gridPreset', { defaultValue: 'Preset' })}
+            </span>
+            {STORYBOARD_COMPOSE_PRESETS.map((preset) => {
+              const presetActive = preset.rows === gridRows && preset.cols === gridCols;
+              return (
+                <UiChipButton
+                  key={`${preset.rows}x${preset.cols}`}
+                  active={presetActive}
+                  className="nodrag h-6 rounded-md px-2 text-[11px]"
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    handleApplyGridPreset(preset.rows, preset.cols);
+                  }}
+                >
+                  {preset.label}
+                </UiChipButton>
+              );
+            })}
+          </div>
+        )}
         <div
           className="grid overflow-hidden rounded-lg border border-[rgba(255,255,255,0.16)] bg-[rgba(255,255,255,0.08)]"
           style={{
@@ -1080,6 +1198,20 @@ export const StoryboardNode = memo(({ id, data, selected, width, height }: Story
             onMouseDown={(event) => event.stopPropagation()}
             onWheelCapture={(event) => event.stopPropagation()}
           >
+            {isComposeNode && (
+              <button
+                type="button"
+                className="flex w-full items-center gap-2 border-b border-[rgba(255,255,255,0.12)] bg-bg-dark/80 px-2 py-2 text-left text-sm text-text-dark transition-colors hover:bg-bg-dark"
+                onClick={(event) => {
+                  event.stopPropagation();
+                  void handleUploadFrameFromLocal(pickerState.frameId);
+                }}
+              >
+                <ImagePlus className="h-3.5 w-3.5 shrink-0" />
+                <span>{t('node.storyboardCompose.uploadImage', { defaultValue: 'Upload image' })}</span>
+              </button>
+            )}
+
             {incomingImageItems.length > 0 ? (
               <div
                 className="ui-scrollbar nowheel max-h-[180px] overflow-y-auto"
@@ -1110,7 +1242,9 @@ export const StoryboardNode = memo(({ id, data, selected, width, height }: Story
               </div>
             ) : (
               <div className="px-2 py-2 text-sm text-text-muted">
-                暂无输入图片
+                {isComposeNode
+                  ? t('node.storyboardCompose.emptyInput', { defaultValue: 'No input images' })
+                  : '暂无输入图片'}
               </div>
             )}
           </div>,

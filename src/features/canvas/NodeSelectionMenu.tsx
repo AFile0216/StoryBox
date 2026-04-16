@@ -41,6 +41,7 @@ export function NodeSelectionMenu({ position, allowedTypes, onSelect, onClose }:
         [CANVAS_NODE_TYPES.videoStoryboard, 5],
         [CANVAS_NODE_TYPES.audio, 6],
         [CANVAS_NODE_TYPES.storyboardGen, 7],
+        [CANVAS_NODE_TYPES.storyboardCompose, 8],
       ]),
     []
   );

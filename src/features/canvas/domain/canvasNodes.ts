@@ -13,6 +13,7 @@ export const CANVAS_NODE_TYPES = {
   videoStoryboard: 'videoStoryboardNode',
   group: 'groupNode',
   storyboardSplit: 'storyboardNode',
+  storyboardCompose: 'storyboardComposeNode',
   storyboardGen: 'storyboardGenNode',
   chat: 'chatNode',
 } as const;
@@ -232,6 +233,8 @@ export interface StoryboardSplitNodeData {
   [key: string]: unknown;
 }
 
+export type StoryboardComposeNodeData = StoryboardSplitNodeData;
+
 export interface StoryboardGenFrameItem {
   id: string;
   description: string;
@@ -337,6 +340,7 @@ export type CanvasNodeData =
   | GroupNodeData
   | ImageEditNodeData
   | StoryboardSplitNodeData
+  | StoryboardComposeNodeData
   | StoryboardGenNodeData
   | ChatNodeData;
 
@@ -463,6 +467,12 @@ export function isStoryboardSplitNode(
   return node?.type === CANVAS_NODE_TYPES.storyboardSplit;
 }
 
+export function isStoryboardComposeNode(
+  node: CanvasNode | null | undefined
+): node is Node<StoryboardComposeNodeData, typeof CANVAS_NODE_TYPES.storyboardCompose> {
+  return node?.type === CANVAS_NODE_TYPES.storyboardCompose;
+}
+
 export function isStoryboardGenNode(
   node: CanvasNode | null | undefined
 ): node is Node<StoryboardGenNodeData, typeof CANVAS_NODE_TYPES.storyboardGen> {
@@ -478,7 +488,7 @@ export function nodeHasImage(node: CanvasNode | null | undefined): boolean {
     return Boolean(node.data.imageUrl);
   }
 
-  if (isStoryboardSplitNode(node)) {
+  if (isStoryboardSplitNode(node) || isStoryboardComposeNode(node)) {
     return node.data.frames.some((frame) => Boolean(frame.imageUrl));
   }
 

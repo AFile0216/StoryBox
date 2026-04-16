@@ -11,7 +11,9 @@ import {
   type GroupNodeData,
   type ImageEditNodeData,
   type ImageSize,
+  type StoryboardComposeNodeData,
   type StoryboardGenNodeData,
+  type StoryboardFrameItem,
   type StoryboardSplitNodeData,
   type TextAnnotationNodeData,
   type UploadImageNodeData,
@@ -393,6 +395,32 @@ const groupNodeDefinition: CanvasNodeDefinition<GroupNodeData> = {
   }),
 };
 
+function createDefaultStoryboardExportOptions() {
+  return {
+    showFrameIndex: false,
+    showFrameNote: false,
+    notePlacement: 'overlay' as const,
+    imageFit: 'cover' as const,
+    frameIndexPrefix: 'S',
+    cellGap: 8,
+    outerPadding: 0,
+    fontSize: 4,
+    backgroundColor: '#0f1115',
+    textColor: '#f8fafc',
+  };
+}
+
+function createDefaultStoryboardFrames(frameCount: number, frameAspectRatio: string): StoryboardFrameItem[] {
+  return Array.from({ length: Math.max(0, frameCount) }, (_, index) => ({
+    id: crypto.randomUUID(),
+    imageUrl: null,
+    previewImageUrl: null,
+    aspectRatio: frameAspectRatio,
+    note: '',
+    order: index,
+  }));
+}
+
 const storyboardSplitDefinition: CanvasNodeDefinition<StoryboardSplitNodeData> = {
   type: CANVAS_NODE_TYPES.storyboardSplit,
   menuLabelKey: 'node.menu.storyboard',
@@ -417,18 +445,35 @@ const storyboardSplitDefinition: CanvasNodeDefinition<StoryboardSplitNodeData> =
     gridRows: 2,
     gridCols: 2,
     frames: [],
-    exportOptions: {
-      showFrameIndex: false,
-      showFrameNote: false,
-      notePlacement: 'overlay',
-      imageFit: 'cover',
-      frameIndexPrefix: 'S',
-      cellGap: 8,
-      outerPadding: 0,
-      fontSize: 4,
-      backgroundColor: '#0f1115',
-      textColor: '#f8fafc',
+    exportOptions: createDefaultStoryboardExportOptions(),
+  }),
+};
+
+const storyboardComposeDefinition: CanvasNodeDefinition<StoryboardComposeNodeData> = {
+  type: CANVAS_NODE_TYPES.storyboardCompose,
+  menuLabelKey: 'node.menu.storyboardCompose',
+  menuIcon: 'layout',
+  visibleInMenu: true,
+  capabilities: {
+    toolbar: false,
+    promptInput: false,
+  },
+  connectivity: {
+    sourceHandle: true,
+    targetHandle: true,
+    connectMenu: {
+      fromSource: true,
+      fromTarget: false,
     },
+  },
+  createDefaultData: () => ({
+    displayName: DEFAULT_NODE_DISPLAY_NAME[CANVAS_NODE_TYPES.storyboardCompose],
+    aspectRatio: DEFAULT_ASPECT_RATIO,
+    frameAspectRatio: DEFAULT_ASPECT_RATIO,
+    gridRows: 2,
+    gridCols: 2,
+    frames: createDefaultStoryboardFrames(4, DEFAULT_ASPECT_RATIO),
+    exportOptions: createDefaultStoryboardExportOptions(),
   }),
 };
 
@@ -504,6 +549,7 @@ export const canvasNodeDefinitions: Record<CanvasNodeType, CanvasNodeDefinition>
   [CANVAS_NODE_TYPES.videoStoryboard]: videoStoryboardNodeDefinition,
   [CANVAS_NODE_TYPES.group]: groupNodeDefinition,
   [CANVAS_NODE_TYPES.storyboardSplit]: storyboardSplitDefinition,
+  [CANVAS_NODE_TYPES.storyboardCompose]: storyboardComposeDefinition,
   [CANVAS_NODE_TYPES.storyboardGen]: storyboardGenNodeDefinition,
   [CANVAS_NODE_TYPES.chat]: chatNodeDefinition,
 };

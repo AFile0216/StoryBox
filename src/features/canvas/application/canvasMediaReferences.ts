@@ -3,6 +3,7 @@ import {
   isAudioPreviewNode,
   isExportImageNode,
   isImageEditNode,
+  isStoryboardComposeNode,
   isStoryboardGenNode,
   isStoryboardSplitNode,
   isTextAnnotationNode,
@@ -123,7 +124,7 @@ export function collectNodeOwnedMediaReferences(node: CanvasNode): CanvasMediaRe
     return result;
   }
 
-  if (isStoryboardSplitNode(node)) {
+  if (isStoryboardSplitNode(node) || isStoryboardComposeNode(node)) {
     node.data.frames.forEach((frame) => {
       pushImageReference(result, node, frame.previewImageUrl || frame.imageUrl, 'generated');
     });

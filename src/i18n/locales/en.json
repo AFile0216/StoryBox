@@ -99,6 +99,7 @@
       "uploadImage": "Upload Image",
       "aiImageGeneration": "AI Image",
       "storyboard": "Storyboard Node",
+      "storyboardCompose": "Storyboard Compose",
       "storyboardGen": "Storyboard Generation",
       "textAnnotation": "Text Node",
       "video": "Video Node",
@@ -121,6 +122,7 @@
       "videoStoryboard": "Video Storyboard",
       "group": "Group",
       "storyboardSplit": "Storyboard",
+      "storyboardCompose": "Storyboard Compose",
       "storyboardGen": "Storyboard Generation",
       "chat": "AI Chat",
       "storyboardGenOutput": "Storyboard Output",
@@ -181,6 +183,11 @@
       "rows": "Rows",
       "cols": "Columns",
       "frameIndex": "Frame {{index}}"
+    },
+    "storyboardCompose": {
+      "gridPreset": "Preset",
+      "uploadImage": "Upload image",
+      "emptyInput": "No input images"
     },
     "storyboardGen": {
       "rowsShort": "R",
