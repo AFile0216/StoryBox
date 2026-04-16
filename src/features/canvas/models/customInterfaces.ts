@@ -23,7 +23,7 @@ export interface LegacyProviderInterfaceConfig {
 
 const LEGACY_PROVIDER_MODEL_DEFAULTS: Record<string, string[]> = {
   ppio: ['gemini-3.1-flash'],
-  grsai: ['nano-banana-2', 'nano-banana-pro'],
+  grsai: ['grsai/nano-banana-2', 'grsai/nano-banana-pro'],
   kie: ['nano-banana-2', 'nano-banana-pro'],
   fal: ['nano-banana-2', 'nano-banana-pro'],
 };

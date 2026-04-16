@@ -14,8 +14,8 @@ use uuid::Uuid;
 use crate::ai::error::AIError;
 use crate::ai::providers::build_default_providers;
 use crate::ai::{
-    GenerateRequest, GenerateRuntimeConfig, ProviderRegistry, ProviderTaskHandle, ProviderTaskPollResult,
-    ProviderTaskSubmission, ProviderRuntimeConfig,
+    AIProvider, GenerateRequest, GenerateRuntimeConfig, ProviderRegistry, ProviderTaskHandle,
+    ProviderTaskPollResult, ProviderTaskSubmission, ProviderRuntimeConfig,
 };
 
 static REGISTRY: std::sync::OnceLock<ProviderRegistry> = std::sync::OnceLock::new();
@@ -34,6 +34,38 @@ fn get_registry() -> &'static ProviderRegistry {
 
 fn active_non_resumable_job_ids() -> &'static Arc<RwLock<HashSet<String>>> {
     ACTIVE_NON_RESUMABLE_JOB_IDS.get_or_init(|| Arc::new(RwLock::new(HashSet::new())))
+}
+
+fn should_apply_runtime_config(provider_id: &str) -> bool {
+    provider_id != "openai-compatible" && provider_id != "comfyui"
+}
+
+async fn configure_provider_runtime_from_request(
+    provider: &Arc<dyn AIProvider>,
+    runtime_config: Option<&GenerateRuntimeConfigDto>,
+) -> Result<(), String> {
+    if !should_apply_runtime_config(provider.name()) {
+        return Ok(());
+    }
+
+    let Some(config) = runtime_config else {
+        return Ok(());
+    };
+
+    provider
+        .configure_runtime(ProviderRuntimeConfig {
+            api_key: config.api_key.clone(),
+            base_url: Some(config.base_url.clone()),
+            upload_base_url: None,
+        })
+        .await
+        .map_err(|error| {
+            format!(
+                "Failed to configure runtime for provider '{}': {}",
+                provider.name(),
+                error
+            )
+        })
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -337,6 +369,7 @@ pub async fn submit_generate_image_job(
         .or_else(|| registry.get_default_provider())
         .cloned()
         .ok_or_else(|| "Provider not found".to_string())?;
+    configure_provider_runtime_from_request(&provider, request.runtime_config.as_ref()).await?;
 
     let req = GenerateRequest {
         prompt: request.prompt,
@@ -600,6 +633,7 @@ pub async fn generate_image(request: GenerateRequestDto) -> Result<String, Strin
         .resolve_provider_for_model(&request.model)
         .or_else(|| registry.get_default_provider())
         .ok_or_else(|| "Provider not found".to_string())?;
+    configure_provider_runtime_from_request(provider, request.runtime_config.as_ref()).await?;
 
     let req = GenerateRequest {
         prompt: request.prompt,

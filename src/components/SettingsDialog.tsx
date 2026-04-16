@@ -18,6 +18,7 @@ import {
   parseModelIdsInput,
   stringifyModelIds,
 } from '@/features/canvas/models/customInterfaces';
+import { provider as grsaiProviderDefinition } from '@/features/canvas/models/providers/grsai';
 import {
   DEFAULT_COMFYUI_BASE_URL,
   parseNodeIdList,
@@ -49,6 +50,10 @@ const TASK_TYPES: Array<{ value: AppTaskType; key: string }> = [
   { value: 'audio-to-video', key: 'settings.taskTypeAudioToVideo' },
   { value: 'reverse-prompt', key: 'settings.taskTypeReversePrompt' },
 ];
+
+const GRSAI_INTERFACE_ID = 'grsai';
+const GRSAI_DEFAULT_MODELS = ['grsai/nano-banana-2', 'grsai/nano-banana-pro'];
+const GRSAI_DEFAULT_BASE_URL = grsaiProviderDefinition.defaultBaseUrl ?? DEFAULT_CUSTOM_API_BASE_URL;
 
 function SettingsCheckboxCard({
   title,
@@ -400,6 +405,36 @@ export function SettingsDialog({
     ]);
   }, [t]);
 
+  const handleAddGrsaiInterface = useCallback(() => {
+    setLocalCustomApiInterfaces((previous) => {
+      const existing = previous.find((item) => item.id === GRSAI_INTERFACE_ID);
+      if (existing) {
+        return previous.map((item) =>
+          item.id !== GRSAI_INTERFACE_ID
+            ? item
+            : {
+              ...item,
+              name: item.name.trim() || 'GRSAI',
+              baseUrl: item.baseUrl.trim() || GRSAI_DEFAULT_BASE_URL,
+              modelIds: item.modelIds.length > 0 ? item.modelIds : [...GRSAI_DEFAULT_MODELS],
+              requestMode: 'images',
+            }
+        );
+      }
+
+      return [
+        ...previous,
+        createDefaultCustomApiInterface({
+          id: GRSAI_INTERFACE_ID,
+          name: 'GRSAI',
+          baseUrl: GRSAI_DEFAULT_BASE_URL,
+          modelIds: [...GRSAI_DEFAULT_MODELS],
+          requestMode: 'images',
+        }),
+      ];
+    });
+  }, []);
+
   const handleRemoveCustomApiInterface = useCallback((interfaceId: string) => {
     setLocalCustomApiInterfaces((previous) =>
       previous.length <= 1 ? previous : previous.filter((item) => item.id !== interfaceId)
@@ -579,14 +614,24 @@ export function SettingsDialog({
                         <h3 className="text-sm font-medium text-text-dark">{t('settings.customApiListTitle')}</h3>
                         <p className="mt-1 text-xs text-text-muted">{t('settings.customApiListHint')}</p>
                       </div>
-                      <button
-                        type="button"
-                        className="inline-flex h-8 items-center justify-center rounded-[var(--ui-radius-lg)] border border-[var(--ui-border-soft)] bg-[var(--ui-surface-field)] px-3 text-xs text-text-dark"
-                        onClick={handleAddCustomApiInterface}
-                      >
-                        <Plus className="mr-1 h-3.5 w-3.5" />
-                        {t('settings.addCustomApi')}
-                      </button>
+                      <div className="flex flex-wrap items-center justify-end gap-2">
+                        <button
+                          type="button"
+                          className="inline-flex h-8 items-center justify-center rounded-[var(--ui-radius-lg)] border border-[var(--ui-border-soft)] bg-[var(--ui-surface-field)] px-3 text-xs text-text-dark"
+                          onClick={handleAddGrsaiInterface}
+                        >
+                          <Plus className="mr-1 h-3.5 w-3.5" />
+                          {`${t('settings.addCustomApi')} GRSAI`}
+                        </button>
+                        <button
+                          type="button"
+                          className="inline-flex h-8 items-center justify-center rounded-[var(--ui-radius-lg)] border border-[var(--ui-border-soft)] bg-[var(--ui-surface-field)] px-3 text-xs text-text-dark"
+                          onClick={handleAddCustomApiInterface}
+                        >
+                          <Plus className="mr-1 h-3.5 w-3.5" />
+                          {t('settings.addCustomApi')}
+                        </button>
+                      </div>
                     </div>
                   </div>
                   {localCustomApiInterfaces.map((apiInterface, index) => {

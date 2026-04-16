@@ -4,6 +4,7 @@ import {
   type CustomApiInterfaceConfig,
 } from './customInterfaces';
 import { COMFYUI_PROVIDER_ID } from '@/features/providers/comfyUi';
+import { GRSAI_NANO_BANANA_PRO_MODEL_OPTIONS } from './providers/grsai';
 import type {
   ImageModelDefinition,
   ImageModelRuntimeContext,
@@ -30,6 +31,12 @@ const DEFAULT_RESOLUTIONS: ResolutionOption[] = [
   { value: '4K', label: '4K' },
 ];
 
+const DIRECT_PROVIDER_IDS = new Set(['grsai']);
+const GRSAI_PROVIDER_ID = 'grsai';
+const GRSAI_NANO_BANANA_2_MODEL = 'nano-banana-2';
+const GRSAI_NANO_BANANA_PRO_MODEL = 'nano-banana-pro';
+const DEFAULT_GRSAI_PRO_VARIANT = 'nano-banana-pro';
+
 const DEFAULT_PROVIDER: ModelProviderDefinition = {
   id: CUSTOM_OPENAI_PROVIDER_ID,
   name: 'Custom API',
@@ -52,6 +59,106 @@ export const DEFAULT_IMAGE_MODEL_ID = PLACEHOLDER_MODEL_ID;
 
 function encodeModelName(modelName: string): string {
   return encodeURIComponent(modelName);
+}
+
+interface DirectProviderModelRef {
+  providerId: string;
+  modelName: string;
+  requestModel: string;
+}
+
+function isLikelyGrsaiInterface(apiInterface: CustomApiInterfaceConfig): boolean {
+  const normalizedId = apiInterface.id.trim().toLowerCase();
+  const normalizedName = apiInterface.name.trim().toLowerCase();
+  const normalizedBaseUrl = apiInterface.baseUrl.trim().toLowerCase();
+  return normalizedId === GRSAI_PROVIDER_ID
+    || normalizedName.includes(GRSAI_PROVIDER_ID)
+    || normalizedBaseUrl.includes('grsai.');
+}
+
+function resolveGrsaiFallbackModelRef(
+  apiInterface: CustomApiInterfaceConfig,
+  rawModel: string
+): DirectProviderModelRef | null {
+  if (!isLikelyGrsaiInterface(apiInterface)) {
+    return null;
+  }
+
+  const fallbackModelName = rawModel.trim().toLowerCase();
+  if (
+    fallbackModelName === GRSAI_NANO_BANANA_2_MODEL
+    || fallbackModelName === GRSAI_NANO_BANANA_PRO_MODEL
+    || fallbackModelName.startsWith(`${GRSAI_NANO_BANANA_PRO_MODEL}-`)
+  ) {
+    return {
+      providerId: GRSAI_PROVIDER_ID,
+      modelName: fallbackModelName,
+      requestModel: `${GRSAI_PROVIDER_ID}/${fallbackModelName}`,
+    };
+  }
+  return null;
+}
+
+function resolveDirectProviderModelRef(
+  apiInterface: CustomApiInterfaceConfig,
+  apiModel: string
+): DirectProviderModelRef | null {
+  const normalized = apiModel.trim();
+  if (!normalized) {
+    return null;
+  }
+
+  const [rawProviderId, ...restParts] = normalized.split('/');
+  if (!rawProviderId || restParts.length === 0) {
+    return resolveGrsaiFallbackModelRef(apiInterface, normalized);
+  }
+
+  const providerId = rawProviderId.trim().toLowerCase();
+  const modelName = restParts.join('/').trim();
+  if (!modelName || !DIRECT_PROVIDER_IDS.has(providerId)) {
+    return resolveGrsaiFallbackModelRef(apiInterface, normalized);
+  }
+
+  return {
+    providerId,
+    modelName,
+    requestModel: `${providerId}/${modelName}`,
+  };
+}
+
+function formatDirectProviderDisplayName(providerId: string, modelName: string): string {
+  const normalizedModel = modelName.toLowerCase();
+  if (providerId === GRSAI_PROVIDER_ID) {
+    if (normalizedModel === GRSAI_NANO_BANANA_2_MODEL) {
+      return 'Nano Banana 2';
+    }
+    if (normalizedModel === GRSAI_NANO_BANANA_PRO_MODEL) {
+      return 'Nano Banana Pro';
+    }
+  }
+  return modelName;
+}
+
+function resolveGrsaiProVariant(extraParams?: Record<string, unknown>): string {
+  const variant = typeof extraParams?.grsai_pro_model === 'string'
+    ? extraParams.grsai_pro_model.trim().toLowerCase()
+    : DEFAULT_GRSAI_PRO_VARIANT;
+  return GRSAI_NANO_BANANA_PRO_MODEL_OPTIONS.includes(
+    variant as (typeof GRSAI_NANO_BANANA_PRO_MODEL_OPTIONS)[number]
+  )
+    ? variant
+    : DEFAULT_GRSAI_PRO_VARIANT;
+}
+
+function resolveGrsaiProResolutions(extraParams?: Record<string, unknown>): ResolutionOption[] {
+  const variant = resolveGrsaiProVariant(extraParams);
+  if (variant === 'nano-banana-pro-vip') {
+    return DEFAULT_RESOLUTIONS.filter((item) => item.value !== '4K');
+  }
+  if (variant === 'nano-banana-pro-4k-vip') {
+    return DEFAULT_RESOLUTIONS.filter((item) => item.value === '4K');
+  }
+  return DEFAULT_RESOLUTIONS;
 }
 
 export function decodeCustomImageModelId(
@@ -92,24 +199,60 @@ function buildCustomImageModel(
   apiInterface: CustomApiInterfaceConfig,
   apiModel: string
 ): ImageModelDefinition {
+  const directProviderModel = resolveDirectProviderModelRef(apiInterface, apiModel);
+  const resolvedModelName = directProviderModel?.modelName ?? apiModel;
+  const resolvedProviderId = directProviderModel?.providerId ?? CUSTOM_OPENAI_PROVIDER_ID;
+  const resolvedRequestModel = directProviderModel
+    ? directProviderModel.requestModel
+    : `${CUSTOM_OPENAI_PROVIDER_ID}/${apiInterface.id}/${encodeModelName(apiModel)}`;
+  const isGrsaiNanoBananaPro =
+    directProviderModel?.providerId === GRSAI_PROVIDER_ID
+    && directProviderModel.modelName.toLowerCase() === GRSAI_NANO_BANANA_PRO_MODEL;
+
   return {
     id: `${CUSTOM_OPENAI_PROVIDER_ID}/${apiInterface.id}/${encodeModelName(apiModel)}`,
     mediaType: 'image',
-    displayName: apiModel,
-    providerId: CUSTOM_OPENAI_PROVIDER_ID,
+    displayName: directProviderModel
+      ? formatDirectProviderDisplayName(directProviderModel.providerId, directProviderModel.modelName)
+      : apiModel,
+    providerId: resolvedProviderId,
     providerKind: 'custom-api',
     interfaceId: apiInterface.id,
     interfaceName: apiInterface.name,
-    apiModel,
-    description: 'Generate or edit images through a custom OpenAI-compatible API.',
+    apiModel: resolvedModelName,
+    description: directProviderModel
+      ? `Generate or edit images through ${directProviderModel.providerId.toUpperCase()}.`
+      : 'Generate or edit images through a custom OpenAI-compatible API.',
     eta: '30s',
     expectedDurationMs: 30000,
     defaultAspectRatio: '1:1',
     defaultResolution: '1K',
     aspectRatios: DEFAULT_ASPECT_RATIOS.map((value) => ({ value, label: value })),
     resolutions: DEFAULT_RESOLUTIONS,
+    resolveResolutions: isGrsaiNanoBananaPro
+      ? ({ extraParams }) => resolveGrsaiProResolutions(extraParams)
+      : undefined,
+    extraParamsSchema: isGrsaiNanoBananaPro
+      ? [
+        {
+          key: 'grsai_pro_model',
+          label: 'Pro Variant',
+          type: 'enum',
+          defaultValue: DEFAULT_GRSAI_PRO_VARIANT,
+          options: GRSAI_NANO_BANANA_PRO_MODEL_OPTIONS.map((variant) => ({
+            value: variant,
+            label: variant,
+          })),
+        },
+      ]
+      : undefined,
+    defaultExtraParams: isGrsaiNanoBananaPro
+      ? {
+        grsai_pro_model: DEFAULT_GRSAI_PRO_VARIANT,
+      }
+      : undefined,
     resolveRequest: ({ referenceImageCount }) => ({
-      requestModel: `${CUSTOM_OPENAI_PROVIDER_ID}/${apiInterface.id}/${encodeModelName(apiModel)}`,
+      requestModel: resolvedRequestModel,
       modeLabel: referenceImageCount > 0 ? 'edit' : 'generate',
     }),
   };
