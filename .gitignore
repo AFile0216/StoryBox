@@ -26,3 +26,9 @@ dist-ssr
 /ComfyUI/
 /ComfyUI_frontend/
 Henji-AI/
+
+# Local large docs
+LibTV使用指南.docx
+LibTV使用指南.pdf
+LibTV*.docx
+LibTV*.pdf

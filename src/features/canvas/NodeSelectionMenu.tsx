@@ -5,12 +5,34 @@ import { useTranslation } from 'react-i18next';
 import { UI_POPOVER_TRANSITION_MS } from '@/components/ui/motion';
 import { CANVAS_NODE_TYPES, type CanvasNodeType } from '@/features/canvas/domain/canvasNodes';
 import { nodeCatalog } from '@/features/canvas/application/nodeCatalog';
+import {
+  SLASH_PRESET_MENU_DEFINITIONS,
+  type SlashPresetId,
+} from '@/features/canvas/application/slashPresets';
+
+type ScriptPresetId = 'plain-text-script';
+
+export interface NodeMenuSelection {
+  type: CanvasNodeType;
+  scriptPresetId?: ScriptPresetId;
+  slashPresetId?: SlashPresetId;
+}
 
 interface NodeSelectionMenuProps {
   position: { x: number; y: number };
   allowedTypes?: CanvasNodeType[];
-  onSelect: (type: CanvasNodeType) => void;
+  onSelect: (selection: NodeMenuSelection) => void;
   onClose: () => void;
+}
+
+interface NodeSelectionMenuItem {
+  key: string;
+  type: CanvasNodeType;
+  menuLabelKey: string;
+  menuIcon: 'upload' | 'sparkles' | 'layout' | 'text' | 'video' | 'audio';
+  order: number;
+  scriptPresetId?: ScriptPresetId;
+  slashPresetId?: SlashPresetId;
 }
 
 const MENU_ICON_MAP: Record<string, LucideIcon> = {
@@ -59,13 +81,44 @@ export function NodeSelectionMenu({ position, allowedTypes, onSelect, onClose }:
       }
     }
 
-    return Array.from(dedupedByLabel.values()).sort((left, right) => {
-      const leftOrder = orderMap.get(left.type) ?? Number.POSITIVE_INFINITY;
-      const rightOrder = orderMap.get(right.type) ?? Number.POSITIVE_INFINITY;
+    const baseItems: NodeSelectionMenuItem[] = Array.from(dedupedByLabel.values()).map((definition) => ({
+      key: definition.type,
+      type: definition.type,
+      menuLabelKey: definition.menuLabelKey,
+      menuIcon: definition.menuIcon,
+      order: orderMap.get(definition.type) ?? Number.POSITIVE_INFINITY,
+    }));
+
+    const canShowScriptPreset =
+      !allowedTypeSet || allowedTypeSet.has(CANVAS_NODE_TYPES.textAnnotation);
+    if (canShowScriptPreset) {
+      baseItems.unshift({
+        key: 'script-preset',
+        type: CANVAS_NODE_TYPES.textAnnotation,
+        menuLabelKey: 'node.menu.scriptPreset',
+        menuIcon: 'text',
+        order: (orderMap.get(CANVAS_NODE_TYPES.textAnnotation) ?? 1) - 0.1,
+        scriptPresetId: 'plain-text-script' as const,
+      });
+    }
+
+    const slashItems: NodeSelectionMenuItem[] = SLASH_PRESET_MENU_DEFINITIONS
+      .map((definition, index) => ({
+        key: `slash-${definition.id}`,
+        type: definition.primaryType,
+        menuLabelKey: definition.titleKey,
+        menuIcon: definition.menuIcon,
+        order: 100 + index,
+        slashPresetId: definition.id,
+      }));
+
+    return [...baseItems, ...slashItems].sort((left, right) => {
+      const leftOrder = left.order;
+      const rightOrder = right.order;
       if (leftOrder !== rightOrder) {
         return leftOrder - rightOrder;
       }
-      return left.type.localeCompare(right.type);
+      return left.key.localeCompare(right.key);
     });
   }, [allowedTypeSet, allowedTypes, orderMap]);
 
@@ -131,12 +184,20 @@ export function NodeSelectionMenu({ position, allowedTypes, onSelect, onClose }:
           const Icon = MENU_ICON_MAP[item.menuIcon] ?? Sparkles;
           return (
             <button
-              key={item.type}
+              key={item.key}
               className="group flex w-full items-center gap-2.5 rounded-[var(--ui-radius-lg)] px-2.5 py-2 text-left transition-colors hover:bg-[var(--ui-surface-field)]"
               style={{ transitionDelay: isVisible ? `${index * 10}ms` : '0ms' }}
               onClick={() => {
                 handleClose();
-                setTimeout(() => onSelect(item.type), UI_POPOVER_TRANSITION_MS + 10);
+                setTimeout(
+                  () =>
+                    onSelect({
+                      type: item.type,
+                      scriptPresetId: item.scriptPresetId,
+                      slashPresetId: item.slashPresetId,
+                    }),
+                  UI_POPOVER_TRANSITION_MS + 10
+                );
               }}
             >
               <span className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-md border border-[var(--ui-border-soft)] bg-[rgba(var(--accent-rgb),0.12)] text-[rgba(var(--accent-rgb),0.95)]">

@@ -56,6 +56,13 @@ export class CanvasToolProcessor implements ToolProcessor {
             options
           ),
         };
+      case NODE_TOOL_TYPES.rotateMirror:
+        return {
+          outputImageUrl: await this.rotateMirrorImage(
+            await persistImageLocally(sourceImageUrl),
+            options
+          ),
+        };
       default:
         throw new Error('Unsupported tool type');
     }
@@ -190,6 +197,62 @@ export class CanvasToolProcessor implements ToolProcessor {
       context.fillStyle = color;
       context.fillText(text, x, y);
     }
+
+    return canvasToDataUrl(canvas);
+  }
+
+  private normalizeRotateDegrees(rawValue: unknown): number {
+    const normalized = Number(rawValue);
+    if (!Number.isFinite(normalized)) {
+      return 0;
+    }
+
+    const snapped = Math.round(normalized / 90) * 90;
+    const wrapped = ((snapped % 360) + 360) % 360;
+    if (wrapped === 90 || wrapped === 180 || wrapped === 270) {
+      return wrapped;
+    }
+    return 0;
+  }
+
+  private async rotateMirrorImage(
+    sourceImage: string,
+    options: Record<string, unknown>
+  ): Promise<string> {
+    const image = await loadImageElement(sourceImage);
+    const rotateDegrees = this.normalizeRotateDegrees(options.rotateDeg);
+    const mirrorModeRaw = String(options.mirror ?? 'none').trim().toLowerCase();
+    const mirrorMode =
+      mirrorModeRaw === 'horizontal'
+      || mirrorModeRaw === 'vertical'
+      || mirrorModeRaw === 'both'
+        ? mirrorModeRaw
+        : 'none';
+
+    const isQuarterTurn = rotateDegrees === 90 || rotateDegrees === 270;
+    const targetWidth = isQuarterTurn ? image.naturalHeight : image.naturalWidth;
+    const targetHeight = isQuarterTurn ? image.naturalWidth : image.naturalHeight;
+    const canvas = document.createElement('canvas');
+    canvas.width = targetWidth;
+    canvas.height = targetHeight;
+
+    const context = canvas.getContext('2d');
+    if (!context) {
+      throw new Error('Failed to initialize canvas');
+    }
+
+    const scaleX = mirrorMode === 'horizontal' || mirrorMode === 'both' ? -1 : 1;
+    const scaleY = mirrorMode === 'vertical' || mirrorMode === 'both' ? -1 : 1;
+    context.translate(canvas.width / 2, canvas.height / 2);
+    context.rotate((rotateDegrees * Math.PI) / 180);
+    context.scale(scaleX, scaleY);
+    context.drawImage(
+      image,
+      -image.naturalWidth / 2,
+      -image.naturalHeight / 2,
+      image.naturalWidth,
+      image.naturalHeight
+    );
 
     return canvasToDataUrl(canvas);
   }

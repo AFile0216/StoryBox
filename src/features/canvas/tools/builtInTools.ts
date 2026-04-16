@@ -14,7 +14,7 @@ function supportsImageSourceNode(node: CanvasNode): boolean {
 
 export const cropToolPlugin: CanvasToolPlugin = {
   type: NODE_TOOL_TYPES.crop,
-  label: 'è£å‰ª',
+  label: 'Crop',
   icon: 'crop',
   editor: 'crop',
   supportsNode: (node) => supportsImageSourceNode(node) && Boolean(node.data.imageUrl),
@@ -25,10 +25,10 @@ export const cropToolPlugin: CanvasToolPlugin = {
   fields: [
     {
       key: 'aspectRatio',
-      label: 'ç›®æ ‡æ¯”ä¾‹',
+      label: 'Aspect ratio',
       type: 'select',
       options: [
-        { label: 'è‡ªç”±', value: 'free' },
+        { label: 'Free', value: 'free' },
         { label: '1:1', value: '1:1' },
         { label: '16:9', value: '16:9' },
         { label: '9:16', value: '9:16' },
@@ -43,7 +43,7 @@ export const cropToolPlugin: CanvasToolPlugin = {
 
 export const annotateToolPlugin: CanvasToolPlugin = {
   type: NODE_TOOL_TYPES.annotate,
-  label: 'æ ‡æ³¨',
+  label: 'Annotate',
   icon: 'annotate',
   editor: 'annotate',
   supportsNode: (node) => supportsImageSourceNode(node) && Boolean(node.data.imageUrl),
@@ -60,7 +60,7 @@ export const annotateToolPlugin: CanvasToolPlugin = {
 
 export const splitStoryboardToolPlugin: CanvasToolPlugin = {
   type: NODE_TOOL_TYPES.splitStoryboard,
-  label: 'åˆ‡å‰²',
+  label: 'Split',
   icon: 'split',
   editor: 'split',
   supportsNode: (node) => supportsImageSourceNode(node) && Boolean(node.data.imageUrl),
@@ -74,8 +74,47 @@ export const splitStoryboardToolPlugin: CanvasToolPlugin = {
     await context.processTool(NODE_TOOL_TYPES.splitStoryboard, sourceImageUrl, options),
 };
 
+export const rotateMirrorToolPlugin: CanvasToolPlugin = {
+  type: NODE_TOOL_TYPES.rotateMirror,
+  label: 'Rotate / Mirror',
+  icon: 'rotate',
+  editor: 'form',
+  supportsNode: (node) => supportsImageSourceNode(node) && Boolean(node.data.imageUrl),
+  createInitialOptions: () => ({
+    rotateDeg: '0',
+    mirror: 'none',
+  }),
+  fields: [
+    {
+      key: 'rotateDeg',
+      label: 'Rotate',
+      type: 'select',
+      options: [
+        { label: '0¡ã', value: '0' },
+        { label: '90¡ã', value: '90' },
+        { label: '180¡ã', value: '180' },
+        { label: '270¡ã', value: '270' },
+      ],
+    },
+    {
+      key: 'mirror',
+      label: 'Mirror',
+      type: 'select',
+      options: [
+        { label: 'None', value: 'none' },
+        { label: 'Horizontal', value: 'horizontal' },
+        { label: 'Vertical', value: 'vertical' },
+        { label: 'Both', value: 'both' },
+      ],
+    },
+  ],
+  execute: async (sourceImageUrl, options, context) =>
+    await context.processTool(NODE_TOOL_TYPES.rotateMirror, sourceImageUrl, options),
+};
+
 export const builtInToolPlugins: CanvasToolPlugin[] = [
   cropToolPlugin,
   annotateToolPlugin,
   splitStoryboardToolPlugin,
+  rotateMirrorToolPlugin,
 ];

@@ -37,6 +37,19 @@
     "splitStoryboard": "Split Storyboard",
     "generate": "Generate",
     "quickCreate": "Quick Create",
+    "arrange": {
+      "menuTitle": "Arrange",
+      "alignLeft": "Align Left",
+      "alignRight": "Align Right",
+      "alignTop": "Align Top",
+      "alignBottom": "Align Bottom",
+      "alignLeftShort": "Left",
+      "alignTopShort": "Top",
+      "distributeHorizontal": "Distribute Horizontal",
+      "distributeVertical": "Distribute Vertical",
+      "autoLayoutLr": "Auto Layout L-R",
+      "autoLayoutShort": "Auto L-R"
+    },
     "emptyHintTitle": "Double-click to add a node",
     "emptyHintSubtitle": "Build an editable multimodal canvas from here.",
     "toolbar": {
@@ -50,7 +63,8 @@
   "tool": {
     "crop": "Crop",
     "annotate": "Annotate",
-    "split": "Split"
+    "split": "Split",
+    "rotateMirror": "Rotate / Mirror"
   },
   "toolDialog": {
     "suffix": " Tool",
@@ -59,7 +73,8 @@
     "processing": "Processing...",
     "apply": "Apply",
     "cropResultTitle": "Crop Result",
-    "annotateResultTitle": "Annotation Result"
+    "annotateResultTitle": "Annotation Result",
+    "rotateMirrorResultTitle": "Rotate / Mirror Result"
   },
   "nodeToolbar": {
     "reupload": "Reupload",
@@ -98,6 +113,7 @@
     "menu": {
       "uploadImage": "Upload Image",
       "aiImageGeneration": "AI Image",
+      "scriptPreset": "Script Preset",
       "storyboard": "Storyboard Node",
       "storyboardCompose": "Storyboard Compose",
       "storyboardGen": "Storyboard Generation",
@@ -107,7 +123,16 @@
       "audio": "Audio Node",
       "videoStoryboard": "Video Storyboard",
       "group": "Group",
-      "chat": "AI Chat"
+      "chat": "AI Chat",
+      "slash": {
+        "multicam9": "/ Multicam 9 Grid",
+        "storyDrama4": "/ Drama 4 Grid",
+        "storyContinuity25": "/ Continuity 25 Grid",
+        "characterTripleView": "/ Character Triple View",
+        "scenePlus3s": "/ Scene +3s",
+        "sceneMinus5s": "/ Scene -5s",
+        "cinematicLightingFix": "/ Cinematic Lighting Fix"
+      }
     },
     "display": {
       "upload": "Upload Image",

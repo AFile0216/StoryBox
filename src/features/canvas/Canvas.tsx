@@ -46,9 +46,10 @@ import {
   nodeHasSourceHandle,
   nodeHasTargetHandle,
 } from '@/features/canvas/domain/nodeRegistry';
+import { getSlashPresetPlan } from '@/features/canvas/application/slashPresets';
 import { nodeTypes } from './nodes';
 import { edgeTypes } from './edges';
-import { NodeSelectionMenu } from './NodeSelectionMenu';
+import { NodeSelectionMenu, type NodeMenuSelection } from './NodeSelectionMenu';
 import { SelectedNodeOverlay } from './ui/SelectedNodeOverlay';
 import { NodeToolDialog } from './ui/NodeToolDialog';
 import { ImageViewerModal } from './ui/ImageViewerModal';
@@ -240,6 +241,7 @@ export function Canvas() {
   const [menuAllowedTypes, setMenuAllowedTypes] = useState<CanvasNodeType[] | undefined>(
     undefined
   );
+  const [showArrangeMenu, setShowArrangeMenu] = useState(false);
   const [pendingConnectStart, setPendingConnectStart] = useState<PendingConnectStart | null>(
     null
   );
@@ -250,6 +252,7 @@ export function Canvas() {
   const pasteIterationRef = useRef(0);
   const pasteImageHandledRef = useRef(false);
   const duplicateNodesRef = useRef<((sourceNodeIds: string[]) => string | null) | null>(null);
+  const arrangeMenuRef = useRef<HTMLDivElement | null>(null);
   const altDragCopyRef = useRef<{
     sourceNodeIds: string[];
     startPositions: Map<string, { x: number; y: number }>;
@@ -274,6 +277,9 @@ export function Canvas() {
   const deleteNode = useCanvasStore((state) => state.deleteNode);
   const deleteNodes = useCanvasStore((state) => state.deleteNodes);
   const groupNodes = useCanvasStore((state) => state.groupNodes);
+  const arrangeAlignNodes = useCanvasStore((state) => state.arrangeAlignNodes);
+  const arrangeDistributeNodes = useCanvasStore((state) => state.arrangeDistributeNodes);
+  const autoLayoutNodesLeftToRight = useCanvasStore((state) => state.autoLayoutNodesLeftToRight);
   const undo = useCanvasStore((state) => state.undo);
   const redo = useCanvasStore((state) => state.redo);
   const openToolDialog = useToolDialogStore((state) => state.openToolDialog);
@@ -522,6 +528,9 @@ export function Canvas() {
     deleteNode,
     deleteNodes,
     groupNodes,
+    arrangeAlignNodes,
+    arrangeDistributeNodes,
+    autoLayoutNodesLeftToRight,
     undo,
     redo,
     scheduleCanvasPersist,
@@ -620,14 +629,90 @@ export function Canvas() {
   }, [openNodeMenuAtClientPosition]);
 
   const handleNodeSelect = useCallback(
-    (type: CanvasNodeType) => {
+    (selection: NodeMenuSelection) => {
+      const { type, scriptPresetId, slashPresetId } = selection;
+      const closeNodeMenu = () => {
+        setShowNodeMenu(false);
+        setMenuAllowedTypes(undefined);
+        setPendingConnectStart(null);
+        setPreviewConnectionVisual(null);
+      };
+
+      if (slashPresetId) {
+        const slashPlan = getSlashPresetPlan(slashPresetId);
+        if (slashPlan?.workflow) {
+          const workflowNodeIdMap = new Map<string, string>();
+          for (const workflowNode of slashPlan.workflow.nodes) {
+            const createdNodeId = addNode(
+              workflowNode.type,
+              {
+                x: flowPosition.x + workflowNode.offset.x,
+                y: flowPosition.y + workflowNode.offset.y,
+              },
+              workflowNode.data
+            );
+            workflowNodeIdMap.set(workflowNode.key, createdNodeId);
+          }
+
+          for (const workflowEdge of slashPlan.workflow.edges) {
+            const sourceId = workflowNodeIdMap.get(workflowEdge.from);
+            const targetId = workflowNodeIdMap.get(workflowEdge.to);
+            if (!sourceId || !targetId) {
+              continue;
+            }
+            connectNodes({
+              source: sourceId,
+              target: targetId,
+              sourceHandle: 'source',
+              targetHandle: 'target',
+            });
+          }
+
+          const firstWorkflowNodeId = workflowNodeIdMap.values().next().value as string | undefined;
+          const primaryNodeId =
+            workflowNodeIdMap.get(slashPlan.workflow.primaryNodeKey) ?? firstWorkflowNodeId ?? null;
+          if (primaryNodeId) {
+            setSelectedNode(primaryNodeId);
+          }
+
+          if (pendingConnectStart && primaryNodeId) {
+            if (pendingConnectStart.handleType === 'source') {
+              connectNodes({
+                source: pendingConnectStart.nodeId,
+                target: primaryNodeId,
+                sourceHandle: 'source',
+                targetHandle: 'target',
+              });
+            } else {
+              connectNodes({
+                source: primaryNodeId,
+                target: pendingConnectStart.nodeId,
+                sourceHandle: 'source',
+                targetHandle: 'target',
+              });
+            }
+          }
+
+          scheduleCanvasPersist(0);
+          closeNodeMenu();
+          return;
+        }
+      }
+
       const createData =
         pendingConnectStart
           ? undefined
           : type === CANVAS_NODE_TYPES.video || type === CANVAS_NODE_TYPES.audio
             ? { autoOpenPicker: true }
             : undefined;
-      const newNodeId = addNode(type, flowPosition, createData);
+      const resolvedCreateData = scriptPresetId === 'plain-text-script'
+        ? {
+            ...(createData ?? {}),
+            mode: 'plain-text',
+          }
+        : createData;
+
+      const newNodeId = addNode(type, flowPosition, resolvedCreateData);
       if (pendingConnectStart) {
         if (pendingConnectStart.handleType === 'source') {
           connectNodes({
@@ -647,10 +732,7 @@ export function Canvas() {
       }
 
       scheduleCanvasPersist(0);
-      setShowNodeMenu(false);
-      setMenuAllowedTypes(undefined);
-      setPendingConnectStart(null);
-      setPreviewConnectionVisual(null);
+      closeNodeMenu();
     },
     [
       addNode,
@@ -659,8 +741,68 @@ export function Canvas() {
       pendingConnectStart,
       scheduleCanvasPersist,
       setPreviewConnectionVisual,
+      setSelectedNode,
     ]
   );
+
+  const handleArrangeAlign = useCallback(
+    (mode: Parameters<typeof arrangeAlignNodes>[1]) => {
+      if (selectedNodeIds.length < 2) {
+        return;
+      }
+      const changed = arrangeAlignNodes(selectedNodeIds, mode);
+      if (changed) {
+        scheduleCanvasPersist(0);
+      }
+    },
+    [arrangeAlignNodes, scheduleCanvasPersist, selectedNodeIds]
+  );
+
+  const handleArrangeDistribute = useCallback(
+    (mode: Parameters<typeof arrangeDistributeNodes>[1]) => {
+      if (selectedNodeIds.length < 3) {
+        return;
+      }
+      const changed = arrangeDistributeNodes(selectedNodeIds, mode);
+      if (changed) {
+        scheduleCanvasPersist(0);
+      }
+    },
+    [arrangeDistributeNodes, scheduleCanvasPersist, selectedNodeIds]
+  );
+
+  const handleAutoLayoutLeftToRight = useCallback(() => {
+    if (selectedNodeIds.length < 2) {
+      return;
+    }
+    const changed = autoLayoutNodesLeftToRight(selectedNodeIds);
+    if (changed) {
+      scheduleCanvasPersist(0);
+    }
+  }, [autoLayoutNodesLeftToRight, scheduleCanvasPersist, selectedNodeIds]);
+
+  useEffect(() => {
+    if (!showArrangeMenu) {
+      return;
+    }
+    const onPointerDown = (event: PointerEvent) => {
+      if (arrangeMenuRef.current?.contains(event.target as Node)) {
+        return;
+      }
+      setShowArrangeMenu(false);
+    };
+    window.addEventListener('pointerdown', onPointerDown, true);
+    return () => {
+      window.removeEventListener('pointerdown', onPointerDown, true);
+    };
+  }, [showArrangeMenu]);
+
+  useEffect(() => {
+    if (selectedNodeIds.length >= 2) {
+      return;
+    }
+    setShowArrangeMenu(false);
+  }, [selectedNodeIds.length]);
 
   const duplicateNodes = useCallback(
     (sourceNodeIds: string[], options: DuplicateOptions = {}) => {
@@ -1282,6 +1424,130 @@ export function Canvas() {
       </ReactFlow>
 
       <AssetOperationBar />
+
+      {selectedNodeIds.length >= 2 && (
+        <>
+          <div className="absolute left-3 top-3 z-30 flex items-center gap-1 rounded-xl border border-[var(--ui-border-soft)] bg-[var(--ui-surface-panel)] p-1 shadow-[var(--ui-elevation-2)]">
+            <button
+              type="button"
+              className="h-8 rounded-lg px-2 text-xs text-text-dark transition-colors hover:bg-[var(--ui-hover-surface)]"
+              title={`${t('canvas.arrange.alignLeft')} (Alt+Shift+←)`}
+              onClick={() => handleArrangeAlign('left')}
+            >
+              {t('canvas.arrange.alignLeftShort')}
+            </button>
+            <button
+              type="button"
+              className="h-8 rounded-lg px-2 text-xs text-text-dark transition-colors hover:bg-[var(--ui-hover-surface)]"
+              title={`${t('canvas.arrange.alignTop')} (Alt+Shift+↑)`}
+              onClick={() => handleArrangeAlign('top')}
+            >
+              {t('canvas.arrange.alignTopShort')}
+            </button>
+            <button
+              type="button"
+              className="h-8 rounded-lg px-2 text-xs text-text-dark transition-colors hover:bg-[var(--ui-hover-surface)]"
+              title={`${t('canvas.arrange.autoLayoutLr')} (Alt+Shift+L)`}
+              onClick={handleAutoLayoutLeftToRight}
+            >
+              {t('canvas.arrange.autoLayoutShort')}
+            </button>
+          </div>
+
+          <div ref={arrangeMenuRef} className="absolute right-3 top-3 z-30">
+            <button
+              type="button"
+              className="h-9 rounded-xl border border-[var(--ui-border-soft)] bg-[var(--ui-surface-panel)] px-3 text-xs text-text-dark shadow-[var(--ui-elevation-2)] transition-colors hover:bg-[var(--ui-hover-surface)]"
+              onClick={() => setShowArrangeMenu((previous) => !previous)}
+            >
+              {t('canvas.arrange.menuTitle')}
+            </button>
+            {showArrangeMenu && (
+              <div className="mt-1.5 w-52 rounded-xl border border-[var(--ui-border-soft)] bg-[var(--ui-surface-panel)] p-1.5 shadow-[var(--ui-elevation-3)]">
+                <button
+                  type="button"
+                  className="flex h-8 w-full items-center justify-between rounded-lg px-2 text-left text-xs text-text-dark hover:bg-[var(--ui-hover-surface)]"
+                  onClick={() => {
+                    handleArrangeAlign('left');
+                    setShowArrangeMenu(false);
+                  }}
+                >
+                  <span>{t('canvas.arrange.alignLeft')}</span>
+                  <span className="text-[10px] text-text-muted">Alt+Shift+←</span>
+                </button>
+                <button
+                  type="button"
+                  className="flex h-8 w-full items-center justify-between rounded-lg px-2 text-left text-xs text-text-dark hover:bg-[var(--ui-hover-surface)]"
+                  onClick={() => {
+                    handleArrangeAlign('right');
+                    setShowArrangeMenu(false);
+                  }}
+                >
+                  <span>{t('canvas.arrange.alignRight')}</span>
+                  <span className="text-[10px] text-text-muted">Alt+Shift+→</span>
+                </button>
+                <button
+                  type="button"
+                  className="flex h-8 w-full items-center justify-between rounded-lg px-2 text-left text-xs text-text-dark hover:bg-[var(--ui-hover-surface)]"
+                  onClick={() => {
+                    handleArrangeAlign('top');
+                    setShowArrangeMenu(false);
+                  }}
+                >
+                  <span>{t('canvas.arrange.alignTop')}</span>
+                  <span className="text-[10px] text-text-muted">Alt+Shift+↑</span>
+                </button>
+                <button
+                  type="button"
+                  className="flex h-8 w-full items-center justify-between rounded-lg px-2 text-left text-xs text-text-dark hover:bg-[var(--ui-hover-surface)]"
+                  onClick={() => {
+                    handleArrangeAlign('bottom');
+                    setShowArrangeMenu(false);
+                  }}
+                >
+                  <span>{t('canvas.arrange.alignBottom')}</span>
+                  <span className="text-[10px] text-text-muted">Alt+Shift+↓</span>
+                </button>
+                <button
+                  type="button"
+                  className="mt-1 flex h-8 w-full items-center justify-between rounded-lg px-2 text-left text-xs text-text-dark hover:bg-[var(--ui-hover-surface)] disabled:cursor-not-allowed disabled:opacity-40"
+                  disabled={selectedNodeIds.length < 3}
+                  onClick={() => {
+                    handleArrangeDistribute('horizontal');
+                    setShowArrangeMenu(false);
+                  }}
+                >
+                  <span>{t('canvas.arrange.distributeHorizontal')}</span>
+                  <span className="text-[10px] text-text-muted">Alt+Shift+H</span>
+                </button>
+                <button
+                  type="button"
+                  className="flex h-8 w-full items-center justify-between rounded-lg px-2 text-left text-xs text-text-dark hover:bg-[var(--ui-hover-surface)] disabled:cursor-not-allowed disabled:opacity-40"
+                  disabled={selectedNodeIds.length < 3}
+                  onClick={() => {
+                    handleArrangeDistribute('vertical');
+                    setShowArrangeMenu(false);
+                  }}
+                >
+                  <span>{t('canvas.arrange.distributeVertical')}</span>
+                  <span className="text-[10px] text-text-muted">Alt+Shift+V</span>
+                </button>
+                <button
+                  type="button"
+                  className="mt-1 flex h-8 w-full items-center justify-between rounded-lg px-2 text-left text-xs text-text-dark hover:bg-[var(--ui-hover-surface)]"
+                  onClick={() => {
+                    handleAutoLayoutLeftToRight();
+                    setShowArrangeMenu(false);
+                  }}
+                >
+                  <span>{t('canvas.arrange.autoLayoutLr')}</span>
+                  <span className="text-[10px] text-text-muted">Alt+Shift+L</span>
+                </button>
+              </div>
+            )}
+          </div>
+        </>
+      )}
 
       {nodes.length === 0 && emptyHint}
       {nodes.length > 0 && configuredApiKeyCount === 0 && (

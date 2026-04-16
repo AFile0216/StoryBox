@@ -66,6 +66,9 @@ export interface CanvasHistoryState {
 const MAX_HISTORY_STEPS = 50;
 const IMAGE_NODE_VISUAL_MIN_EDGE = 96;
 
+export type ArrangeAlignMode = 'left' | 'right' | 'top' | 'bottom' | 'center-x' | 'center-y';
+export type ArrangeDistributeMode = 'horizontal' | 'vertical';
+
 interface CanvasState {
   nodes: CanvasNode[];
   edges: CanvasEdge[];
@@ -137,6 +140,9 @@ interface CanvasState {
   deleteNode: (nodeId: string) => void;
   deleteNodes: (nodeIds: string[]) => void;
   groupNodes: (nodeIds: string[]) => string | null;
+  arrangeAlignNodes: (nodeIds: string[], mode: ArrangeAlignMode) => boolean;
+  arrangeDistributeNodes: (nodeIds: string[], mode: ArrangeDistributeMode) => boolean;
+  autoLayoutNodesLeftToRight: (nodeIds: string[]) => boolean;
   ungroupNode: (groupNodeId: string) => boolean;
   toggleGroupCollapsed: (groupNodeId: string) => boolean;
   deleteEdge: (edgeId: string) => void;
@@ -549,6 +555,41 @@ function resolveAbsolutePosition(
   }
 
   return { x, y };
+}
+
+function resolveParentAbsolutePosition(
+  node: CanvasNode,
+  nodeMap: Map<string, CanvasNode>
+): { x: number; y: number } {
+  let x = 0;
+  let y = 0;
+  let currentParentId = node.parentId;
+  const visited = new Set<string>();
+
+  while (currentParentId && !visited.has(currentParentId)) {
+    visited.add(currentParentId);
+    const parent = nodeMap.get(currentParentId);
+    if (!parent) {
+      break;
+    }
+    x += parent.position.x;
+    y += parent.position.y;
+    currentParentId = parent.parentId;
+  }
+
+  return { x, y };
+}
+
+function resolveRelativePositionFromAbsolute(
+  node: CanvasNode,
+  nodeMap: Map<string, CanvasNode>,
+  absolutePosition: { x: number; y: number }
+): { x: number; y: number } {
+  const parentAbsolute = resolveParentAbsolutePosition(node, nodeMap);
+  return {
+    x: Math.round(absolutePosition.x - parentAbsolute.x),
+    y: Math.round(absolutePosition.y - parentAbsolute.y),
+  };
 }
 
 function pushSnapshot(
@@ -1461,6 +1502,285 @@ export const useCanvasStore = create<CanvasState>((set, get) => ({
     });
 
     return groupNode.id;
+  },
+
+  arrangeAlignNodes: (nodeIds, mode) => {
+    const uniqueIds = Array.from(new Set(nodeIds.filter((nodeId) => nodeId.trim().length > 0)));
+    if (uniqueIds.length < 2) {
+      return false;
+    }
+
+    let changed = false;
+    set((state) => {
+      const nodeMap = new Map(state.nodes.map((node) => [node.id, node] as const));
+      const selectedNodes = uniqueIds
+        .map((id) => nodeMap.get(id))
+        .filter((node): node is CanvasNode => Boolean(node));
+      if (selectedNodes.length < 2) {
+        return {};
+      }
+
+      const metrics = selectedNodes.map((node) => {
+        const absolute = resolveAbsolutePosition(node, nodeMap);
+        const size = getNodeSize(node);
+        return {
+          node,
+          absolute,
+          size,
+          left: absolute.x,
+          right: absolute.x + size.width,
+          top: absolute.y,
+          bottom: absolute.y + size.height,
+          centerX: absolute.x + size.width / 2,
+          centerY: absolute.y + size.height / 2,
+        };
+      });
+
+      let target = 0;
+      if (mode === 'left') {
+        target = Math.min(...metrics.map((item) => item.left));
+      } else if (mode === 'right') {
+        target = Math.max(...metrics.map((item) => item.right));
+      } else if (mode === 'top') {
+        target = Math.min(...metrics.map((item) => item.top));
+      } else if (mode === 'bottom') {
+        target = Math.max(...metrics.map((item) => item.bottom));
+      } else if (mode === 'center-x') {
+        target = metrics.reduce((sum, item) => sum + item.centerX, 0) / metrics.length;
+      } else {
+        target = metrics.reduce((sum, item) => sum + item.centerY, 0) / metrics.length;
+      }
+
+      const selectedSet = new Set(metrics.map((item) => item.node.id));
+      const metricMap = new Map(metrics.map((item) => [item.node.id, item] as const));
+
+      const nextNodes = state.nodes.map((node) => {
+        if (!selectedSet.has(node.id)) {
+          return node;
+        }
+
+        const metric = metricMap.get(node.id);
+        if (!metric) {
+          return node;
+        }
+
+        let nextAbsoluteX = metric.absolute.x;
+        let nextAbsoluteY = metric.absolute.y;
+        if (mode === 'left') {
+          nextAbsoluteX = target;
+        } else if (mode === 'right') {
+          nextAbsoluteX = target - metric.size.width;
+        } else if (mode === 'top') {
+          nextAbsoluteY = target;
+        } else if (mode === 'bottom') {
+          nextAbsoluteY = target - metric.size.height;
+        } else if (mode === 'center-x') {
+          nextAbsoluteX = target - metric.size.width / 2;
+        } else {
+          nextAbsoluteY = target - metric.size.height / 2;
+        }
+
+        const nextPosition = resolveRelativePositionFromAbsolute(node, nodeMap, {
+          x: nextAbsoluteX,
+          y: nextAbsoluteY,
+        });
+        if (nextPosition.x === node.position.x && nextPosition.y === node.position.y) {
+          return node;
+        }
+
+        changed = true;
+        return {
+          ...node,
+          position: nextPosition,
+        };
+      });
+
+      if (!changed) {
+        return {};
+      }
+
+      return {
+        nodes: nextNodes,
+        history: {
+          past: pushSnapshot(state.history.past, createSnapshot(state.nodes, state.edges)),
+          future: [],
+        },
+        dragHistorySnapshot: null,
+      };
+    });
+
+    return changed;
+  },
+
+  arrangeDistributeNodes: (nodeIds, mode) => {
+    const uniqueIds = Array.from(new Set(nodeIds.filter((nodeId) => nodeId.trim().length > 0)));
+    if (uniqueIds.length < 3) {
+      return false;
+    }
+
+    let changed = false;
+    set((state) => {
+      const nodeMap = new Map(state.nodes.map((node) => [node.id, node] as const));
+      const selectedNodes = uniqueIds
+        .map((id) => nodeMap.get(id))
+        .filter((node): node is CanvasNode => Boolean(node));
+      if (selectedNodes.length < 3) {
+        return {};
+      }
+
+      const metrics = selectedNodes.map((node) => {
+        const absolute = resolveAbsolutePosition(node, nodeMap);
+        const size = getNodeSize(node);
+        return {
+          node,
+          absolute,
+          size,
+          centerX: absolute.x + size.width / 2,
+          centerY: absolute.y + size.height / 2,
+        };
+      });
+      const sorted = [...metrics].sort((left, right) =>
+        mode === 'horizontal'
+          ? left.centerX - right.centerX
+          : left.centerY - right.centerY
+      );
+      if (sorted.length < 3) {
+        return {};
+      }
+
+      const firstCenter = mode === 'horizontal' ? sorted[0].centerX : sorted[0].centerY;
+      const lastCenter = mode === 'horizontal'
+        ? sorted[sorted.length - 1].centerX
+        : sorted[sorted.length - 1].centerY;
+      if (Math.abs(lastCenter - firstCenter) < 0.001) {
+        return {};
+      }
+
+      const step = (lastCenter - firstCenter) / (sorted.length - 1);
+      const centerTargetMap = new Map<string, number>();
+      for (let index = 1; index < sorted.length - 1; index += 1) {
+        centerTargetMap.set(sorted[index].node.id, firstCenter + step * index);
+      }
+
+      const nextNodes = state.nodes.map((node) => {
+        const targetCenter = centerTargetMap.get(node.id);
+        if (typeof targetCenter !== 'number') {
+          return node;
+        }
+
+        const metric = metrics.find((item) => item.node.id === node.id);
+        if (!metric) {
+          return node;
+        }
+
+        const nextAbsolute = mode === 'horizontal'
+          ? {
+              x: targetCenter - metric.size.width / 2,
+              y: metric.absolute.y,
+            }
+          : {
+              x: metric.absolute.x,
+              y: targetCenter - metric.size.height / 2,
+            };
+        const nextPosition = resolveRelativePositionFromAbsolute(node, nodeMap, nextAbsolute);
+        if (nextPosition.x === node.position.x && nextPosition.y === node.position.y) {
+          return node;
+        }
+
+        changed = true;
+        return {
+          ...node,
+          position: nextPosition,
+        };
+      });
+
+      if (!changed) {
+        return {};
+      }
+
+      return {
+        nodes: nextNodes,
+        history: {
+          past: pushSnapshot(state.history.past, createSnapshot(state.nodes, state.edges)),
+          future: [],
+        },
+        dragHistorySnapshot: null,
+      };
+    });
+
+    return changed;
+  },
+
+  autoLayoutNodesLeftToRight: (nodeIds) => {
+    const uniqueIds = Array.from(new Set(nodeIds.filter((nodeId) => nodeId.trim().length > 0)));
+    if (uniqueIds.length < 2) {
+      return false;
+    }
+
+    let changed = false;
+    set((state) => {
+      const nodeMap = new Map(state.nodes.map((node) => [node.id, node] as const));
+      const selectedNodes = uniqueIds
+        .map((id) => nodeMap.get(id))
+        .filter((node): node is CanvasNode => Boolean(node));
+      if (selectedNodes.length < 2) {
+        return {};
+      }
+
+      const metrics = selectedNodes.map((node) => {
+        const absolute = resolveAbsolutePosition(node, nodeMap);
+        const size = getNodeSize(node);
+        return { node, absolute, size };
+      });
+      const sorted = [...metrics].sort((left, right) =>
+        left.absolute.x === right.absolute.x
+          ? left.absolute.y - right.absolute.y
+          : left.absolute.x - right.absolute.x
+      );
+
+      const startX = Math.min(...sorted.map((item) => item.absolute.x));
+      const startY = Math.min(...sorted.map((item) => item.absolute.y));
+      const gap = 56;
+      const targetMap = new Map<string, { x: number; y: number }>();
+      let cursorX = startX;
+      for (const item of sorted) {
+        targetMap.set(item.node.id, { x: cursorX, y: startY });
+        cursorX += item.size.width + gap;
+      }
+
+      const nextNodes = state.nodes.map((node) => {
+        const targetAbsolute = targetMap.get(node.id);
+        if (!targetAbsolute) {
+          return node;
+        }
+
+        const nextPosition = resolveRelativePositionFromAbsolute(node, nodeMap, targetAbsolute);
+        if (nextPosition.x === node.position.x && nextPosition.y === node.position.y) {
+          return node;
+        }
+
+        changed = true;
+        return {
+          ...node,
+          position: nextPosition,
+        };
+      });
+
+      if (!changed) {
+        return {};
+      }
+
+      return {
+        nodes: nextNodes,
+        history: {
+          past: pushSnapshot(state.history.past, createSnapshot(state.nodes, state.edges)),
+          future: [],
+        },
+        dragHistorySnapshot: null,
+      };
+    });
+
+    return changed;
   },
 
   ungroupNode: (groupNodeId) => {

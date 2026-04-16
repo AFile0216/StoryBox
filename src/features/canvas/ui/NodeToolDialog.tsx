@@ -184,6 +184,9 @@ export function NodeToolDialog() {
     if (toolType === NODE_TOOL_TYPES.splitStoryboard) {
       return t('tool.split');
     }
+    if (toolType === NODE_TOOL_TYPES.rotateMirror) {
+      return t('tool.rotateMirror');
+    }
     return '';
   }, [t]);
   const resolveResultNodeTitle = useCallback((toolType: NodeToolType | undefined) => {
@@ -192,6 +195,9 @@ export function NodeToolDialog() {
     }
     if (toolType === NODE_TOOL_TYPES.annotate) {
       return t('toolDialog.annotateResultTitle');
+    }
+    if (toolType === NODE_TOOL_TYPES.rotateMirror) {
+      return t('toolDialog.rotateMirrorResultTitle');
     }
     return EXPORT_RESULT_DISPLAY_NAME.generic;
   }, [t]);

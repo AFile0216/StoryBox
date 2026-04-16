@@ -45,12 +45,26 @@
       "lock": "锁定画布",
       "unlock": "解锁画布"
     },
-    "quickCreate": "快速创建"
+    "quickCreate": "快速创建",
+    "arrange": {
+      "menuTitle": "排列",
+      "alignLeft": "左对齐",
+      "alignRight": "右对齐",
+      "alignTop": "顶对齐",
+      "alignBottom": "底对齐",
+      "alignLeftShort": "左对齐",
+      "alignTopShort": "顶对齐",
+      "distributeHorizontal": "水平分布",
+      "distributeVertical": "垂直分布",
+      "autoLayoutLr": "自动布局（左到右）",
+      "autoLayoutShort": "自动布局"
+    }
   },
   "tool": {
     "crop": "裁剪",
     "annotate": "标注",
-    "split": "切割"
+    "split": "切割",
+    "rotateMirror": "旋转/镜像"
   },
   "toolDialog": {
     "suffix": "工具",
@@ -59,7 +73,8 @@
     "processing": "处理中...",
     "apply": "应用",
     "cropResultTitle": "裁剪结果",
-    "annotateResultTitle": "标注结果"
+    "annotateResultTitle": "标注结果",
+    "rotateMirrorResultTitle": "旋转镜像结果"
   },
   "nodeToolbar": {
     "reupload": "重新上传",
@@ -107,7 +122,17 @@
       "videoStoryboard": "视频分镜",
       "group": "分组",
       "chat": "AI 对话",
-      "storyboardCompose": "分镜合成"
+      "storyboardCompose": "分镜合成",
+      "scriptPreset": "脚本预设",
+      "slash": {
+        "multicam9": "/ 多机位九宫格",
+        "storyDrama4": "/ 剧情四宫格",
+        "storyContinuity25": "/ 连贯分镜25宫格",
+        "characterTripleView": "/ 角色三视图",
+        "scenePlus3s": "/ 画面推演 +3s",
+        "sceneMinus5s": "/ 画面推演 -5s",
+        "cinematicLightingFix": "/ 电影级光影矫正"
+      }
     },
     "display": {
       "upload": "上传图片",

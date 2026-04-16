@@ -386,6 +386,7 @@ export const NODE_TOOL_TYPES = {
   crop: 'crop',
   annotate: 'annotate',
   splitStoryboard: 'split-storyboard',
+  rotateMirror: 'rotate-mirror',
 } as const;
 
 export type NodeToolType = (typeof NODE_TOOL_TYPES)[keyof typeof NODE_TOOL_TYPES];

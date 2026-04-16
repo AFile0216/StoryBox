@@ -450,7 +450,11 @@ export const StoryboardEditorModal = memo(({
   }, [activeId, safeMax, segments]);
 
   return (
-    <div className="fixed inset-0 z-50 flex flex-col bg-[var(--ui-surface-panel)]" onMouseDown={(event) => event.stopPropagation()}>
+    <div
+      data-global-canvas-undo="true"
+      className="fixed inset-0 z-50 flex flex-col bg-[var(--ui-surface-panel)]"
+      onMouseDown={(event) => event.stopPropagation()}
+    >
       <div className="flex h-12 shrink-0 items-center justify-between border-b border-[var(--ui-border-soft)] px-4">
         <span className="text-sm font-medium text-text-dark">
           {t('node.videoStoryboard.editorTitle', { defaultValue: '分镜编辑器' })}

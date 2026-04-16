@@ -1,6 +1,11 @@
 import { useEffect, type MutableRefObject } from 'react';
 
-import type { CanvasEdge, CanvasNode } from '@/stores/canvasStore';
+import type {
+  ArrangeAlignMode,
+  ArrangeDistributeMode,
+  CanvasEdge,
+  CanvasNode,
+} from '@/stores/canvasStore';
 
 interface ClipboardSnapshot {
   nodes: CanvasNode[];
@@ -16,6 +21,9 @@ interface UseCanvasKeyboardShortcutsOptions {
   deleteNode: (nodeId: string) => void;
   deleteNodes: (nodeIds: string[]) => void;
   groupNodes: (nodeIds: string[]) => string | null;
+  arrangeAlignNodes: (nodeIds: string[], mode: ArrangeAlignMode) => boolean;
+  arrangeDistributeNodes: (nodeIds: string[], mode: ArrangeDistributeMode) => boolean;
+  autoLayoutNodesLeftToRight: (nodeIds: string[]) => boolean;
   undo: () => boolean;
   redo: () => boolean;
   scheduleCanvasPersist: (delayMs?: number) => void;
@@ -33,6 +41,57 @@ function isTypingTarget(target: EventTarget | null): boolean {
   return tagName === 'input' || tagName === 'textarea' || element.isContentEditable;
 }
 
+function isInsideGlobalUndoScope(target: EventTarget | null): boolean {
+  const element = target as HTMLElement | null;
+  if (!element) {
+    return false;
+  }
+  return Boolean(element.closest('[data-global-canvas-undo="true"]'));
+}
+
+function resolveArrangeAlignMode(event: KeyboardEvent): ArrangeAlignMode | null {
+  if (!event.altKey || !event.shiftKey || event.ctrlKey || event.metaKey) {
+    return null;
+  }
+
+  const key = event.key.toLowerCase();
+  if (key === 'arrowleft') {
+    return 'left';
+  }
+  if (key === 'arrowright') {
+    return 'right';
+  }
+  if (key === 'arrowup') {
+    return 'top';
+  }
+  if (key === 'arrowdown') {
+    return 'bottom';
+  }
+  return null;
+}
+
+function resolveArrangeDistributeMode(event: KeyboardEvent): ArrangeDistributeMode | null {
+  if (!event.altKey || !event.shiftKey || event.ctrlKey || event.metaKey) {
+    return null;
+  }
+
+  const key = event.key.toLowerCase();
+  if (key === 'h') {
+    return 'horizontal';
+  }
+  if (key === 'v') {
+    return 'vertical';
+  }
+  return null;
+}
+
+function shouldTriggerAutoLayoutShortcut(event: KeyboardEvent): boolean {
+  if (!event.altKey || !event.shiftKey || event.ctrlKey || event.metaKey) {
+    return false;
+  }
+  return event.key.toLowerCase() === 'l';
+}
+
 export function useCanvasKeyboardShortcuts({
   nodes,
   edges,
@@ -42,6 +101,9 @@ export function useCanvasKeyboardShortcuts({
   deleteNode,
   deleteNodes,
   groupNodes,
+  arrangeAlignNodes,
+  arrangeDistributeNodes,
+  autoLayoutNodesLeftToRight,
   undo,
   redo,
   scheduleCanvasPersist,
@@ -51,14 +113,20 @@ export function useCanvasKeyboardShortcuts({
 }: UseCanvasKeyboardShortcutsOptions) {
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
-      if (isTypingTarget(event.target)) {
-        return;
-      }
-
       const commandPressed = event.ctrlKey || event.metaKey;
       const key = event.key.toLowerCase();
       const isUndo = commandPressed && key === 'z' && !event.shiftKey;
       const isRedo = commandPressed && (key === 'y' || (key === 'z' && event.shiftKey));
+      const arrangeAlignMode = resolveArrangeAlignMode(event);
+      const arrangeDistributeMode = resolveArrangeDistributeMode(event);
+      const isAutoLayoutShortcut = shouldTriggerAutoLayoutShortcut(event);
+      const forceGlobalUndo =
+        (isUndo || isRedo)
+        && isInsideGlobalUndoScope(event.target);
+      if (isTypingTarget(event.target) && !forceGlobalUndo) {
+        return;
+      }
+
       const isGroup = commandPressed && key === 'g';
       const isCopy = commandPressed && key === 'c' && !event.shiftKey;
       const isPaste = commandPressed && key === 'v' && !event.shiftKey;
@@ -113,6 +181,42 @@ export function useCanvasKeyboardShortcuts({
         return;
       }
 
+      if (arrangeAlignMode) {
+        if (selectedNodeIds.length < 2) {
+          return;
+        }
+        event.preventDefault();
+        const changed = arrangeAlignNodes(selectedNodeIds, arrangeAlignMode);
+        if (changed) {
+          scheduleCanvasPersist(0);
+        }
+        return;
+      }
+
+      if (arrangeDistributeMode) {
+        if (selectedNodeIds.length < 3) {
+          return;
+        }
+        event.preventDefault();
+        const changed = arrangeDistributeNodes(selectedNodeIds, arrangeDistributeMode);
+        if (changed) {
+          scheduleCanvasPersist(0);
+        }
+        return;
+      }
+
+      if (isAutoLayoutShortcut) {
+        if (selectedNodeIds.length < 2) {
+          return;
+        }
+        event.preventDefault();
+        const changed = autoLayoutNodesLeftToRight(selectedNodeIds);
+        if (changed) {
+          scheduleCanvasPersist(0);
+        }
+        return;
+      }
+
       if (isGroup) {
         if (selectedNodeIds.length < 2) {
           return;
@@ -157,6 +261,9 @@ export function useCanvasKeyboardShortcuts({
     deleteNodes,
     duplicateNodesRef,
     edges,
+    arrangeAlignNodes,
+    arrangeDistributeNodes,
+    autoLayoutNodesLeftToRight,
     groupNodes,
     nodes,
     pasteImageHandledRef,

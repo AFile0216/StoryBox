@@ -382,8 +382,11 @@ export const VideoEditorModal = memo(({
   const { t } = useTranslation();
   const timelineTrackRef = useRef<HTMLDivElement | null>(null);
   const tickerRef = useRef<number | null>(null);
+  const autoSaveTimerRef = useRef<number | null>(null);
   const timelineClipsRef = useRef<VideoEditorTimelineClip[]>([]);
   const textClipsRef = useRef<VideoEditorTextClip[]>([]);
+  const playheadSecRef = useRef<number>(Math.max(0, initialPlayheadSec));
+  const lastSyncedSnapshotRef = useRef<string>('');
 
   const [timelineClips, setTimelineClips] = useState<VideoEditorTimelineClip[]>(
     () => normalizeTrackClips(initialTimelineClips)
@@ -482,13 +485,46 @@ export const VideoEditorModal = memo(({
     )
   ), []);
 
+  const normalizeEditorState = useCallback((
+    timeline: VideoEditorTimelineClip[],
+    text: VideoEditorTextClip[]
+  ) => {
+    const normalizedTimelineClips = normalizeTrackClips(timeline);
+    const normalizedTextClips = normalizeTextTracks(text);
+    const snapshotKey = JSON.stringify({
+      timelineClips: normalizedTimelineClips,
+      textClips: normalizedTextClips,
+    });
+    return {
+      normalizedTimelineClips,
+      normalizedTextClips,
+      snapshotKey,
+    };
+  }, [normalizeTextTracks]);
+
+  const syncEditorToCanvas = useCallback((force = false) => {
+    const { normalizedTimelineClips, normalizedTextClips, snapshotKey } = normalizeEditorState(
+      timelineClipsRef.current,
+      textClipsRef.current
+    );
+    if (!force && snapshotKey === lastSyncedSnapshotRef.current) {
+      return;
+    }
+    lastSyncedSnapshotRef.current = snapshotKey;
+    onSave(normalizedTimelineClips, normalizedTextClips, playheadSecRef.current);
+  }, [normalizeEditorState, onSave]);
+
   const handleSave = useCallback(() => {
-    onSave(normalizeTrackClips(timelineClips), normalizeTextTracks(textClips), playheadSec);
-  }, [normalizeTextTracks, onSave, playheadSec, textClips, timelineClips]);
+    syncEditorToCanvas(false);
+  }, [syncEditorToCanvas]);
 
   useEffect(() => {
     setPlayheadSec((previous) => clamp(previous, 0, safeTimelineMaxSec));
   }, [safeTimelineMaxSec]);
+
+  useEffect(() => {
+    playheadSecRef.current = playheadSec;
+  }, [playheadSec]);
 
   useEffect(() => {
     timelineClipsRef.current = timelineClips;
@@ -497,6 +533,30 @@ export const VideoEditorModal = memo(({
   useEffect(() => {
     textClipsRef.current = textClips;
   }, [textClips]);
+
+  useEffect(() => {
+    if (lastSyncedSnapshotRef.current.length > 0) {
+      return;
+    }
+    const { snapshotKey } = normalizeEditorState(timelineClips, textClips);
+    lastSyncedSnapshotRef.current = snapshotKey;
+  }, [normalizeEditorState, textClips, timelineClips]);
+
+  useEffect(() => {
+    if (autoSaveTimerRef.current !== null) {
+      clearTimeout(autoSaveTimerRef.current);
+    }
+    autoSaveTimerRef.current = window.setTimeout(() => {
+      autoSaveTimerRef.current = null;
+      syncEditorToCanvas(false);
+    }, 180);
+    return () => {
+      if (autoSaveTimerRef.current !== null) {
+        clearTimeout(autoSaveTimerRef.current);
+        autoSaveTimerRef.current = null;
+      }
+    };
+  }, [syncEditorToCanvas, textClips, timelineClips]);
 
   useEffect(() => {
     if (!activeVideoClipId) {
@@ -510,6 +570,10 @@ export const VideoEditorModal = memo(({
   useEffect(() => {
     return () => {
       stopTicker();
+      if (autoSaveTimerRef.current !== null) {
+        clearTimeout(autoSaveTimerRef.current);
+        autoSaveTimerRef.current = null;
+      }
     };
   }, [stopTicker]);
 
@@ -733,8 +797,14 @@ export const VideoEditorModal = memo(({
     }));
   }, []);
 
+  const handleClose = useCallback(() => {
+    syncEditorToCanvas(false);
+    onClose();
+  }, [onClose, syncEditorToCanvas]);
+
   return (
     <div
+      data-global-canvas-undo="true"
       className="nodrag nowheel fixed inset-0 z-50 p-3 md:p-5 lg:p-6"
       onMouseDown={(event) => event.stopPropagation()}
       onDragOver={handleModalDragOverGuard}
@@ -758,9 +828,12 @@ export const VideoEditorModal = memo(({
               type="button"
               className="inline-flex items-center gap-1 rounded-lg bg-accent px-3 py-1.5 text-xs font-medium text-white hover:bg-accent/80"
               onClick={() => {
-                const normalizedTimelineClips = normalizeTrackClips(timelineClips);
-                const normalizedTextClips = normalizeTextTracks(textClips);
-                onSave(normalizedTimelineClips, normalizedTextClips, playheadSec);
+                const { normalizedTimelineClips, normalizedTextClips, snapshotKey } = normalizeEditorState(
+                  timelineClips,
+                  textClips
+                );
+                lastSyncedSnapshotRef.current = snapshotKey;
+                onSave(normalizedTimelineClips, normalizedTextClips, playheadSecRef.current);
                 onGenerate(normalizedTimelineClips, normalizedTextClips);
                 onClose();
               }}
@@ -772,7 +845,7 @@ export const VideoEditorModal = memo(({
               type="button"
               className="inline-flex h-8 w-8 items-center justify-center rounded-md text-text-muted hover:bg-[var(--ui-hover-surface)] hover:text-text-dark"
               aria-label={t('common.close', { defaultValue: '关闭' })}
-              onClick={onClose}
+              onClick={handleClose}
             >
               <X className="h-4 w-4" />
             </button>
