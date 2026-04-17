@@ -46,18 +46,29 @@ fn decode_file_url_path(value: &str) -> String {
     normalized.to_string()
 }
 
-fn encode_reference_for_grsai(source: &str) -> Option<String> {
+fn is_http_url(value: &str) -> bool {
+    value.starts_with("http://") || value.starts_with("https://")
+}
+
+fn has_non_http_references(urls: &[String]) -> bool {
+    urls.iter().any(|url| !is_http_url(url))
+}
+
+fn encode_reference_for_grsai(source: &str, prefer_data_url: bool) -> Option<String> {
     let trimmed = source.trim();
     if trimmed.is_empty() {
         return None;
     }
 
-    if trimmed.starts_with("http://") || trimmed.starts_with("https://") {
+    if is_http_url(trimmed) {
         return Some(trimmed.to_string());
     }
 
     if let Some((meta, payload)) = trimmed.split_once(',') {
         if meta.starts_with("data:") && meta.ends_with(";base64") && !payload.is_empty() {
+            if prefer_data_url {
+                return Some(trimmed.to_string());
+            }
             return Some(payload.to_string());
         }
     }
@@ -67,6 +78,9 @@ fn encode_reference_for_grsai(source: &str) -> Option<String> {
             .chars()
             .all(|ch| ch.is_ascii_alphanumeric() || ch == '+' || ch == '/' || ch == '=');
     if likely_base64 {
+        if prefer_data_url {
+            return Some(format!("data:image/png;base64,{}", trimmed));
+        }
         return Some(trimmed.to_string());
     }
 
@@ -76,10 +90,49 @@ fn encode_reference_for_grsai(source: &str) -> Option<String> {
         PathBuf::from(trimmed)
     };
     let bytes = std::fs::read(path).ok()?;
-    Some(STANDARD.encode(bytes))
+    let encoded = STANDARD.encode(bytes);
+    if prefer_data_url {
+        Some(format!("data:image/png;base64,{}", encoded))
+    } else {
+        Some(encoded)
+    }
 }
 
-#[derive(Debug, Serialize)]
+fn build_reference_urls(request: &GenerateRequest, prefer_data_url: bool) -> Option<Vec<String>> {
+    request
+        .reference_images
+        .as_ref()
+        .map(|images| {
+            images
+                .iter()
+                .filter_map(|image| encode_reference_for_grsai(image, prefer_data_url))
+                .collect::<Vec<_>>()
+        })
+        .filter(|images| !images.is_empty())
+}
+
+fn should_retry_with_data_urls(response: &Value, urls: Option<&Vec<String>>) -> bool {
+    let Some(urls) = urls else {
+        return false;
+    };
+    if !has_non_http_references(urls) {
+        return false;
+    }
+
+    let code = response.get("code").and_then(|raw| raw.as_i64());
+    if code != Some(-4) {
+        return false;
+    }
+
+    let message = response
+        .get("msg")
+        .and_then(|raw| raw.as_str())
+        .unwrap_or_default();
+    let normalized = message.to_ascii_lowercase();
+    normalized.contains("unexpected end of json input") || message.contains("参数数据类型错误")
+}
+
+#[derive(Clone, Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 struct DrawRequestBody {
     model: String,
@@ -166,22 +219,40 @@ impl GrsaiProvider {
             .map(|url| url.to_string())
     }
 
+    async fn send_draw_request(
+        &self,
+        endpoint: &str,
+        api_key: &str,
+        body: &DrawRequestBody,
+    ) -> Result<Value, AIError> {
+        let response = self
+            .client
+            .post(endpoint)
+            .header("Authorization", format!("Bearer {}", api_key))
+            .header("Content-Type", "application/json")
+            .json(body)
+            .send()
+            .await?;
+
+        if !response.status().is_success() {
+            let status = response.status();
+            let error_text = response.text().await.unwrap_or_default();
+            return Err(AIError::Provider(format!(
+                "GRSAI draw request failed {}: {}",
+                status, error_text
+            )));
+        }
+
+        response.json::<Value>().await.map_err(AIError::from)
+    }
+
     async fn request_draw(&self, request: &GenerateRequest, model: String) -> Result<Value, AIError> {
         let body = DrawRequestBody {
             model,
             prompt: request.prompt.clone(),
             aspect_ratio: request.aspect_ratio.clone(),
             image_size: request.size.clone(),
-            urls: request
-                .reference_images
-                .as_ref()
-                .map(|images| {
-                    images
-                        .iter()
-                        .filter_map(|image| encode_reference_for_grsai(image))
-                        .collect::<Vec<_>>()
-                })
-                .filter(|images| !images.is_empty()),
+            urls: build_reference_urls(request, false),
             web_hook: "-1".to_string(),
             shut_progress: true,
         };
@@ -209,24 +280,27 @@ impl GrsaiProvider {
 
         info!("[GRSAI API] URL: {}", endpoint);
         let response = self
-            .client
-            .post(&endpoint)
-            .header("Authorization", format!("Bearer {}", api_key))
-            .header("Content-Type", "application/json")
-            .json(&body)
-            .send()
+            .send_draw_request(endpoint.as_str(), api_key.as_str(), &body)
             .await?;
 
-        if !response.status().is_success() {
-            let status = response.status();
-            let error_text = response.text().await.unwrap_or_default();
-            return Err(AIError::Provider(format!(
-                "GRSAI draw request failed {}: {}",
-                status, error_text
-            )));
+        if should_retry_with_data_urls(&response, body.urls.as_ref()) {
+            info!(
+                "[GRSAI API] Retry draw with data URL references: model={}, refs={}",
+                body.model,
+                body.urls.as_ref().map(|items| items.len()).unwrap_or(0)
+            );
+            let retry_urls = build_reference_urls(request, true);
+            let retry_body = DrawRequestBody {
+                urls: retry_urls,
+                ..body.clone()
+            };
+            let retry_response = self
+                .send_draw_request(endpoint.as_str(), api_key.as_str(), &retry_body)
+                .await?;
+            return Ok(retry_response);
         }
 
-        response.json::<Value>().await.map_err(AIError::from)
+        Ok(response)
     }
 
     async fn poll_result_once(&self, task_id: &str) -> Result<ProviderTaskPollResult, AIError> {

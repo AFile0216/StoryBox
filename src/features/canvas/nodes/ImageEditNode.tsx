@@ -494,6 +494,7 @@ export const ImageEditNode = memo(({ id, data, selected, width, height }: ImageE
     );
     addEdge(id, newNodeId);
 
+    let attemptedRequestAspectRatio = selectedAspectRatio.value;
     try {
       let resolvedRequestAspectRatio = selectedAspectRatio.value;
       if (resolvedRequestAspectRatio === AUTO_REQUEST_ASPECT_RATIO) {
@@ -512,6 +513,7 @@ export const ImageEditNode = memo(({ id, data, selected, width, height }: ImageE
           resolvedRequestAspectRatio = pickClosestAspectRatio(1, supportedAspectRatioValues);
         }
       }
+      attemptedRequestAspectRatio = resolvedRequestAspectRatio;
 
       // 根据提示词中的 @图片N/@图N 标记过滤引用的图片（已在 handleGenerate 开头计算）
       const jobId = await canvasAiGateway.submitGenerateImageJob({
@@ -581,7 +583,7 @@ export const ImageEditNode = memo(({ id, data, selected, width, height }: ImageE
         providerId: selectedModel.providerKind === 'comfyui' ? 'ComfyUI' : selectedInterface?.name,
         requestModel: requestResolution.requestModel,
         requestSize: selectedResolution.value,
-        requestAspectRatio: selectedAspectRatio.value,
+        requestAspectRatio: attemptedRequestAspectRatio,
         prompt,
         extraParams: effectiveExtraParams,
         referenceImageCount: incomingImages.length,
