@@ -28,6 +28,7 @@ import { useTranslation } from 'react-i18next';
 
 import {
   resolveImageDisplayUrl,
+  resolveLocalAssetUrl,
 } from '@/features/canvas/application/imageData';
 import type {
   VideoEditorAudioAsset,
@@ -148,6 +149,12 @@ const SOURCE_CLIP_TRANSFER_KEY = 'storybox/source-clip-id';
 const SOURCE_CLIP_TRANSFER_KEY_FALLBACK = 'application/x-storybox-source-clip-id';
 const SOURCE_AUDIO_TRANSFER_KEY = 'storybox/source-audio-id';
 const SOURCE_AUDIO_TRANSFER_KEY_FALLBACK = 'application/x-storybox-source-audio-id';
+const WAVEFORM_BUCKET_COUNT = 56;
+const AUDIO_SEEK_TOLERANCE_SEC = 0.12;
+const FALLBACK_WAVEFORM_BINS = Array.from(
+  { length: WAVEFORM_BUCKET_COUNT },
+  (_, index) => clamp(0.22 + Math.abs(Math.sin(index * 0.42)) * 0.42, 0.08, 1)
+);
 
 function createTrackId(prefix: string): string {
   return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
@@ -167,6 +174,72 @@ function createAudioClipId(): string {
 
 function createAudioAssetId(): string {
   return `audio-asset-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+}
+
+function createAudioContextInstance(): AudioContext | null {
+  if (typeof window === 'undefined') {
+    return null;
+  }
+  const AudioContextCtor = window.AudioContext
+    || (window as Window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+  if (!AudioContextCtor) {
+    return null;
+  }
+  return new AudioContextCtor();
+}
+
+async function decodeWaveformBins(
+  context: AudioContext,
+  audioUrl: string,
+  bucketCount = WAVEFORM_BUCKET_COUNT
+): Promise<number[]> {
+  const response = await fetch(audioUrl);
+  if (!response.ok) {
+    throw new Error(`waveform fetch failed: ${response.status}`);
+  }
+  const audioData = await response.arrayBuffer();
+  const decoded = await context.decodeAudioData(audioData.slice(0));
+  const channelCount = Math.max(1, decoded.numberOfChannels);
+  const sampleLength = decoded.length;
+  if (sampleLength <= 0) {
+    return FALLBACK_WAVEFORM_BINS;
+  }
+
+  const downsample = Math.max(1, Math.floor(sampleLength / Math.max(8, bucketCount)));
+  const samples = Math.ceil(sampleLength / downsample);
+  const merged = new Float32Array(samples);
+  for (let channelIndex = 0; channelIndex < channelCount; channelIndex += 1) {
+    const channelData = decoded.getChannelData(channelIndex);
+    let writeIndex = 0;
+    for (let sampleIndex = 0; sampleIndex < sampleLength; sampleIndex += downsample) {
+      const value = channelData[sampleIndex] ?? 0;
+      merged[writeIndex] += Math.abs(value) / channelCount;
+      writeIndex += 1;
+      if (writeIndex >= samples) {
+        break;
+      }
+    }
+  }
+
+  const bins = new Array(bucketCount).fill(0);
+  const chunkSize = Math.max(1, Math.floor(merged.length / bucketCount));
+  for (let bucketIndex = 0; bucketIndex < bucketCount; bucketIndex += 1) {
+    const start = bucketIndex * chunkSize;
+    const end = Math.min(merged.length, start + chunkSize);
+    let max = 0;
+    for (let i = start; i < end; i += 1) {
+      if (merged[i] > max) {
+        max = merged[i];
+      }
+    }
+    bins[bucketIndex] = max;
+  }
+
+  const maxBin = bins.reduce((max, value) => Math.max(max, value), 0);
+  if (maxBin <= 0.0001) {
+    return FALLBACK_WAVEFORM_BINS;
+  }
+  return bins.map((value) => clamp(value / maxBin, 0.08, 1));
 }
 
 function clamp(value: number, min: number, max: number): number {
@@ -838,6 +911,9 @@ export const VideoEditorModal = memo(({
   const { t } = useTranslation();
   const timelineTrackRef = useRef<HTMLDivElement | null>(null);
   const tickerRef = useRef<number | null>(null);
+  const audioElementMapRef = useRef<Map<string, HTMLAudioElement>>(new Map());
+  const waveformAudioContextRef = useRef<AudioContext | null>(null);
+  const waveformLoadingPathSetRef = useRef<Set<string>>(new Set());
   const timelineClipsRef = useRef<VideoEditorTimelineClip[]>([]);
   const textClipsRef = useRef<VideoEditorTextClip[]>([]);
   const audioClipsRef = useRef<VideoEditorAudioClip[]>([]);
@@ -909,6 +985,7 @@ export const VideoEditorModal = memo(({
   const [isVideoNoteEditing, setIsVideoNoteEditing] = useState(false);
   const [dragHoverTrack, setDragHoverTrack] = useState<DragTrackTarget | null>(null);
   const [dragSnapGuideSec, setDragSnapGuideSec] = useState<number | null>(null);
+  const [waveformByPath, setWaveformByPath] = useState<Record<string, number[]>>({});
 
   const sourceClipMap = useMemo(
     () => new Map(sourceClips.map((clip) => [clip.id, clip])),
@@ -1008,6 +1085,140 @@ export const VideoEditorModal = memo(({
     () => new Map(audioSourceItems.map((item) => [item.id, item])),
     [audioSourceItems]
   );
+
+  useEffect(() => {
+    const distinctAudioPaths = [...new Set(
+      audioClips
+        .map((clip) => (typeof clip.audioFilePath === 'string' ? clip.audioFilePath.trim() : ''))
+        .filter((path) => path.length > 0)
+    )];
+    if (distinctAudioPaths.length === 0) {
+      return;
+    }
+
+    let cancelled = false;
+    distinctAudioPaths.forEach((audioPath) => {
+      if (waveformByPath[audioPath] || waveformLoadingPathSetRef.current.has(audioPath)) {
+        return;
+      }
+      waveformLoadingPathSetRef.current.add(audioPath);
+
+      void (async () => {
+        try {
+          const context = waveformAudioContextRef.current ?? createAudioContextInstance();
+          if (context) {
+            waveformAudioContextRef.current = context;
+          }
+          const bins = context
+            ? await decodeWaveformBins(context, resolveLocalAssetUrl(audioPath), WAVEFORM_BUCKET_COUNT)
+            : FALLBACK_WAVEFORM_BINS;
+          if (cancelled) {
+            return;
+          }
+          setWaveformByPath((previous) => (
+            previous[audioPath]
+              ? previous
+              : { ...previous, [audioPath]: bins }
+          ));
+        } catch {
+          if (cancelled) {
+            return;
+          }
+          setWaveformByPath((previous) => (
+            previous[audioPath]
+              ? previous
+              : { ...previous, [audioPath]: FALLBACK_WAVEFORM_BINS }
+          ));
+        } finally {
+          waveformLoadingPathSetRef.current.delete(audioPath);
+        }
+      })();
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [audioClips, waveformByPath]);
+
+  useEffect(() => {
+    const clipById = new Map(audioClips.map((clip) => [clip.id, clip]));
+    const audioMap = audioElementMapRef.current;
+
+    // Dispose elements for removed clips.
+    for (const [clipId, element] of audioMap.entries()) {
+      if (clipById.has(clipId)) {
+        continue;
+      }
+      element.pause();
+      element.src = '';
+      audioMap.delete(clipId);
+    }
+
+    // Keep pool in sync.
+    for (const clip of audioClips) {
+      const audioPath = typeof clip.audioFilePath === 'string' ? clip.audioFilePath.trim() : '';
+      if (!audioPath) {
+        continue;
+      }
+
+      let element = audioMap.get(clip.id);
+      const resolvedSrc = resolveLocalAssetUrl(audioPath);
+      if (!element) {
+        element = new Audio(resolvedSrc);
+        element.preload = 'auto';
+        element.crossOrigin = 'anonymous';
+        audioMap.set(clip.id, element);
+      } else if (element.src !== resolvedSrc) {
+        element.pause();
+        element.src = resolvedSrc;
+      }
+      element.volume = clamp(toFiniteNumber(clip.volume, 1), 0, 1);
+    }
+
+    if (!isPlaying) {
+      audioMap.forEach((element) => {
+        if (!element.paused) {
+          element.pause();
+        }
+      });
+      return;
+    }
+
+    const syncTimeSec = Math.max(0, playheadSec);
+    audioClips.forEach((clip) => {
+      const element = audioMap.get(clip.id);
+      if (!element) {
+        return;
+      }
+      const clipStartSec = Math.max(0, toFiniteNumber(clip.startSec, 0));
+      const clipDurationSec = Math.max(MIN_CLIP_DURATION_SEC, toFiniteNumber(clip.durationSec, MIN_CLIP_DURATION_SEC));
+      const clipEndSec = clipStartSec + clipDurationSec;
+      const shouldPlay = syncTimeSec >= clipStartSec && syncTimeSec < clipEndSec;
+
+      if (!shouldPlay) {
+        if (!element.paused) {
+          element.pause();
+        }
+        return;
+      }
+
+      const expectedSec = clamp(syncTimeSec - clipStartSec, 0, clipDurationSec);
+      if (Math.abs((element.currentTime || 0) - expectedSec) > AUDIO_SEEK_TOLERANCE_SEC) {
+        try {
+          element.currentTime = expectedSec;
+        } catch {
+          // Ignore seeking failures while media is preparing.
+        }
+      }
+
+      if (element.paused) {
+        const playPromise = element.play();
+        if (playPromise && typeof playPromise.catch === 'function') {
+          void playPromise.catch(() => undefined);
+        }
+      }
+    });
+  }, [audioClips, isPlaying, playheadSec]);
 
   const timelineMaxSec = useMemo(
     () => resolveTimelineDuration(durationSec, timelineClips, textClips, audioClips),
@@ -1271,6 +1482,16 @@ export const VideoEditorModal = memo(({
   useEffect(() => {
     return () => {
       stopTicker();
+      audioElementMapRef.current.forEach((element) => {
+        element.pause();
+        element.src = '';
+      });
+      audioElementMapRef.current.clear();
+      if (waveformAudioContextRef.current) {
+        const context = waveformAudioContextRef.current;
+        waveformAudioContextRef.current = null;
+        void context.close().catch(() => undefined);
+      }
     };
   }, [stopTicker]);
 
@@ -2322,7 +2543,7 @@ export const VideoEditorModal = memo(({
                           key={trackId}
                           data-video-editor-track-kind="video"
                           data-video-editor-track-id={trackId}
-                          className={`order-10 nodrag nowheel relative h-[56px] rounded-lg border border-[var(--ui-border-soft)] bg-[linear-gradient(180deg,rgba(56,189,248,0.12),rgba(var(--surface-rgb),0.14))] ${
+                          className={`order-20 nodrag nowheel relative h-[56px] rounded-lg border border-[var(--ui-border-soft)] bg-[linear-gradient(180deg,rgba(56,189,248,0.12),rgba(var(--surface-rgb),0.14))] ${
                             selectedVideoTrackId === trackId ? 'ring-1 ring-cyan-200/80' : ''
                           } ${
                             dragHoverTrack?.kind === 'video' && dragHoverTrack.trackId === trackId
@@ -2444,6 +2665,7 @@ export const VideoEditorModal = memo(({
                             const left = `${toTimelinePercent(clip.startSec, safeTimelineMaxSec)}%`;
                             const width = `${Math.max(3, toTimelinePercent(clip.durationSec, safeTimelineMaxSec))}%`;
                             const isSelected = activeAudioClipId === clip.id;
+                            const waveformBins = waveformByPath[clip.audioFilePath] ?? FALLBACK_WAVEFORM_BINS;
                             return (
                               <div
                                 key={clip.id}
@@ -2477,6 +2699,17 @@ export const VideoEditorModal = memo(({
                                     handleClipMouseDown(event, clip, 'resize-left', 'audio', trackId);
                                   }}
                                 />
+                                <div className="pointer-events-none absolute inset-x-2 bottom-1 h-4 overflow-hidden rounded-sm bg-white/10">
+                                  <div className="flex h-full items-end gap-px">
+                                    {waveformBins.map((value, index) => (
+                                      <span
+                                        key={`${clip.id}-wave-${index}`}
+                                        className="block flex-1 rounded-sm bg-white/70"
+                                        style={{ height: `${Math.max(14, Math.round(value * 100))}%` }}
+                                      />
+                                    ))}
+                                  </div>
+                                </div>
                                 <div className="mx-2 mt-1 truncate text-[10px] font-medium text-white">{clip.label}</div>
                                 <div className="ui-timecode mx-2 truncate text-[10px] text-white/90">
                                   {formatSeconds(clip.startSec)}-{formatSeconds(clip.startSec + clip.durationSec)}
@@ -2507,7 +2740,7 @@ export const VideoEditorModal = memo(({
                           key={trackId}
                           data-video-editor-track-kind="text"
                           data-video-editor-track-id={trackId}
-                          className={`order-20 nodrag nowheel relative h-[56px] rounded-lg border border-[var(--ui-border-soft)] bg-[linear-gradient(180deg,rgba(245,158,11,0.14),rgba(var(--surface-rgb),0.14))] ${
+                          className={`order-10 nodrag nowheel relative h-[56px] rounded-lg border border-[var(--ui-border-soft)] bg-[linear-gradient(180deg,rgba(245,158,11,0.14),rgba(var(--surface-rgb),0.14))] ${
                             selectedTextTrackId === trackId ? 'ring-1 ring-amber-200/80' : ''
                           } ${
                             dragHoverTrack?.kind === 'text' && dragHoverTrack.trackId === trackId
