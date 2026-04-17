@@ -8,10 +8,12 @@ import {
   CANVAS_NODE_TYPES,
   type CanvasNode,
   type CanvasNodeType,
+  type AudioNodeData,
+  type AudioPreviewNodeData,
   type StoryboardSplitNodeData,
+  type VideoNodeData,
   type VideoEditorNodeData,
   type VideoEditorTextClip,
-  type VideoEditorTimelineClip,
 } from '@/features/canvas/domain/canvasNodes';
 import { resolveNodeDisplayName } from '@/features/canvas/domain/nodeDisplay';
 import { resolveAdaptiveHandleStyle, resolveResponsiveNodeClasses } from '@/features/canvas/ui/nodeMetrics';
@@ -20,7 +22,13 @@ import { NodeResizeHandle } from '@/features/canvas/ui/NodeResizeHandle';
 import { NodeMaterialStrip } from '@/features/canvas/ui/NodeMaterialStrip';
 import { resolveImageDisplayUrl } from '@/features/canvas/application/imageData';
 import { graphImageResolver } from '@/features/canvas/application/canvasServices';
-import { VideoEditorModal, type VideoEditorSourceClipItem } from '@/features/canvas/ui/VideoEditorModal';
+import {
+  VideoEditorModal,
+  type VideoEditorGeneratePayload,
+  type VideoEditorSavePayload,
+  type VideoEditorSourceAudioItem,
+  type VideoEditorSourceClipItem,
+} from '@/features/canvas/ui/VideoEditorModal';
 import { useCanvasStore } from '@/stores/canvasStore';
 
 type VideoEditorNodeProps = NodeProps & {
@@ -83,6 +91,68 @@ function collectIncomingStoryboardClips(
       deduped.set(clip.id, clip);
     }
   }
+  return [...deduped.values()];
+}
+
+function collectIncomingSourceAudios(
+  nodeId: string,
+  nodes: CanvasNode[],
+  edges: { source: string; target: string }[]
+): VideoEditorSourceAudioItem[] {
+  const nodeById = new Map(nodes.map((node) => [node.id, node]));
+  const sourceNodeIds = edges
+    .filter((edge) => edge.target === nodeId)
+    .map((edge) => edge.source);
+
+  const resolved: VideoEditorSourceAudioItem[] = [];
+  for (const sourceNodeId of sourceNodeIds) {
+    const sourceNode = nodeById.get(sourceNodeId);
+    if (!sourceNode) {
+      continue;
+    }
+
+    if (
+      sourceNode.type === CANVAS_NODE_TYPES.audio
+      || sourceNode.type === CANVAS_NODE_TYPES.audioPreview
+    ) {
+      const sourceData = sourceNode.data as AudioNodeData | AudioPreviewNodeData;
+      const filePath = typeof sourceData.filePath === 'string' ? sourceData.filePath.trim() : '';
+      if (!filePath) {
+        continue;
+      }
+      resolved.push({
+        id: `${sourceNode.id}:audio`,
+        label: resolveNodeDisplayName(sourceNode.type, sourceNode.data),
+        filePath,
+        durationSec: sourceData.durationSec ?? null,
+        origin: 'linked',
+      });
+      continue;
+    }
+
+    if (sourceNode.type === CANVAS_NODE_TYPES.video) {
+      const sourceData = sourceNode.data as VideoNodeData;
+      const filePath = typeof sourceData.audioFilePath === 'string' ? sourceData.audioFilePath.trim() : '';
+      if (!filePath) {
+        continue;
+      }
+      resolved.push({
+        id: `${sourceNode.id}:audio`,
+        label: sourceData.audioSourceFileName?.trim()
+          || `${resolveNodeDisplayName(sourceNode.type, sourceNode.data)} Audio`,
+        filePath,
+        durationSec: sourceData.durationSec ?? null,
+        origin: 'linked',
+      });
+    }
+  }
+
+  const deduped = new Map<string, VideoEditorSourceAudioItem>();
+  resolved.forEach((item) => {
+    if (!deduped.has(item.filePath)) {
+      deduped.set(item.filePath, item);
+    }
+  });
   return [...deduped.values()];
 }
 
@@ -153,6 +223,10 @@ export const VideoEditorNode = memo(({ id, data, selected, width, height }: Vide
     () => collectIncomingStoryboardClips(id, nodes, edges),
     [edges, id, nodes]
   );
+  const incomingSourceAudios = useMemo(
+    () => collectIncomingSourceAudios(id, nodes, edges),
+    [edges, id, nodes]
+  );
 
   const resolvedVideoPath = data.filePath || incomingVideos[0] || null;
   const timelineDurationSec = useMemo(
@@ -164,9 +238,13 @@ export const VideoEditorNode = memo(({ id, data, selected, width, height }: Vide
       (data.textClips ?? []).reduce(
         (max, clip) => Math.max(max, clip.startSec + clip.durationSec),
         0
+      ),
+      (data.audioClips ?? []).reduce(
+        (max, clip) => Math.max(max, clip.startSec + clip.durationSec),
+        0
       )
     ),
-    [data.textClips, data.timelineClips]
+    [data.audioClips, data.textClips, data.timelineClips]
   );
 
   useEffect(() => {
@@ -177,23 +255,21 @@ export const VideoEditorNode = memo(({ id, data, selected, width, height }: Vide
     updateNodeData(id, { autoOpenEditor: false });
   }, [data.autoOpenEditor, id, updateNodeData]);
 
-  const handleSaveTimeline = useCallback((
-    clips: VideoEditorTimelineClip[],
-    textClips: VideoEditorTextClip[],
-    playheadSec: number
-  ) => {
+  const handleSaveTimeline = useCallback((payload: VideoEditorSavePayload) => {
     updateNodeData(id, {
-      timelineClips: clips,
-      textClips,
-      currentTimeSec: playheadSec,
+      timelineClips: payload.timelineClips,
+      textClips: payload.textClips,
+      audioClips: payload.audioClips,
+      localAudioAssets: payload.localAudioAssets,
+      videoTrackIds: payload.videoTrackIds,
+      textTrackIds: payload.textTrackIds,
+      audioTrackIds: payload.audioTrackIds,
+      currentTimeSec: payload.playheadSec,
     });
   }, [id, updateNodeData]);
 
-  const handleGenerateTextNode = useCallback((
-    _clips: VideoEditorTimelineClip[],
-    textClips: VideoEditorTextClip[] = []
-  ) => {
-    const normalizedTextClips = [...textClips]
+  const handleGenerateTextNode = useCallback((payload: VideoEditorGeneratePayload) => {
+    const normalizedTextClips = [...payload.textClips]
       .filter((clip) => Number.isFinite(clip.startSec) && Number.isFinite(clip.durationSec) && clip.durationSec > 0)
       .map((clip) => ({
         ...clip,
@@ -288,7 +364,11 @@ export const VideoEditorNode = memo(({ id, data, selected, width, height }: Vide
               className="inline-flex items-center justify-center gap-1 rounded-lg bg-accent px-3 py-1.5 text-xs font-medium text-white shadow-[0_8px_20px_rgba(249,115,22,0.35)] hover:bg-accent/80"
               onClick={(event) => {
                 event.stopPropagation();
-                handleGenerateTextNode(data.timelineClips ?? [], data.textClips ?? []);
+                handleGenerateTextNode({
+                  timelineClips: data.timelineClips ?? [],
+                  textClips: data.textClips ?? [],
+                  audioClips: data.audioClips ?? [],
+                });
               }}
             >
               <Sparkles className="h-3.5 w-3.5" />
@@ -334,7 +414,7 @@ export const VideoEditorNode = memo(({ id, data, selected, width, height }: Vide
                 {t('node.videoEditor.timeline', { defaultValue: '时间轴' })}
               </div>
               <div className="ui-timecode mt-1 text-sm text-text-dark">
-                {(data.timelineClips?.length ?? 0)} / {(data.textClips?.length ?? 0)}
+                {(data.timelineClips?.length ?? 0)} / {(data.textClips?.length ?? 0)} / {(data.audioClips?.length ?? 0)}
               </div>
             </div>
           </div>
@@ -373,8 +453,14 @@ export const VideoEditorNode = memo(({ id, data, selected, width, height }: Vide
           filePath={resolvedVideoPath}
           durationSec={data.durationSec ?? 0}
           sourceClips={incomingStoryboardClips}
+          sourceAudios={incomingSourceAudios}
           initialTimelineClips={data.timelineClips ?? []}
           initialTextClips={data.textClips ?? []}
+          initialAudioClips={data.audioClips ?? []}
+          initialLocalAudioAssets={data.localAudioAssets ?? []}
+          initialVideoTrackIds={data.videoTrackIds ?? []}
+          initialTextTrackIds={data.textTrackIds ?? []}
+          initialAudioTrackIds={data.audioTrackIds ?? []}
           initialPlayheadSec={data.currentTimeSec ?? 0}
           onSave={handleSaveTimeline}
           onGenerate={handleGenerateTextNode}

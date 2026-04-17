@@ -156,6 +156,7 @@ export interface VideoEditorTextClip {
   text: string;
   startSec: number;
   durationSec: number;
+  trackId?: string;
   color?: string;
   fontSize?: number;
 }
@@ -297,12 +298,36 @@ export interface VideoEditorTimelineClip {
   sourceClipId: string;
   startSec: number;
   durationSec: number;
+  trackId?: string;
   note?: string;
+}
+
+export interface VideoEditorAudioAsset {
+  id: string;
+  label: string;
+  filePath: string;
+  durationSec?: number | null;
+}
+
+export interface VideoEditorAudioClip {
+  id: string;
+  audioAssetId: string;
+  audioFilePath: string;
+  label: string;
+  startSec: number;
+  durationSec: number;
+  trackId?: string;
+  volume?: number;
 }
 
 export interface VideoEditorNodeData extends MediaFileNodeData {
   timelineClips: VideoEditorTimelineClip[];
   textClips: VideoEditorTextClip[];
+  audioClips?: VideoEditorAudioClip[];
+  localAudioAssets?: VideoEditorAudioAsset[];
+  videoTrackIds?: string[];
+  textTrackIds?: string[];
+  audioTrackIds?: string[];
   currentTimeSec: number;
   autoOpenEditor?: boolean;
   taskStatus: MediaTaskStatus;

@@ -7,7 +7,7 @@ import {
   useState,
   type FormEvent,
 } from 'react';
-import { ImagePlus, LoaderCircle, Pause, Play, Plus, Scissors, Trash2, X } from 'lucide-react';
+import { ImagePlus, LoaderCircle, Pause, Play, Plus, Redo2, Scissors, Trash2, Undo2, X } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 
 import type { VideoStoryboardSegment } from '@/features/canvas/domain/canvasNodes';
@@ -22,6 +22,15 @@ interface StoryboardEditorModalProps {
   onSave: (segments: VideoStoryboardSegment[]) => void;
   onClose: () => void;
 }
+
+interface StoryboardEditorSnapshot {
+  segments: VideoStoryboardSegment[];
+  activeId: string | null;
+  inPoint: number;
+  outPoint: number;
+}
+
+const EDITOR_HISTORY_LIMIT = 40;
 
 function formatSecondsLabel(value: number | null | undefined): string {
   if (!Number.isFinite(value) || value === null || value === undefined) {
@@ -40,6 +49,31 @@ function clamp(value: number, min: number, max: number): number {
 
 function createId(): string {
   return `seg-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+}
+
+function cloneStoryboardSegments(segments: VideoStoryboardSegment[]): VideoStoryboardSegment[] {
+  return segments.map((segment) => ({
+    ...segment,
+    tags: segment.tags ? [...segment.tags] : segment.tags,
+  }));
+}
+
+function areStoryboardSegmentsShallowEqual(
+  left: VideoStoryboardSegment[],
+  right: VideoStoryboardSegment[]
+): boolean {
+  if (left === right) {
+    return true;
+  }
+  if (left.length !== right.length) {
+    return false;
+  }
+  for (let index = 0; index < left.length; index += 1) {
+    if (left[index] !== right[index]) {
+      return false;
+    }
+  }
+  return true;
 }
 
 function composeSegmentText(segment: Partial<VideoStoryboardSegment>): string {
@@ -139,10 +173,29 @@ export const StoryboardEditorModal = memo(({
   const [capturing, setCapturing] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
   const [tagInput, setTagInput] = useState('');
+  const [undoStack, setUndoStack] = useState<StoryboardEditorSnapshot[]>([]);
+  const [redoStack, setRedoStack] = useState<StoryboardEditorSnapshot[]>([]);
 
   const safeMax = Math.max(durationSec || 0, outPoint, 1);
   const videoSrc = filePath ? resolveLocalAssetUrl(filePath) : null;
   const activeSegment = segments.find((item) => item.id === activeId) ?? null;
+
+  const buildSnapshot = useCallback((
+    snapshotSegments = segments,
+    snapshotActiveId = activeId,
+    snapshotInPoint = inPoint,
+    snapshotOutPoint = outPoint
+  ): StoryboardEditorSnapshot => ({
+    segments: cloneStoryboardSegments(snapshotSegments),
+    activeId: snapshotActiveId,
+    inPoint: snapshotInPoint,
+    outPoint: snapshotOutPoint,
+  }), [activeId, inPoint, outPoint, segments]);
+
+  const pushUndoSnapshot = useCallback((snapshot: StoryboardEditorSnapshot) => {
+    setUndoStack((previous) => [...previous, snapshot].slice(-EDITOR_HISTORY_LIMIT));
+    setRedoStack([]);
+  }, []);
 
   const updatePlayheadUI = useCallback((time: number) => {
     const safeTime = clamp(Number.isFinite(time) ? time : 0, 0, safeMax);
@@ -232,6 +285,65 @@ export const StoryboardEditorModal = memo(({
     });
   }, [safeMax, updatePlayheadUI]);
 
+  const restoreSnapshot = useCallback((snapshot: StoryboardEditorSnapshot) => {
+    setSegments(cloneStoryboardSegments(snapshot.segments));
+    setActiveId(snapshot.activeId);
+    setInPoint(snapshot.inPoint);
+    setOutPoint(snapshot.outPoint);
+    requestSeek(snapshot.inPoint);
+  }, [requestSeek]);
+
+  const handleUndo = useCallback(() => {
+    if (undoStack.length === 0) {
+      return;
+    }
+    const previous = undoStack[undoStack.length - 1];
+    const current = buildSnapshot();
+    setUndoStack((stack) => stack.slice(0, -1));
+    setRedoStack((stack) => [...stack, current].slice(-EDITOR_HISTORY_LIMIT));
+    restoreSnapshot(previous);
+  }, [buildSnapshot, restoreSnapshot, undoStack]);
+
+  const handleRedo = useCallback(() => {
+    if (redoStack.length === 0) {
+      return;
+    }
+    const next = redoStack[redoStack.length - 1];
+    const current = buildSnapshot();
+    setRedoStack((stack) => stack.slice(0, -1));
+    setUndoStack((stack) => [...stack, current].slice(-EDITOR_HISTORY_LIMIT));
+    restoreSnapshot(next);
+  }, [buildSnapshot, redoStack, restoreSnapshot]);
+
+  const commitSegments = useCallback((
+    nextSegments: VideoStoryboardSegment[],
+    options: {
+      nextActiveId?: string | null;
+      nextInPoint?: number;
+      nextOutPoint?: number;
+      seekTo?: number;
+    } = {}
+  ): boolean => {
+    if (areStoryboardSegmentsShallowEqual(segments, nextSegments)) {
+      return false;
+    }
+    pushUndoSnapshot(buildSnapshot());
+    setSegments(nextSegments);
+    if (options.nextActiveId !== undefined) {
+      setActiveId(options.nextActiveId);
+    }
+    if (options.nextInPoint !== undefined) {
+      setInPoint(options.nextInPoint);
+    }
+    if (options.nextOutPoint !== undefined) {
+      setOutPoint(options.nextOutPoint);
+    }
+    if (options.seekTo !== undefined) {
+      requestSeek(options.seekTo);
+    }
+    return true;
+  }, [buildSnapshot, pushUndoSnapshot, requestSeek, segments]);
+
   useEffect(() => {
     const video = videoRef.current;
     if (!video) {
@@ -260,7 +372,24 @@ export const StoryboardEditorModal = memo(({
     const onKeyDown = (event: KeyboardEvent) => {
       const target = event.target as HTMLElement | null;
       const tagName = target?.tagName.toLowerCase();
-      if (tagName === 'input' || tagName === 'textarea') {
+      if (tagName === 'input' || tagName === 'textarea' || target?.isContentEditable) {
+        return;
+      }
+      const key = event.key.toLowerCase();
+      const commandPressed = event.ctrlKey || event.metaKey;
+      const isUndo = commandPressed && key === 'z' && !event.shiftKey;
+      const isRedo = commandPressed && (key === 'y' || (key === 'z' && event.shiftKey));
+      if (isUndo || isRedo) {
+        event.preventDefault();
+        event.stopPropagation();
+        if (typeof event.stopImmediatePropagation === 'function') {
+          event.stopImmediatePropagation();
+        }
+        if (isUndo) {
+          handleUndo();
+        } else {
+          handleRedo();
+        }
         return;
       }
       const video = videoRef.current;
@@ -286,11 +415,11 @@ export const StoryboardEditorModal = memo(({
       }
     };
 
-    document.addEventListener('keydown', onKeyDown);
+    document.addEventListener('keydown', onKeyDown, true);
     return () => {
-      document.removeEventListener('keydown', onKeyDown);
+      document.removeEventListener('keydown', onKeyDown, true);
     };
-  }, [requestSeek]);
+  }, [handleRedo, handleUndo, requestSeek]);
 
   useEffect(() => {
     updatePlayheadUI(videoRef.current?.currentTime ?? 0);
@@ -309,19 +438,24 @@ export const StoryboardEditorModal = memo(({
     if (!activeId) {
       return;
     }
-    setSegments((previous) =>
-      previous.map((segment) => {
-        if (segment.id !== activeId) {
-          return segment;
-        }
-        const next = { ...segment, ...patch };
-        return {
-          ...next,
-          text: composeSegmentText(next),
-        };
-      })
-    );
-  }, [activeId]);
+    const nextSegments = segments.map((segment) => {
+      if (segment.id !== activeId) {
+        return segment;
+      }
+      const patchEntries = Object.entries(patch) as [keyof VideoStoryboardSegment, VideoStoryboardSegment[keyof VideoStoryboardSegment]][];
+      const hasPatchChanges = patchEntries.some(([key, value]) => !Object.is(segment[key], value));
+      const merged = { ...segment, ...patch };
+      const nextText = composeSegmentText(merged);
+      if (!hasPatchChanges && nextText === segment.text) {
+        return segment;
+      }
+      return {
+        ...merged,
+        text: nextText,
+      };
+    });
+    void commitSegments(nextSegments);
+  }, [activeId, commitSegments, segments]);
 
   const handleSelectSegment = (segment: VideoStoryboardSegment) => {
     setActiveId(segment.id);
@@ -345,20 +479,41 @@ export const StoryboardEditorModal = memo(({
       order: segments.length,
       status: 'draft',
     };
-    setSegments((previous) => [...previous, newSegment]);
-    setActiveId(newSegment.id);
+    const nextSegments = [...segments, { ...newSegment, order: segments.length }];
+    void commitSegments(nextSegments, {
+      nextActiveId: newSegment.id,
+      nextInPoint: newSegment.startSec,
+      nextOutPoint: newSegment.endSec,
+      seekTo: newSegment.startSec,
+    });
   };
 
   const handleDeleteSegment = (segmentId: string) => {
-    setSegments((previous) => {
-      const next = previous.filter((segment) => segment.id !== segmentId).map((segment, index) => ({
-        ...segment,
-        order: index,
-      }));
-      if (activeId === segmentId) {
-        setActiveId(next[0]?.id ?? null);
-      }
-      return next;
+    const nextSegments = segments.filter((segment) => segment.id !== segmentId).map((segment, index) => ({
+      ...segment,
+      order: index,
+    }));
+    if (nextSegments.length === segments.length) {
+      return;
+    }
+    const fallbackSegment = nextSegments[0] ?? null;
+    const nextActiveId = activeId === segmentId
+      ? fallbackSegment?.id ?? null
+      : activeId;
+    const nextInPoint = activeId === segmentId
+      ? fallbackSegment?.startSec ?? 0
+      : inPoint;
+    const nextOutPoint = activeId === segmentId
+      ? fallbackSegment?.endSec ?? Math.min(5, durationSec || 5)
+      : outPoint;
+    const seekTo = activeId === segmentId
+      ? (fallbackSegment?.startSec ?? 0)
+      : undefined;
+    void commitSegments(nextSegments, {
+      nextActiveId,
+      nextInPoint,
+      nextOutPoint,
+      seekTo,
     });
   };
 
@@ -366,18 +521,20 @@ export const StoryboardEditorModal = memo(({
     if (!activeId) {
       return;
     }
-    setSegments((previous) =>
-      previous.map((segment) => {
-        if (segment.id !== activeId) {
-          return segment;
-        }
-        return {
-          ...segment,
-          startSec: inPoint,
-          endSec: outPoint,
-        };
-      })
-    );
+    const nextSegments = segments.map((segment) => {
+      if (segment.id !== activeId) {
+        return segment;
+      }
+      if (segment.startSec === inPoint && segment.endSec === outPoint) {
+        return segment;
+      }
+      return {
+        ...segment,
+        startSec: inPoint,
+        endSec: outPoint,
+      };
+    });
+    void commitSegments(nextSegments, { seekTo: inPoint });
   };
 
   const handleCaptureFrame = async () => {
@@ -456,6 +613,26 @@ export const StoryboardEditorModal = memo(({
           {t('node.videoStoryboard.editorTitle', { defaultValue: '分镜编辑器' })}
         </span>
         <div className="flex items-center gap-2">
+          <button
+            type="button"
+            className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-[var(--ui-border-soft)] text-text-muted hover:bg-[var(--ui-hover-surface)] hover:text-text-dark disabled:cursor-not-allowed disabled:opacity-40"
+            onClick={handleUndo}
+            disabled={undoStack.length === 0}
+            aria-label={t('common.undo', { defaultValue: '撤销' })}
+            title={t('common.undo', { defaultValue: '撤销' })}
+          >
+            <Undo2 className="h-3.5 w-3.5" />
+          </button>
+          <button
+            type="button"
+            className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-[var(--ui-border-soft)] text-text-muted hover:bg-[var(--ui-hover-surface)] hover:text-text-dark disabled:cursor-not-allowed disabled:opacity-40"
+            onClick={handleRedo}
+            disabled={redoStack.length === 0}
+            aria-label={t('common.redo', { defaultValue: '重做' })}
+            title={t('common.redo', { defaultValue: '重做' })}
+          >
+            <Redo2 className="h-3.5 w-3.5" />
+          </button>
           <button
             type="button"
             className="rounded-lg bg-accent px-4 py-1.5 text-sm font-medium text-white hover:bg-accent/80"
