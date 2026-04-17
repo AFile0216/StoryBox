@@ -129,6 +129,11 @@ interface TextEditorState {
   y: number;
 }
 
+interface DragTrackTarget {
+  kind: TrackKind;
+  trackId: string;
+}
+
 const DEFAULT_CLIP_DURATION_SEC = 2;
 const DEFAULT_AUDIO_CLIP_DURATION_SEC = 3;
 const MIN_CLIP_DURATION_SEC = 0.5;
@@ -463,6 +468,111 @@ function resolveSnappedClip(
   };
 }
 
+function resolveDragSnapGuideSec(
+  dragState: ClipDragState,
+  deltaSec: number,
+  anchors: number[],
+  snapEnabled: boolean
+): number | null {
+  if (!snapEnabled || anchors.length === 0) {
+    return null;
+  }
+
+  const snapThresholdSec = resolveSnapThresholdSec(dragState.timelineMaxSec);
+  if (dragState.mode === 'move') {
+    const startSec = Math.max(0, dragState.startSec + deltaSec);
+    const endSec = startSec + dragState.durationSec;
+    const snapStart = findClosestAnchor(startSec, anchors, snapThresholdSec);
+    const snapEnd = findClosestAnchor(endSec, anchors, snapThresholdSec);
+    if (!snapStart && !snapEnd) {
+      return null;
+    }
+    if (!snapEnd || (snapStart && snapStart.delta <= snapEnd.delta)) {
+      return snapStart?.anchor ?? null;
+    }
+    return snapEnd.anchor;
+  }
+
+  if (dragState.mode === 'resize-left') {
+    const startSec = Math.max(
+      0,
+      Math.min(dragState.startSec + deltaSec, dragState.startSec + dragState.durationSec - MIN_CLIP_DURATION_SEC)
+    );
+    return findClosestAnchor(startSec, anchors, snapThresholdSec)?.anchor ?? null;
+  }
+
+  const endSec = Math.max(
+    dragState.startSec + MIN_CLIP_DURATION_SEC,
+    dragState.startSec + dragState.durationSec + deltaSec
+  );
+  return findClosestAnchor(endSec, anchors, snapThresholdSec)?.anchor ?? null;
+}
+
+function applyCenterCrossSwap<T extends TimelineClipLike>(
+  clips: T[],
+  dragClipId: string,
+  targetTrackId: string,
+  trackIds: string[],
+  fallbackTrackId: string,
+  previousCenterSec: number,
+  currentCenterSec: number
+): T[] {
+  if (!Number.isFinite(previousCenterSec) || !Number.isFinite(currentCenterSec)) {
+    return clips;
+  }
+
+  const direction = currentCenterSec - previousCenterSec;
+  if (Math.abs(direction) < 0.0001) {
+    return clips;
+  }
+
+  const resolvedTrackId = resolveTrackId(targetTrackId, trackIds, fallbackTrackId);
+  const draggingClip = clips.find((clip) => clip.id === dragClipId);
+  if (!draggingClip) {
+    return clips;
+  }
+
+  const siblings = sortTrackClips(
+    clips.filter((clip) => (
+      clip.id !== dragClipId
+      && resolveTrackId(clip.trackId, trackIds, fallbackTrackId) === resolvedTrackId
+    ))
+  );
+  if (siblings.length === 0) {
+    return clips;
+  }
+
+  const crossed = siblings.find((clip) => {
+    const center = clip.startSec + clip.durationSec / 2;
+    if (direction > 0) {
+      return center > previousCenterSec && center <= currentCenterSec;
+    }
+    return center < previousCenterSec && center >= currentCenterSec;
+  });
+  if (!crossed) {
+    return clips;
+  }
+
+  const nextDragStart = crossed.startSec;
+  const nextCrossedStart = draggingClip.startSec;
+  return clips.map((clip) => {
+    if (clip.id === dragClipId) {
+      return {
+        ...clip,
+        trackId: resolvedTrackId,
+        startSec: nextDragStart,
+      } as T;
+    }
+    if (clip.id === crossed.id) {
+      return {
+        ...clip,
+        startSec: nextCrossedStart,
+      } as T;
+    }
+    return clip;
+  });
+}
+
 function applyDragToTrack<T extends TimelineClipLike>(
   clips: T[],
   dragState: ClipDragState,
@@ -470,17 +580,18 @@ function applyDragToTrack<T extends TimelineClipLike>(
   fallbackTrackId: string,
   deltaSec: number,
   snapAnchors: number[],
-  snapEnabled: boolean
+  snapEnabled: boolean,
+  targetTrackIdOverride?: string,
+  normalizeAfterApply = true
 ): T[] {
-  const targetTrackId = resolveTrackId(dragState.trackId, trackIds, fallbackTrackId);
+  const targetTrackId = resolveTrackId(
+    targetTrackIdOverride ?? dragState.trackId,
+    trackIds,
+    fallbackTrackId
+  );
   const snapThresholdSec = resolveSnapThresholdSec(dragState.timelineMaxSec);
   const next = clips.map((clip) => {
     if (clip.id !== dragState.clipId) {
-      return clip;
-    }
-
-    const clipTrackId = resolveTrackId(clip.trackId, trackIds, fallbackTrackId);
-    if (clipTrackId !== targetTrackId) {
       return clip;
     }
 
@@ -537,6 +648,9 @@ function applyDragToTrack<T extends TimelineClipLike>(
     };
   });
 
+  if (!normalizeAfterApply) {
+    return next;
+  }
   return normalizeTrackClips(next, trackIds, fallbackTrackId);
 }
 
@@ -729,6 +843,9 @@ export const VideoEditorModal = memo(({
   const audioClipsRef = useRef<VideoEditorAudioClip[]>([]);
   const dragSnapshotRef = useRef<VideoEditorSnapshot | null>(null);
   const dragHistoryPushedRef = useRef(false);
+  const dragTargetTrackIdRef = useRef<string | null>(null);
+  const dragLastCenterSecRef = useRef<number | null>(null);
+  const autoImportedSourceClipIdsRef = useRef<Set<string>>(new Set());
   const textEditorPanelRef = useRef<HTMLDivElement | null>(null);
 
   const [videoTrackIds, setVideoTrackIds] = useState<string[]>(() => (
@@ -790,11 +907,82 @@ export const VideoEditorModal = memo(({
   const [redoStack, setRedoStack] = useState<VideoEditorSnapshot[]>([]);
   const [textEditorState, setTextEditorState] = useState<TextEditorState | null>(null);
   const [isVideoNoteEditing, setIsVideoNoteEditing] = useState(false);
+  const [dragHoverTrack, setDragHoverTrack] = useState<DragTrackTarget | null>(null);
+  const [dragSnapGuideSec, setDragSnapGuideSec] = useState<number | null>(null);
 
   const sourceClipMap = useMemo(
     () => new Map(sourceClips.map((clip) => [clip.id, clip])),
     [sourceClips]
   );
+
+  useEffect(() => {
+    const connectedSourceClipIds = sourceClips
+      .map((clip) => clip.id)
+      .filter((id) => typeof id === 'string' && id.trim().length > 0);
+    const connectedSourceSet = new Set(connectedSourceClipIds);
+    const importedSet = autoImportedSourceClipIdsRef.current;
+
+    [...importedSet].forEach((id) => {
+      if (!connectedSourceSet.has(id)) {
+        importedSet.delete(id);
+      }
+    });
+
+    if (connectedSourceClipIds.length === 0) {
+      return;
+    }
+
+    setTimelineClips((previous) => {
+      const existingSourceIds = new Set(previous.map((clip) => clip.sourceClipId));
+      existingSourceIds.forEach((id) => importedSet.add(id));
+
+      const pendingSourceIds = connectedSourceClipIds.filter(
+        (sourceClipId) => !existingSourceIds.has(sourceClipId) && !importedSet.has(sourceClipId)
+      );
+      if (pendingSourceIds.length === 0) {
+        return previous;
+      }
+
+      const resolvedTrackIds = resolveInitialTrackIds(
+        videoTrackIds,
+        previous,
+        DEFAULT_VIDEO_TRACK_ID
+      );
+      const targetTrackId = resolveTrackId(
+        selectedVideoTrackId,
+        resolvedTrackIds,
+        DEFAULT_VIDEO_TRACK_ID
+      );
+
+      const nextClips = [...previous];
+      let cursorSec = nextClips.reduce(
+        (max, clip) => Math.max(max, clip.startSec + clip.durationSec),
+        0
+      );
+
+      pendingSourceIds.forEach((sourceClipId) => {
+        const startSec = findAvailableStartSecInTrack(
+          nextClips,
+          targetTrackId,
+          resolvedTrackIds,
+          DEFAULT_VIDEO_TRACK_ID,
+          cursorSec,
+          DEFAULT_CLIP_DURATION_SEC
+        );
+        nextClips.push({
+          id: createSequenceClipId(),
+          sourceClipId,
+          trackId: targetTrackId,
+          startSec,
+          durationSec: DEFAULT_CLIP_DURATION_SEC,
+        });
+        cursorSec = startSec + DEFAULT_CLIP_DURATION_SEC;
+        importedSet.add(sourceClipId);
+      });
+
+      return normalizeTrackClips(nextClips, resolvedTrackIds, DEFAULT_VIDEO_TRACK_ID);
+    });
+  }, [selectedVideoTrackId, sourceClips, videoTrackIds]);
 
   const audioSourceItems = useMemo(() => {
     const deduped = new Map<string, VideoEditorSourceAudioItem>();
@@ -1145,82 +1333,309 @@ export const VideoEditorModal = memo(({
     };
   }, [textEditorState]);
 
+  const resolveTrackIdFromPointer = useCallback((
+    trackKind: TrackKind,
+    clientY: number,
+    fallbackTrackId: string
+  ): string => {
+    const timelineRoot = timelineTrackRef.current;
+    if (!timelineRoot || !Number.isFinite(clientY)) {
+      return fallbackTrackId;
+    }
+
+    const trackElements = [...timelineRoot.querySelectorAll<HTMLElement>(
+      `[data-video-editor-track-kind="${trackKind}"]`
+    )];
+    if (trackElements.length === 0) {
+      return fallbackTrackId;
+    }
+
+    let nearestTrackId = fallbackTrackId;
+    let nearestDistance = Number.POSITIVE_INFINITY;
+
+    for (const element of trackElements) {
+      const trackId = element.dataset.videoEditorTrackId?.trim();
+      if (!trackId) {
+        continue;
+      }
+      const rect = element.getBoundingClientRect();
+      if (clientY >= rect.top && clientY <= rect.bottom) {
+        return trackId;
+      }
+      const centerY = rect.top + rect.height / 2;
+      const distance = Math.abs(clientY - centerY);
+      if (distance < nearestDistance) {
+        nearestDistance = distance;
+        nearestTrackId = trackId;
+      }
+    }
+
+    return nearestTrackId;
+  }, []);
+
   useEffect(() => {
     if (!dragState) {
+      setDragHoverTrack(null);
+      setDragSnapGuideSec(null);
       return;
     }
 
     const handleMove = (event: MouseEvent) => {
       const deltaPx = event.clientX - dragState.originX;
       const deltaSec = (deltaPx / dragState.trackWidth) * dragState.timelineMaxSec;
+      const currentDragTrackId = dragTargetTrackIdRef.current ?? dragState.trackId;
+      const targetTrackId = dragState.mode === 'move'
+        ? resolveTrackIdFromPointer(dragState.trackKind, event.clientY, currentDragTrackId)
+        : dragState.trackId;
 
-      if (!dragHistoryPushedRef.current && dragSnapshotRef.current && Math.abs(deltaPx) > 1) {
+      dragTargetTrackIdRef.current = targetTrackId;
+      setDragHoverTrack({ kind: dragState.trackKind, trackId: targetTrackId });
+
+      if (dragState.trackKind === 'video' && selectedVideoTrackId !== targetTrackId) {
+        setSelectedVideoTrackId(targetTrackId);
+      }
+      if (dragState.trackKind === 'text' && selectedTextTrackId !== targetTrackId) {
+        setSelectedTextTrackId(targetTrackId);
+      }
+      if (dragState.trackKind === 'audio' && selectedAudioTrackId !== targetTrackId) {
+        setSelectedAudioTrackId(targetTrackId);
+      }
+
+      if (
+        !dragHistoryPushedRef.current
+        && dragSnapshotRef.current
+        && (Math.abs(deltaPx) > 1 || targetTrackId !== dragState.trackId)
+      ) {
         pushUndoSnapshot(dragSnapshotRef.current);
         dragHistoryPushedRef.current = true;
       }
 
       if (dragState.trackKind === 'video') {
+        const snapAnchors = [
+          ...collectTrackEdgesForTrack(
+            timelineClipsRef.current,
+            targetTrackId,
+            videoTrackIds,
+            DEFAULT_VIDEO_TRACK_ID,
+            dragState.clipId
+          ),
+          ...collectTrackEdges(textClipsRef.current),
+          ...collectTrackEdges(audioClipsRef.current),
+        ];
+        setDragSnapGuideSec(resolveDragSnapGuideSec(dragState, deltaSec, snapAnchors, snapEnabled));
+
         setTimelineClips((previous) => {
-          const snapAnchors = [
-            ...collectTrackEdgesForTrack(previous, dragState.trackId, videoTrackIds, DEFAULT_VIDEO_TRACK_ID, dragState.clipId),
-            ...collectTrackEdges(textClipsRef.current),
-            ...collectTrackEdges(audioClipsRef.current),
-          ];
-          return applyDragToTrack(
+          let moved = applyDragToTrack(
             previous,
             dragState,
             videoTrackIds,
             DEFAULT_VIDEO_TRACK_ID,
             deltaSec,
             snapAnchors,
-            snapEnabled
+            snapEnabled,
+            targetTrackId,
+            false
           );
+
+          const movedClip = moved.find((clip) => clip.id === dragState.clipId);
+          if (!movedClip) {
+            return moved;
+          }
+
+          if (dragState.mode === 'move') {
+            const previousCenter = dragLastCenterSecRef.current
+              ?? (dragState.startSec + dragState.durationSec / 2);
+            const currentCenter = movedClip.startSec + movedClip.durationSec / 2;
+            moved = applyCenterCrossSwap(
+              moved,
+              dragState.clipId,
+              targetTrackId,
+              videoTrackIds,
+              DEFAULT_VIDEO_TRACK_ID,
+              previousCenter,
+              currentCenter
+            );
+            const finalClip = moved.find((clip) => clip.id === dragState.clipId);
+            if (finalClip) {
+              dragLastCenterSecRef.current = finalClip.startSec + finalClip.durationSec / 2;
+            }
+            return moved;
+          }
+
+          dragLastCenterSecRef.current = movedClip.startSec + movedClip.durationSec / 2;
+          return moved;
         });
         return;
       }
 
       if (dragState.trackKind === 'text') {
+        const snapAnchors = [
+          ...collectTrackEdgesForTrack(
+            textClipsRef.current,
+            targetTrackId,
+            textTrackIds,
+            DEFAULT_TEXT_TRACK_ID,
+            dragState.clipId
+          ),
+          ...collectTrackEdges(timelineClipsRef.current),
+          ...collectTrackEdges(audioClipsRef.current),
+        ];
+        setDragSnapGuideSec(resolveDragSnapGuideSec(dragState, deltaSec, snapAnchors, snapEnabled));
+
         setTextClips((previous) => {
-          const snapAnchors = [
-            ...collectTrackEdgesForTrack(previous, dragState.trackId, textTrackIds, DEFAULT_TEXT_TRACK_ID, dragState.clipId),
-            ...collectTrackEdges(timelineClipsRef.current),
-            ...collectTrackEdges(audioClipsRef.current),
-          ];
-          return applyDragToTrack(
+          let moved = applyDragToTrack(
             previous,
             dragState,
             textTrackIds,
             DEFAULT_TEXT_TRACK_ID,
             deltaSec,
             snapAnchors,
-            snapEnabled
+            snapEnabled,
+            targetTrackId,
+            false
           );
+
+          const movedClip = moved.find((clip) => clip.id === dragState.clipId);
+          if (!movedClip) {
+            return moved;
+          }
+
+          if (dragState.mode === 'move') {
+            const previousCenter = dragLastCenterSecRef.current
+              ?? (dragState.startSec + dragState.durationSec / 2);
+            const currentCenter = movedClip.startSec + movedClip.durationSec / 2;
+            moved = applyCenterCrossSwap(
+              moved,
+              dragState.clipId,
+              targetTrackId,
+              textTrackIds,
+              DEFAULT_TEXT_TRACK_ID,
+              previousCenter,
+              currentCenter
+            );
+            const finalClip = moved.find((clip) => clip.id === dragState.clipId);
+            if (finalClip) {
+              dragLastCenterSecRef.current = finalClip.startSec + finalClip.durationSec / 2;
+            }
+            return moved;
+          }
+
+          dragLastCenterSecRef.current = movedClip.startSec + movedClip.durationSec / 2;
+          return moved;
         });
         return;
       }
 
+      const snapAnchors = [
+        ...collectTrackEdgesForTrack(
+          audioClipsRef.current,
+          targetTrackId,
+          audioTrackIds,
+          DEFAULT_AUDIO_TRACK_ID,
+          dragState.clipId
+        ),
+        ...collectTrackEdges(timelineClipsRef.current),
+        ...collectTrackEdges(textClipsRef.current),
+      ];
+      setDragSnapGuideSec(resolveDragSnapGuideSec(dragState, deltaSec, snapAnchors, snapEnabled));
+
       setAudioClips((previous) => {
-        const snapAnchors = [
-          ...collectTrackEdgesForTrack(previous, dragState.trackId, audioTrackIds, DEFAULT_AUDIO_TRACK_ID, dragState.clipId),
-          ...collectTrackEdges(timelineClipsRef.current),
-          ...collectTrackEdges(textClipsRef.current),
-        ];
-        return applyDragToTrack(
+        let moved = applyDragToTrack(
           previous,
           dragState,
           audioTrackIds,
           DEFAULT_AUDIO_TRACK_ID,
           deltaSec,
           snapAnchors,
-          snapEnabled
+          snapEnabled,
+          targetTrackId,
+          false
         );
+
+        const movedClip = moved.find((clip) => clip.id === dragState.clipId);
+        if (!movedClip) {
+          return moved;
+        }
+
+        if (dragState.mode === 'move') {
+          const previousCenter = dragLastCenterSecRef.current
+            ?? (dragState.startSec + dragState.durationSec / 2);
+          const currentCenter = movedClip.startSec + movedClip.durationSec / 2;
+          moved = applyCenterCrossSwap(
+            moved,
+            dragState.clipId,
+            targetTrackId,
+            audioTrackIds,
+            DEFAULT_AUDIO_TRACK_ID,
+            previousCenter,
+            currentCenter
+          );
+          const finalClip = moved.find((clip) => clip.id === dragState.clipId);
+          if (finalClip) {
+            dragLastCenterSecRef.current = finalClip.startSec + finalClip.durationSec / 2;
+          }
+          return moved;
+        }
+
+        dragLastCenterSecRef.current = movedClip.startSec + movedClip.durationSec / 2;
+        return moved;
       });
     };
 
     const handleUp = () => {
+      if (!dragHistoryPushedRef.current) {
+        setDragState(null);
+        dragSnapshotRef.current = null;
+        dragTargetTrackIdRef.current = null;
+        dragLastCenterSecRef.current = null;
+        setDragHoverTrack(null);
+        setDragSnapGuideSec(null);
+        return;
+      }
+
+      const committedTrackId = dragTargetTrackIdRef.current ?? dragState.trackId;
+      if (dragState.trackKind === 'video') {
+        setTimelineClips((previous) => normalizeTrackClips(
+          previous.map((clip) => (
+            clip.id === dragState.clipId ? { ...clip, trackId: committedTrackId } : clip
+          )),
+          videoTrackIds,
+          DEFAULT_VIDEO_TRACK_ID
+        ));
+        setSelectedVideoTrackId(
+          resolveTrackId(committedTrackId, videoTrackIds, DEFAULT_VIDEO_TRACK_ID)
+        );
+      } else if (dragState.trackKind === 'text') {
+        setTextClips((previous) => normalizeTrackClips(
+          previous.map((clip) => (
+            clip.id === dragState.clipId ? { ...clip, trackId: committedTrackId } : clip
+          )),
+          textTrackIds,
+          DEFAULT_TEXT_TRACK_ID
+        ));
+        setSelectedTextTrackId(
+          resolveTrackId(committedTrackId, textTrackIds, DEFAULT_TEXT_TRACK_ID)
+        );
+      } else {
+        setAudioClips((previous) => normalizeTrackClips(
+          previous.map((clip) => (
+            clip.id === dragState.clipId ? { ...clip, trackId: committedTrackId } : clip
+          )),
+          audioTrackIds,
+          DEFAULT_AUDIO_TRACK_ID
+        ));
+        setSelectedAudioTrackId(
+          resolveTrackId(committedTrackId, audioTrackIds, DEFAULT_AUDIO_TRACK_ID)
+        );
+      }
+
       setDragState(null);
       dragSnapshotRef.current = null;
       dragHistoryPushedRef.current = false;
+      dragTargetTrackIdRef.current = null;
+      dragLastCenterSecRef.current = null;
+      setDragHoverTrack(null);
+      setDragSnapGuideSec(null);
     };
 
     window.addEventListener('mousemove', handleMove);
@@ -1230,7 +1645,18 @@ export const VideoEditorModal = memo(({
       window.removeEventListener('mousemove', handleMove);
       window.removeEventListener('mouseup', handleUp);
     };
-  }, [audioTrackIds, dragState, pushUndoSnapshot, snapEnabled, textTrackIds, videoTrackIds]);
+  }, [
+    audioTrackIds,
+    dragState,
+    pushUndoSnapshot,
+    resolveTrackIdFromPointer,
+    selectedAudioTrackId,
+    selectedTextTrackId,
+    selectedVideoTrackId,
+    snapEnabled,
+    textTrackIds,
+    videoTrackIds,
+  ]);
 
   useEffect(() => {
     if (!isPlaying) {
@@ -1257,6 +1683,11 @@ export const VideoEditorModal = memo(({
   }, [isPlaying, safeTimelineMaxSec, stopTicker]);
 
   const handleTrackMouseDown = useCallback((event: ReactMouseEvent<HTMLDivElement>) => {
+    const target = event.target as HTMLElement | null;
+    if (target?.closest('[data-video-editor-clip="true"]')) {
+      return;
+    }
+
     const rect = timelineTrackRef.current?.getBoundingClientRect();
     if (!rect || rect.width <= 0) {
       return;
@@ -1283,6 +1714,10 @@ export const VideoEditorModal = memo(({
 
     dragSnapshotRef.current = buildSnapshot();
     dragHistoryPushedRef.current = false;
+    dragTargetTrackIdRef.current = trackId;
+    dragLastCenterSecRef.current = clip.startSec + clip.durationSec / 2;
+    setDragHoverTrack({ kind: trackKind, trackId });
+    setDragSnapGuideSec(null);
 
     setDragState({
       trackKind,
@@ -1875,7 +2310,7 @@ export const VideoEditorModal = memo(({
                 </div>
 
                 <div className="relative px-2 py-2">
-                  <div className="space-y-2">
+                  <div className="flex flex-col gap-2">
                     {videoTrackIds.map((trackId, trackIndex) => {
                       const clipsInTrack = sortTrackClips(
                         timelineClips.filter(
@@ -1885,8 +2320,14 @@ export const VideoEditorModal = memo(({
                       return (
                         <div
                           key={trackId}
-                          className={`nodrag nowheel relative h-[56px] rounded-lg border border-[var(--ui-border-soft)] bg-[linear-gradient(180deg,rgba(56,189,248,0.12),rgba(var(--surface-rgb),0.14))] ${
+                          data-video-editor-track-kind="video"
+                          data-video-editor-track-id={trackId}
+                          className={`order-10 nodrag nowheel relative h-[56px] rounded-lg border border-[var(--ui-border-soft)] bg-[linear-gradient(180deg,rgba(56,189,248,0.12),rgba(var(--surface-rgb),0.14))] ${
                             selectedVideoTrackId === trackId ? 'ring-1 ring-cyan-200/80' : ''
+                          } ${
+                            dragHoverTrack?.kind === 'video' && dragHoverTrack.trackId === trackId
+                              ? 'ring-2 ring-cyan-300/90 shadow-[0_0_0_1px_rgba(56,189,248,0.35)_inset]'
+                              : ''
                           }`}
                           onMouseDown={() => setSelectedVideoTrackId(trackId)}
                           onDragOver={handleTimelineDragOver}
@@ -1912,7 +2353,8 @@ export const VideoEditorModal = memo(({
                             return (
                               <div
                                 key={clip.id}
-                                className={`absolute bottom-1 top-6 rounded-md border border-cyan-300/60 bg-gradient-to-r from-cyan-500/45 to-sky-500/45 shadow-[0_8px_18px_rgba(6,182,212,0.22)] transition-[left,width] duration-75 ${
+                                data-video-editor-clip="true"
+                                className={`absolute bottom-1 top-6 rounded-md border border-cyan-300/60 bg-gradient-to-r from-cyan-500/45 to-sky-500/45 shadow-[0_8px_18px_rgba(6,182,212,0.22)] transition-[left,width] duration-150 ease-out ${
                                   isEditing
                                     ? 'ring-2 ring-yellow-200/90'
                                     : isSelected
@@ -1975,8 +2417,14 @@ export const VideoEditorModal = memo(({
                       return (
                         <div
                           key={trackId}
-                          className={`nodrag nowheel relative h-[56px] rounded-lg border border-[var(--ui-border-soft)] bg-[linear-gradient(180deg,rgba(168,85,247,0.14),rgba(var(--surface-rgb),0.14))] ${
+                          data-video-editor-track-kind="audio"
+                          data-video-editor-track-id={trackId}
+                          className={`order-30 nodrag nowheel relative h-[56px] rounded-lg border border-[var(--ui-border-soft)] bg-[linear-gradient(180deg,rgba(168,85,247,0.14),rgba(var(--surface-rgb),0.14))] ${
                             selectedAudioTrackId === trackId ? 'ring-1 ring-purple-200/80' : ''
+                          } ${
+                            dragHoverTrack?.kind === 'audio' && dragHoverTrack.trackId === trackId
+                              ? 'ring-2 ring-purple-300/90 shadow-[0_0_0_1px_rgba(168,85,247,0.35)_inset]'
+                              : ''
                           }`}
                           onMouseDown={() => setSelectedAudioTrackId(trackId)}
                           onDragOver={handleTimelineDragOver}
@@ -1999,7 +2447,8 @@ export const VideoEditorModal = memo(({
                             return (
                               <div
                                 key={clip.id}
-                                className={`absolute bottom-1 top-6 rounded-md border border-purple-300/60 bg-gradient-to-r from-purple-500/45 to-fuchsia-500/40 shadow-[0_8px_18px_rgba(168,85,247,0.22)] transition-[left,width] duration-75 ${
+                                data-video-editor-clip="true"
+                                className={`absolute bottom-1 top-6 rounded-md border border-purple-300/60 bg-gradient-to-r from-purple-500/45 to-fuchsia-500/40 shadow-[0_8px_18px_rgba(168,85,247,0.22)] transition-[left,width] duration-150 ease-out ${
                                   isSelected ? 'ring-2 ring-purple-100/90' : ''
                                 }`}
                                 style={{ left, width }}
@@ -2056,8 +2505,14 @@ export const VideoEditorModal = memo(({
                       return (
                         <div
                           key={trackId}
-                          className={`nodrag nowheel relative h-[56px] rounded-lg border border-[var(--ui-border-soft)] bg-[linear-gradient(180deg,rgba(245,158,11,0.14),rgba(var(--surface-rgb),0.14))] ${
+                          data-video-editor-track-kind="text"
+                          data-video-editor-track-id={trackId}
+                          className={`order-20 nodrag nowheel relative h-[56px] rounded-lg border border-[var(--ui-border-soft)] bg-[linear-gradient(180deg,rgba(245,158,11,0.14),rgba(var(--surface-rgb),0.14))] ${
                             selectedTextTrackId === trackId ? 'ring-1 ring-amber-200/80' : ''
+                          } ${
+                            dragHoverTrack?.kind === 'text' && dragHoverTrack.trackId === trackId
+                              ? 'ring-2 ring-amber-300/90 shadow-[0_0_0_1px_rgba(245,158,11,0.35)_inset]'
+                              : ''
                           }`}
                           onMouseDown={() => setSelectedTextTrackId(trackId)}
                         >
@@ -2079,7 +2534,8 @@ export const VideoEditorModal = memo(({
                             return (
                               <div
                                 key={clip.id}
-                                className={`absolute bottom-1 top-6 rounded-md border border-amber-300/60 bg-gradient-to-r from-amber-500/50 to-orange-500/45 shadow-[0_8px_16px_rgba(251,146,60,0.2)] transition-[left,width] duration-75 ${
+                                data-video-editor-clip="true"
+                                className={`absolute bottom-1 top-6 rounded-md border border-amber-300/60 bg-gradient-to-r from-amber-500/50 to-orange-500/45 shadow-[0_8px_16px_rgba(251,146,60,0.2)] transition-[left,width] duration-150 ease-out ${
                                   isEditing
                                     ? 'ring-2 ring-yellow-100/90'
                                     : isActive
@@ -2132,6 +2588,17 @@ export const VideoEditorModal = memo(({
                       );
                     })}
                   </div>
+
+                  {dragSnapGuideSec !== null ? (
+                    <div
+                      className="pointer-events-none absolute bottom-0 top-0 z-10 w-px bg-sky-300/95 shadow-[0_0_10px_rgba(56,189,248,0.85)]"
+                      style={{ left: `${toTimelinePercent(dragSnapGuideSec, safeTimelineMaxSec)}%` }}
+                    >
+                      <div className="absolute -top-6 left-1/2 -translate-x-1/2 rounded border border-sky-300/70 bg-sky-500/80 px-1.5 py-0.5 ui-timecode text-[10px] text-white">
+                        {formatSeconds(dragSnapGuideSec)}
+                      </div>
+                    </div>
+                  ) : null}
 
                   <div
                     className="pointer-events-none absolute bottom-0 top-0 z-20 w-0.5 bg-accent/95 shadow-[0_0_8px_rgba(249,115,22,0.9)]"
